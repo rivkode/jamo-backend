@@ -2,7 +2,7 @@
 
 `:contracts` 모듈에 정의된 모든 **gRPC 서비스(proto)** 와 **Kafka 이벤트(Java record)** 의 카탈로그.
 
-> 현재는 모듈/proto/이벤트가 **아직 작성되지 않았으며**, 본 문서는 ADR-0002 결정에 따라 등장할 예정 항목을 사전 카탈로그화한 placeholder. 실제 작성 시점마다 본 문서를 갱신해야 한다 (작성/수정 PR에 본 문서 갱신을 함께 포함).
+> 현재는 모듈/proto/이벤트가 **아직 작성되지 않았으며**, 본 문서는 ADR-0002/0003 결정에 따라 등장할 예정 항목을 사전 카탈로그화한 placeholder. 실제 작성 시점마다 본 문서를 갱신해야 한다 (작성/수정 PR에 본 문서 갱신을 함께 포함).
 
 명명/버전 정책은 ADR-0004(예정) 에서 확정.
 
@@ -11,21 +11,36 @@
 ## 1. gRPC Services (proto)
 
 ### 위치 규약
-- `contracts/src/main/proto/<service>.proto`
+- 디렉토리: `contracts/src/main/proto/<service>.proto`
 - 패키지: `app.backend.jamo.contracts.proto.<service>`
-- 주석으로 **제공자 / 호출자 / 용도** 명시 필수
+- 주석으로 **제공자 / 호출자 / 용도 / 언어** 명시 필수
+- **양쪽 빌드 입력**: Java (`grpc-spring-boot-starter`) + **Python (`python-services/ai-service` 의 `grpcio-tools`)** ⭐
 - field number 변경 금지, 삭제 시 `reserved`
 
 ### 서비스 카탈로그
 
-| 서비스 | proto | 제공자 | 호출자 | 용도 | 상태 |
-|---|---|---|---|---|---|
-| `AiAssistantService` | `chat.proto` | chat-service | diary-service, learning-service(활성화 시), platform-service(미정) | LLM 호출 단일 진입점. `requestSentenceFeedback`, `generateChatResponse`, `validateDiaryContent`, `paraphrase` 등 메서드 보유 예상 | 📝 미작성 |
-| `UserSummaryService` | `identity.proto` | identity-service | platform-service(랭킹 표시명) | userId → 닉네임/프로필 사진 등 표시용 요약 조회 | 📝 미작성 |
+| 서비스 | proto 파일 | 제공자 | 호출자 | 언어 (제공자/호출자) | 용도 | 상태 |
+|---|---|---|---|---|---|---|
+| `AiAssistantService` | `chat.proto` | chat-service | diary-service, learning-service(활성화 시), diarychat, validation | Java / Java | **AI 비즈니스 게이트웨이** — 비즈니스 의미가 있는 메서드(`requestSentenceFeedback`, `validateDiaryContent`, `generateChatResponse`, `paraphrase` 등). chat-service 가 프롬프트 템플릿/사용량/rate limit 처리 후 ai-service 호출. (ADR-0003) | 📝 미작성 |
+| `AiService` ⭐ | `ai.proto` | ai-service (Python) | chat-service (Java) | **Python / Java** | **순수 LLM 추론** — 일반화된 메서드(`complete`, 향후 `completeStream`). prompt + temperature + maxTokens → completion + usage. 무상태. (ADR-0003) | 📝 미작성 |
+| `UserSummaryService` | `identity.proto` | identity-service | platform-service(랭킹 표시명) | Java / Java | userId → 닉네임/프로필 사진 등 표시용 요약 조회 | 📝 미작성 |
+
+### Java↔Python proto 빌드 동기화 (ADR-0003 Open Item)
+
+`contracts/src/main/proto/*.proto` 변경 시 **두 빌드를 모두 갱신**해야 함:
+
+| 측 | 도구 | 산출물 |
+|---|---|---|
+| Java | `grpc-spring-boot-starter` (Gradle 자동) | `contracts/build/generated/source/proto/main/java/` |
+| Python | `python -m grpc_tools.protoc` (수동 또는 Makefile/uv script) | `python-services/ai-service/proto/*_pb2.py`, `*_pb2_grpc.py` |
+
+자동화 방식은 ADR-0003 Open Item 으로 결정 예정 (후보: Gradle task 가 Python 빌드 trigger / `make proto` / pre-commit hook).
 
 ### 결정 대기 항목 (ADR-0005 예정)
-- `AiAssistantService` 의 응답이 unary RPC 인지 server-streaming RPC 인지 (LLM 응답 길이/UX 따라)
-- Python LLM 서버와의 proto 공유 방식 (Java/Python 양쪽 빌드)
+- `AiAssistantService` 의 메서드 카탈로그 — 비즈니스 의미별 분리 vs 단일 `chatCompletion(type, payload)` 일반화
+- `AiService.complete` 의 정확한 시그니처 (input fields, output fields, error codes)
+- 응답 RPC 종류: unary 시작 (ADR-0003), server-streaming 도입 시점
+- Python 빌드 자동화 방식
 - gRPC Deadline 표준값 (서비스별 / 메서드별)
 
 ---
@@ -38,6 +53,7 @@
 - 필수 필드: `eventId`(UUID, 멱등성 키), `occurredAt`(Instant)
 - JavaDoc 으로 **발행자 / 구독자 / 토픽 / 용도** 명시 필수
 - Breaking Change 시 새 버전 클래스 (`UserWithdrawalRequestedV2`)
+- ai-service 는 무상태이므로 Kafka 이벤트 발행/구독 없음 (gRPC 만 사용)
 
 ### 이벤트 카탈로그
 
@@ -72,7 +88,7 @@
 | `ChatGenerated` | `event/chat/` | chat | platform(랭킹) | `chat-events` | AI 채팅 생성 활동 |
 | `VoiceInputProcessed` | `event/chat/` | chat | platform(랭킹) | `chat-events` | 음성 입력 활동 |
 
-> 모든 이벤트는 **Outbox 패턴**으로 발행. 구독 측은 **`ProcessedEvent` 멱등성 검증** 필수. 자세한 내용은 `.claude/skills/module-boundary/SKILL.md` (PR #2 갱신 후) 참조.
+> 모든 이벤트는 **Outbox 패턴**으로 발행. 구독 측은 **`ProcessedEvent` 멱등성 검증** 필수. 자세한 내용은 `.claude/skills/module-boundary/SKILL.md` (PR #2b 갱신 후) 참조.
 
 ---
 
@@ -80,7 +96,7 @@
 
 | 변경 유형 | 액션 |
 |---|---|
-| 새 proto 파일 추가 | 본 문서 §1 표에 추가, 같은 PR 에서 |
+| 새 proto 파일 추가 | 본 문서 §1 표에 추가, 같은 PR 에서. **Java + Python 양쪽 빌드** 검증 |
 | 새 Kafka 이벤트 추가 | 본 문서 §2 표에 추가, 같은 PR 에서 |
 | 필드 추가 (호환) | proto 새 field number / record 새 필드. 본 문서 비고 컬럼에 변경 시점 기록 |
 | 필드 제거 | proto `reserved`, record 는 새 버전 클래스. 본 문서에 deprecation 표시 |
@@ -91,6 +107,7 @@
 ## 4. 관련 문서
 
 - [ADR-0002 서비스 분할](../adr/0002-service-decomposition.md)
+- [ADR-0003 AI 호출 분리](../adr/0003-ai-call-architecture.md)
 - [Service ↔ Domain Mapping](service-domain-mapping.md)
 - (예정) ADR-0004 contracts 명명/버전 표준
-- (예정) ADR-0005 AI gateway 인터페이스 설계
+- (예정) ADR-0005 AI gateway / LLM 인터페이스 설계
