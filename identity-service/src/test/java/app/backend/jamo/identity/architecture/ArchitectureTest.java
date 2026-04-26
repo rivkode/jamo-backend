@@ -6,6 +6,7 @@ import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 
 /**
  * identity-service 의 모듈 경계 / 계층 자동 검증.
@@ -47,4 +48,14 @@ public class ArchitectureTest {
                 "com.fasterxml.jackson.."
             )
             .as("domain 계층은 프레임워크에 의존하지 않는다");
+
+    /** R10 — JPA 연관관계 어노테이션 금지 (ADR-0005). 외래 키는 ID 컬럼만 보유. */
+    @ArchTest
+    static final ArchRule no_jpa_relationship_annotations =
+        noFields()
+            .should().beAnnotatedWith(jakarta.persistence.ManyToOne.class)
+            .orShould().beAnnotatedWith(jakarta.persistence.OneToMany.class)
+            .orShould().beAnnotatedWith(jakarta.persistence.OneToOne.class)
+            .orShould().beAnnotatedWith(jakarta.persistence.ManyToMany.class)
+            .as("JPA 연관관계 어노테이션 금지 — ID 컬럼만 보유 (ADR-0005)");
 }

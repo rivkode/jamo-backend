@@ -5,10 +5,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -29,9 +26,8 @@ public class OAuthIdentityJpaEntity {
     @Column(name = "id", columnDefinition = "BINARY(16)")
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false, foreignKey = @jakarta.persistence.ForeignKey(name = "fk_oauth_identity_user"))
-    private UserJpaEntity user;
+    @Column(name = "user_id", columnDefinition = "BINARY(16)", nullable = false)
+    private UUID userId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "provider", nullable = false, length = 16)
@@ -46,18 +42,18 @@ public class OAuthIdentityJpaEntity {
     protected OAuthIdentityJpaEntity() {
     }
 
-    public OAuthIdentityJpaEntity(UUID id, OAuthProvider provider, String providerUserId, Instant createdAt) {
+    public OAuthIdentityJpaEntity(UUID id, UUID userId, OAuthProvider provider,
+                                  String providerUserId, Instant createdAt) {
         this.id = id;
+        this.userId = userId;
         this.provider = provider;
         this.providerUserId = providerUserId;
         this.createdAt = createdAt;
     }
 
     public UUID getId() { return id; }
-    public UserJpaEntity getUser() { return user; }
+    public UUID getUserId() { return userId; }
     public OAuthProvider getProvider() { return provider; }
     public String getProviderUserId() { return providerUserId; }
     public Instant getCreatedAt() { return createdAt; }
-
-    void setUser(UserJpaEntity user) { this.user = user; }
 }

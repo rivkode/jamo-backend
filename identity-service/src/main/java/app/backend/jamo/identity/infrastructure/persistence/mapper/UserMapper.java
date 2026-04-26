@@ -11,9 +11,6 @@ import app.backend.jamo.identity.infrastructure.persistence.entity.OAuthIdentity
 import app.backend.jamo.identity.infrastructure.persistence.entity.UserJpaEntity;
 
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 public final class UserMapper {
 
@@ -21,65 +18,57 @@ public final class UserMapper {
     }
 
     public static UserJpaEntity toJpaEntity(User user) {
-        UserJpaEntity entity = new UserJpaEntity(
+        return new UserJpaEntity(
                 user.id().value(),
                 user.displayName().value(),
                 user.email().map(Email::value).orElse(null),
                 user.createdAt(),
                 user.updatedAt()
         );
-        for (OAuthIdentity identity : user.oauthIdentities()) {
-            OAuthIdentityJpaEntity child = new OAuthIdentityJpaEntity(
-                    identity.id().value(),
-                    identity.provider(),
-                    identity.providerUserId().value(),
-                    identity.createdAt()
-            );
-            entity.addOauthIdentity(child);
-        }
-        return entity;
     }
 
     public static UserJpaEntity mergeInto(UserJpaEntity entity, User user) {
         entity.setDisplayName(user.displayName().value());
         entity.setEmail(user.email().map(Email::value).orElse(null));
         entity.setUpdatedAt(user.updatedAt());
-
-        Map<UUID, OAuthIdentityJpaEntity> existing = entity.getOauthIdentities().stream()
-                .collect(Collectors.toMap(OAuthIdentityJpaEntity::getId, e -> e));
-        for (OAuthIdentity identity : user.oauthIdentities()) {
-            if (!existing.containsKey(identity.id().value())) {
-                OAuthIdentityJpaEntity child = new OAuthIdentityJpaEntity(
-                        identity.id().value(),
-                        identity.provider(),
-                        identity.providerUserId().value(),
-                        identity.createdAt()
-                );
-                entity.addOauthIdentity(child);
-            }
-        }
         return entity;
     }
 
-    public static User toDomain(UserJpaEntity entity) {
-        Email email = entity.getEmail() != null ? new Email(entity.getEmail()) : null;
-        List<OAuthIdentity> identities = entity.getOauthIdentities().stream()
+    public static List<OAuthIdentityJpaEntity> toOAuthEntities(User user) {
+        return user.oauthIdentities().stream()
+                .map(UserMapper::toOAuthEntity)
+                .toList();
+    }
+
+    public static OAuthIdentityJpaEntity toOAuthEntity(OAuthIdentity identity) {
+        return new OAuthIdentityJpaEntity(
+                identity.id().value(),
+                identity.userId().value(),
+                identity.provider(),
+                identity.providerUserId().value(),
+                identity.createdAt()
+        );
+    }
+
+    public static User toDomain(UserJpaEntity user, List<OAuthIdentityJpaEntity> identities) {
+        Email email = user.getEmail() != null ? new Email(user.getEmail()) : null;
+        List<OAuthIdentity> domainIdentities = identities.stream()
                 .map(UserMapper::toOAuthIdentity)
                 .toList();
         return User.restore(
-                new UserId(entity.getId()),
-                new DisplayName(entity.getDisplayName()),
+                new UserId(user.getId()),
+                new DisplayName(user.getDisplayName()),
                 email,
-                entity.getCreatedAt(),
-                entity.getUpdatedAt(),
-                identities
+                user.getCreatedAt(),
+                user.getUpdatedAt(),
+                domainIdentities
         );
     }
 
     public static OAuthIdentity toOAuthIdentity(OAuthIdentityJpaEntity entity) {
         return OAuthIdentity.restore(
                 new OAuthIdentityId(entity.getId()),
-                new UserId(entity.getUser().getId()),
+                new UserId(entity.getUserId()),
                 entity.getProvider(),
                 new ProviderUserId(entity.getProviderUserId()),
                 entity.getCreatedAt()
