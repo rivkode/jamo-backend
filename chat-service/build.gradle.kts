@@ -8,6 +8,8 @@ description = "Chat service — chat (14 API) + AI 비즈니스 게이트웨이 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
     implementation(project(":contracts"))
+    implementation(project(":common-auth-jwt"))
+    implementation(project(":common-infrastructure"))
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
