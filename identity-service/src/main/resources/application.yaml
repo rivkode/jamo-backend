@@ -1,10 +1,76 @@
 spring:
   application:
     name: identity-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  datasource:
+    url: ${IDENTITY_DB_URL:jdbc:mysql://localhost:3306/identity?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8}
+    username: ${IDENTITY_DB_USERNAME:identity}
+    password: ${IDENTITY_DB_PASSWORD:identity}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
 
-# 향후 web / data-jpa / data-redis / kafka / grpc starter 추가 시 활성화 (ADR-0002)
-# server:
-#   port: 8081
-# grpc:
-#   server:
-#     port: 9091
+server:
+  port: ${IDENTITY_SERVER_PORT:8081}
+
+jamo:
+  jwt:
+    issuer: ${JWT_ISSUER:https://identity.jamoai.app}
+    audience: ${JWT_AUDIENCE:jamo-services}
+    key-id: ${JWT_KEY_ID:identity-k1}
+    private-key-pem: ${JWT_PRIVATE_KEY_PEM:}
+    public-key-pem: ${JWT_PUBLIC_KEY_PEM:}
+    access-ttl: PT15M
+    refresh-ttl: P30D
+    clock-skew: PT30S
+  oauth:
+    authcode-ttl: PT60S
+    state-cookie:
+      domain: ${STATE_COOKIE_DOMAIN:}
+      secure: ${STATE_COOKIE_SECURE:false}
+      same-site: Lax
+      max-age: PT5M
+    providers:
+      kakao:
+        client-id: ${KAKAO_CLIENT_ID:}
+        client-secret: ${KAKAO_CLIENT_SECRET:}
+        redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:8081/api/v1/auth/oauth/kakao/callback}
+        authorize-url: https://kauth.kakao.com/oauth/authorize
+        token-url: https://kauth.kakao.com/oauth/token
+        userinfo-url: https://kapi.kakao.com/v2/user/me
+        scope: profile_nickname,account_email
+      naver:
+        client-id: ${NAVER_CLIENT_ID:}
+        client-secret: ${NAVER_CLIENT_SECRET:}
+        redirect-uri: ${NAVER_REDIRECT_URI:http://localhost:8081/api/v1/auth/oauth/naver/callback}
+        authorize-url: https://nid.naver.com/oauth2.0/authorize
+        token-url: https://nid.naver.com/oauth2.0/token
+        userinfo-url: https://openapi.naver.com/v1/nid/me
+        scope: profile,email
+      google:
+        client-id: ${GOOGLE_CLIENT_ID:}
+        client-secret: ${GOOGLE_CLIENT_SECRET:}
+        redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8081/api/v1/auth/oauth/google/callback}
+        authorize-url: https://accounts.google.com/o/oauth2/v2/auth
+        token-url: https://oauth2.googleapis.com/token
+        userinfo-url: https://openidconnect.googleapis.com/v1/userinfo
+        scope: openid profile email
+  frontend:
+    base-url: ${FRONTEND_BASE_URL:https://jamoai.app}

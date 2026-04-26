@@ -1,0 +1,72 @@
+package app.backend.jamo.identity.infrastructure.config;
+
+import app.backend.jamo.common.auth.BlacklistChecker;
+import app.backend.jamo.common.auth.JwtIssuer;
+import app.backend.jamo.common.auth.JwtVerifier;
+import app.backend.jamo.common.auth.KeyProvider;
+import app.backend.jamo.common.auth.RsaJwtIssuer;
+import app.backend.jamo.common.auth.RsaJwtVerifier;
+import app.backend.jamo.common.auth.RsaKeyPairKeyProvider;
+import app.backend.jamo.identity.domain.model.auth.AuthorizationCodeGenerator;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.jwk.RSAKey;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.security.SecureRandom;
+import java.text.ParseException;
+import java.time.Clock;
+
+@Configuration
+@EnableConfigurationProperties({JwtProperties.class, OAuthProviderProperties.class})
+public class IdentityServiceConfig {
+
+    @Bean
+    public Clock systemClock() {
+        return Clock.systemUTC();
+    }
+
+    @Bean
+    public SecureRandom secureRandom() {
+        return new SecureRandom();
+    }
+
+    @Bean
+    public AuthorizationCodeGenerator authorizationCodeGenerator(SecureRandom random) {
+        return new AuthorizationCodeGenerator(random);
+    }
+
+    @Bean
+    public KeyProvider jwtKeyProvider(JwtProperties props) {
+        try {
+            RSAKey key = JwkPemReader.readSigningKey(props.privateKeyPem(), props.publicKeyPem(), props.keyId());
+            return new RsaKeyPairKeyProvider(key);
+        } catch (JOSEException | ParseException e) {
+            throw new IllegalStateException("failed to load RSA signing key from configuration", e);
+        }
+    }
+
+    @Bean
+    public JwtIssuer jwtIssuer(KeyProvider keyProvider, JwtProperties props) {
+        return new RsaJwtIssuer(keyProvider, props.issuer(), props.audience());
+    }
+
+    @Bean
+    public JwtVerifier jwtVerifier(KeyProvider keyProvider, JwtProperties props,
+                                   BlacklistChecker blacklistChecker, Clock clock) {
+        return new RsaJwtVerifier(
+                keyProvider,
+                props.issuer(),
+                props.audience(),
+                blacklistChecker,
+                clock,
+                props.clockSkew()
+        );
+    }
+
+    @Bean
+    public BlacklistChecker blacklistChecker() {
+        return BlacklistChecker.noop();
+    }
+}
