@@ -2,6 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.5.14" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
+    id("com.google.protobuf") version "0.9.4" apply false
 }
 
 allprojects {
@@ -15,8 +16,6 @@ allprojects {
 
 subprojects {
     apply(plugin = "java")
-    apply(plugin = "org.springframework.boot")
-    apply(plugin = "io.spring.dependency-management")
 
     java {
         toolchain {
@@ -25,11 +24,7 @@ subprojects {
     }
 
     dependencies {
-        "implementation"("org.springframework.boot:spring-boot-starter")
-        "testImplementation"("org.springframework.boot:spring-boot-starter-test")
-        "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
-
-        // ArchUnit — 모듈 의존성 / 계층 자동 검증 (.claude/skills/module-boundary/references/archunit-rules.md)
+        // ArchUnit — 모듈 의존성 / 계층 자동 검증 (모든 모듈 공통)
         "testImplementation"("com.tngtech.archunit:archunit-junit5:1.3.0")
     }
 

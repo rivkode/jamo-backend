@@ -8,6 +8,7 @@ pluginManagement {
 rootProject.name = "jamo"
 
 include(
+    ":contracts",
     ":identity-service",
     ":diary-service",
     ":chat-service",
