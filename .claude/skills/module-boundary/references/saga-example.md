@@ -1,196 +1,287 @@
-# Saga 패턴 예시 — 예약 생성 플로우
+# Saga 예시 — 회원 탈퇴 (Choreography)
 
-여러 서비스에 걸친 트랜잭션을 분산 트랜잭션 없이 최종 일관성으로 처리.
+`module-boundary/SKILL.md` §6 의 상세 시나리오.
 
-**스택**: gRPC (동기 호출), Kafka (비동기 이벤트), MySQL (로컬 트랜잭션 + Outbox), Redis (읽기 캐시)
+여러 서비스에 걸친 트랜잭션은 분산 트랜잭션(2PC, JTA) 대신 **Saga + 보상 트랜잭션**으로 처리한다. jamo 의 대표 케이스는 **회원 탈퇴** — 5개 Java 서비스에 흩어진 사용자 데이터를 모두 정리한 뒤 identity-service 가 최종적으로 User 를 HARD DELETE 한다.
 
----
-
-## 플로우
-
-```
-[client] → POST /reservations
-             ↓
-[reservation-service]
-   1. 투숙객 유효성 확인 (동기 — guest-service gRPC 호출, Deadline 3s)
-   2. RoomTypeInventory 차감 + Reservation 생성 (로컬 MySQL 트랜잭션)
-   3. Outbox 테이블에 ReservationCreated 적재 (같은 트랜잭션)
-             ↓
-        Outbox Relay (스케줄러) → Kafka (reservation-events 토픽)
-        ↙              ↓                 ↘
-[hotel-service]  [rate-service]    [guest-service]
-  Redis 가용성      BillingCreated      VisitHistoryUpdated
-  캐시 감소         or
-                  BillingCreationFailed
-             ↓
-[reservation-service]  구독
-  - 실패 시 Reservation 취소 (보상 트랜잭션 — 재고 복원)
-```
+> ai-service 는 무상태이므로 Saga 참여 X.
 
 ---
 
-## 코드
+## 1. 흐름 (Choreography)
 
-### 1. 예약 생성 Application Service
+```
+[SPA] ── HTTPS DELETE /api/v1/users/me ──▶ [identity-service]
+                                                    │ 1. User.requestWithdrawal() — 상태 WITHDRAWING
+                                                    │ 2. UserWithdrawalRequested 이벤트 Outbox 발행
+                                                    │    (DB tx 안에서 outbox_entries 에 저장)
+                                                    │
+                                                    │ scheduler → Kafka(user-events)
+                                                    ▼
+            ┌──────────────────────┬──────────────────────┬──────────────────────┐
+            │                      │                      │                      │
+            ▼                      ▼                      ▼                      ▼
+    [diary-service]         [chat-service]         [learning-service]    [platform-service]
+     ProcessedEvent 체크     ProcessedEvent 체크     ProcessedEvent 체크   ProcessedEvent 체크
+     사용자 데이터 삭제        사용자 데이터 삭제        sentence/word 삭제     shorts/event/feedback
+     (diary, comment,         (chat, channel,                                + Redis ZSET 점수
+      sentence_feedback,       usage counter)                                  ZREM ranking:global
+      diarychat 등)
+            │                      │                      │                      │
+            │ UserDataPurged.diary │ UserDataPurged.chat  │ ...                  │ UserDataPurged.platform
+            ▼                      ▼                      ▼                      ▼
+                            Kafka(user-events)
+                                    │
+                                    ▼
+                          [identity-service]
+                            UserDataPurgedListener
+                            ProcessedEvent 체크
+                            WithdrawalProgress 갱신 (4개 서비스 회신 모두 받았는지)
+                            모두 OK → User HARD DELETE + UserDeleted 발행 (선택)
+```
+
+---
+
+## 2. 이벤트 정의
 
 ```java
-@Service
-public class CreateReservationService {
+// contracts/event/identity/UserWithdrawalRequested.java
+public record UserWithdrawalRequested(
+    String eventId, Instant occurredAt, String userId
+) { /* 검증 생략 */ }
 
-    private final ReservationRepository reservationRepository;
-    private final RoomTypeInventoryRepository inventoryRepository;
-    private final GuestLookup guestLookup;           // Domain 인터페이스 (gRPC)
-    private final OutboxEventPublisher eventPublisher;
+// contracts/event/identity/UserDataPurged.java
+public record UserDataPurged(
+    String eventId, Instant occurredAt,
+    String userId,
+    String service          // "diary" | "chat" | "learning" | "platform"
+) { /* 검증 생략 */ }
+```
+
+토픽: `user-events` (모든 회원 탈퇴 관련 이벤트 단일 토픽). 구분은 이벤트 타입 + `service` 필드.
+
+---
+
+## 3. 발행 측 — identity-service
+
+```java
+// identity-service/.../application/UserWithdrawalService.java
+@Service
+public class UserWithdrawalService {
+
+    private final UserRepository userRepo;
+    private final OutboxEventPublisher outbox;
     private final Clock clock;
 
     @Transactional
-    public ReservationId create(CreateReservationCommand command) {
-        Instant now = Instant.now(clock);
+    public void requestWithdrawal(UserId userId) {
+        User user = userRepo.findById(userId)
+            .orElseThrow(() -> new UserNotFoundException(userId));
 
-        // 1. 동기 조회 — 투숙객 존재 확인 (gRPC)
-        guestLookup.findById(command.guestId())
-            .orElseThrow(() -> new GuestNotFoundException(command.guestId()));
+        user.requestWithdrawal(Instant.now(clock));   // Domain 메서드 — 상태 WITHDRAWING 으로 전이
+        userRepo.save(user);
 
-        // 2. 로컬 트랜잭션 — 재고 차감 + 예약 생성
-        RoomTypeInventory inventory = inventoryRepository
-            .findByHotelAndRoomTypeAndDate(
-                command.hotelId(), command.roomTypeId(), command.checkInDate())
-            .orElseThrow(() -> new InventoryNotFoundException(
-                command.hotelId(), command.roomTypeId(), command.checkInDate()));
-
-        inventory.decrease(command.numberOfRooms());
-        inventoryRepository.save(inventory);
-
-        Reservation reservation = Reservation.create(
-            ReservationId.generate(),
-            command.guestId(), command.hotelId(), command.roomTypeId(),
-            command.checkInDate(), command.checkOutDate(),
-            command.numberOfGuests(), now);
-        reservationRepository.save(reservation);
-
-        // 3. Outbox 에 이벤트 적재 (같은 MySQL 트랜잭션)
-        eventPublisher.publish(new ReservationCreated(
-            UUID.randomUUID().toString(),
-            now,
-            reservation.id().value(),
-            command.guestId().value(),
-            command.hotelId().value(),
-            command.roomTypeId().value(),
-            command.checkInDate(),
-            command.checkOutDate(),
-            command.numberOfGuests()
-        ), "reservation-events");
-
-        return reservation.id();
-    }
-}
-```
-
-**핵심**: 1번 gRPC 호출은 트랜잭션 **전**. 2~3번이 한 트랜잭션. 외부 호출과 DB 쓰기를 트랜잭션 안에 섞지 않는다.
-
-### 2. 가용성 캐시 갱신 리스너 (hotel-service)
-
-```java
-@Component
-public class ReservationCreatedAvailabilityListener {
-
-    private final ProcessedEventRepository processedEventRepo;
-    private final RoomAvailabilityCacheUpdater cacheUpdater;   // Redis 접근
-
-    @KafkaListener(topics = "reservation-events", groupId = "hotel-service")
-    @Transactional
-    public void on(ReservationCreated event) {
-        if (processedEventRepo.existsByEventId(event.eventId())) {
-            return;
-        }
-
-        // Redis 캐시에서 해당 호텔/타입/날짜 범위의 가용성 감소
-        cacheUpdater.decreaseAvailability(
-            event.hotelId(), event.roomTypeId(),
-            event.checkInDate(), event.checkOutDate());
-
-        processedEventRepo.save(new ProcessedEvent(event.eventId(), Instant.now()));
-    }
-}
-```
-
-**주의**: Redis 실패 시에도 MySQL 트랜잭션은 커밋되어야 함 → 캐시 불일치 발생. 정기적인 **캐시 재구축 배치**로 복구.
-
-### 3. 요금 정산 리스너 (rate-service)
-
-```java
-@Component
-public class ReservationCreatedBillingListener {
-
-    private final ProcessedEventRepository processedEventRepo;
-    private final BillingService billingService;
-    private final OutboxEventPublisher eventPublisher;
-
-    @KafkaListener(topics = "reservation-events", groupId = "rate-service")
-    @Transactional
-    public void on(ReservationCreated event) {
-        if (processedEventRepo.existsByEventId(event.eventId())) {
-            return;
-        }
-
-        try {
-            billingService.createBilling(new CreateBillingCommand(
-                event.reservationId(), event.roomTypeId(),
-                event.checkInDate(), event.checkOutDate()));
-
-            processedEventRepo.save(new ProcessedEvent(event.eventId(), Instant.now()));
-
-        } catch (RoomTypeRateNotFoundException e) {
-            // 요금 정보 없음 → 예약 서비스에 실패 알림 (보상 트리거)
-            eventPublisher.publish(new BillingCreationFailed(
+        outbox.publish(
+            new UserWithdrawalRequested(
                 UUID.randomUUID().toString(),
-                Instant.now(),
-                event.reservationId(),
-                e.getMessage()
-            ), "billing-events");
-
-            processedEventRepo.save(new ProcessedEvent(event.eventId(), Instant.now()));
-        }
+                Instant.now(clock),
+                userId.value()),
+            "user-events"
+        );
     }
 }
 ```
 
-### 4. 보상 트랜잭션 리스너 (reservation-service)
+WithdrawalProgress Aggregate (identity 스키마):
 
 ```java
-@Component
-public class BillingCreationFailedListener {
+// identity-service/.../domain/withdrawal/WithdrawalProgress.java
+public class WithdrawalProgress {
+    private final UserId userId;
+    private final Set<String> remainingServices;     // {"diary", "chat", "learning", "platform"}
+    private final Set<String> purgedServices;
+    private WithdrawalStatus status;                 // IN_PROGRESS | COMPLETED | TIMEOUT
+    private Instant requestedAt;
+    private Instant completedAt;
 
-    private final ProcessedEventRepository processedEventRepo;
-    private final CancelReservationService cancelReservationService;
-
-    @KafkaListener(topics = "billing-events", groupId = "reservation-service")
-    public void on(BillingCreationFailed event) {
-        if (processedEventRepo.existsByEventId(event.eventId())) {
+    public void markPurged(String service, Instant now) {
+        if (status != WithdrawalStatus.IN_PROGRESS) {
+            throw new InvalidWithdrawalTransitionException(status);
+        }
+        if (!remainingServices.remove(service)) {
+            // 이미 처리됨 — 중복 회신 (멱등 처리)
             return;
         }
+        purgedServices.add(service);
+        if (remainingServices.isEmpty()) {
+            this.status = WithdrawalStatus.COMPLETED;
+            this.completedAt = now;
+        }
+    }
 
-        // 예약 취소 (보상 트랜잭션) — 내부에서 재고 복원 + ReservationCancelled 이벤트 발행
-        cancelReservationService.cancel(new CancelReservationCommand(
-            new ReservationId(event.reservationId()),
-            new CancellationReason("BILLING_FAILED")
-        ));
+    public boolean isComplete() { return status == WithdrawalStatus.COMPLETED; }
+}
+```
 
-        processedEventRepo.save(new ProcessedEvent(event.eventId(), Instant.now()));
+---
+
+## 4. 구독 측 — diary-service (예시, 다른 서비스도 동일 패턴)
+
+```java
+// diary-service/.../infrastructure/messaging/UserWithdrawalRequestedListener.java
+import app.backend.jamo.contracts.event.identity.UserWithdrawalRequested;
+import app.backend.jamo.contracts.event.identity.UserDataPurged;
+
+@Component
+public class UserWithdrawalRequestedListener {
+
+    private final ProcessedEventRepository processedEventRepo;
+    private final DiaryUserDataPurgeService purgeService;
+    private final OutboxEventPublisher outbox;
+    private final Clock clock;
+
+    @KafkaListener(topics = "user-events", groupId = "diary-service-withdrawal")
+    @Transactional
+    public void on(UserWithdrawalRequested event) {
+        // 1. 멱등성
+        if (processedEventRepo.existsByEventId(event.eventId())) return;
+
+        // 2. 사용자 데이터 일괄 삭제
+        purgeService.purgeAllForUser(new UserId(event.userId()));
+
+        // 3. ProcessedEvent 기록
+        processedEventRepo.save(new ProcessedEvent(event.eventId(), Instant.now(clock)));
+
+        // 4. 회신 이벤트 발행 (같은 트랜잭션의 outbox)
+        outbox.publish(
+            new UserDataPurged(
+                UUID.randomUUID().toString(),
+                Instant.now(clock),
+                event.userId(),
+                "diary"),
+            "user-events"
+        );
+    }
+}
+```
+
+`DiaryUserDataPurgeService` 는 diary 스키마의 모든 테이블에서 `user_id = ?` row 를 삭제한다 (diary, comment, sentence_feedback, diarychat_room, diarychat_message 등). 외래키 cascade 또는 명시적 순서 삭제.
+
+---
+
+## 5. 회신 수신 — identity-service
+
+```java
+// identity-service/.../infrastructure/messaging/UserDataPurgedListener.java
+@Component
+public class UserDataPurgedListener {
+
+    private final ProcessedEventRepository processedEventRepo;
+    private final WithdrawalProgressRepository progressRepo;
+    private final UserRepository userRepo;
+    private final OutboxEventPublisher outbox;       // (선택) UserDeleted 후처리
+    private final Clock clock;
+
+    @KafkaListener(topics = "user-events", groupId = "identity-service-purge-receiver")
+    @Transactional
+    public void on(UserDataPurged event) {
+        if (processedEventRepo.existsByEventId(event.eventId())) return;
+
+        WithdrawalProgress progress = progressRepo
+            .findByUserId(new UserId(event.userId()))
+            .orElseThrow(() -> new WithdrawalProgressNotFoundException(event.userId()));
+
+        progress.markPurged(event.service(), Instant.now(clock));
+        progressRepo.save(progress);
+
+        if (progress.isComplete()) {
+            User user = userRepo.findById(progress.userId())
+                .orElseThrow(() -> new UserNotFoundException(progress.userId()));
+            userRepo.delete(user);
+
+            // 선택: 후처리 알림
+            outbox.publish(
+                new UserDeleted(UUID.randomUUID().toString(), Instant.now(clock), event.userId()),
+                "user-events"
+            );
+        }
+
+        processedEventRepo.save(new ProcessedEvent(event.eventId(), Instant.now(clock)));
     }
 }
 ```
 
 ---
 
-## 핵심 체크리스트
+## 6. 보상 / 미회신 처리
 
-- [ ] 각 단계가 **로컬 트랜잭션**으로 완결?
-- [ ] 이벤트 발행이 **Outbox** 로 DB 와 원자성 보장?
-- [ ] 외부 gRPC 호출이 **트랜잭션 밖**에?
-- [ ] gRPC 에 **Deadline** 설정?
-- [ ] 구독 측 **멱등성** 보장?
-- [ ] **보상 트랜잭션** 정의?
-- [ ] 최종 상태 (성공 / 보상 / 데드레터) 명확?
-- [ ] 캐시 재구축 배치 존재?
-- [ ] ADR 문서화?
+Saga 의 어느 단계에서 실패하면? jamo 는 **자동 보상보다는 운영 알림 + 수동 정리** 로 시작 (ADR-0002 후속 결정). 자동 보상은 추후 ADR.
+
+**미회신 처리 (스케줄러)**:
+
+```java
+// identity-service/.../infrastructure/scheduler/WithdrawalTimeoutChecker.java
+@Component
+public class WithdrawalTimeoutChecker {
+
+    private final WithdrawalProgressRepository progressRepo;
+    private final AlertService alertService;        // 운영 슬랙/이메일 등
+    private final Clock clock;
+
+    @Scheduled(fixedDelay = 5 * 60 * 1000)          // 5분마다
+    public void check() {
+        Instant threshold = Instant.now(clock).minus(Duration.ofHours(1));   // 1시간 미회신
+        List<WithdrawalProgress> stalled = progressRepo
+            .findInProgressOlderThan(threshold);
+
+        for (WithdrawalProgress p : stalled) {
+            alertService.notifyStalledWithdrawal(
+                p.userId(), p.remainingServices(), p.requestedAt()
+            );
+        }
+    }
+}
+```
+
+운영자가 알림 받으면:
+1. 어느 서비스가 회신 안 했는지 확인 (`progress.remainingServices()`)
+2. 해당 서비스 로그/DLQ 확인 (이벤트 처리 실패 원인)
+3. 수동 재처리 후 `UserDataPurged` 발행 (운영 도구 또는 직접 SQL)
+4. `WithdrawalProgress` 가 COMPLETED 로 전이되며 User HARD DELETE 자동 실행
+
+---
+
+## 7. 멱등성 / 중복 발행 보호
+
+at-least-once Kafka 환경 + Outbox 재발행 가능성:
+
+| 위치 | 보호 |
+|---|---|
+| 각 서비스의 `UserWithdrawalRequested` 처리 | `ProcessedEvent` 테이블의 `eventId` 체크 → 중복 시 skip |
+| 각 서비스의 `UserDataPurged` 발행 | 멱등 키 = `eventId` (UUID). 같은 사용자에 대한 재발행도 OK (identity 측이 `WithdrawalProgress.markPurged` 에서 이미 처리된 service 면 skip) |
+| identity 의 `UserDataPurged` 수신 | `ProcessedEvent` + Aggregate 의 idempotent 메서드 |
+| 최종 User HARD DELETE | `WithdrawalProgress.status == COMPLETED` 1회만 트리거 |
+
+---
+
+## 8. 자가 검증 체크리스트
+
+- [ ] Saga 이벤트 모두 `contracts/event/identity/` 에 정의
+- [ ] `UserWithdrawalRequested`, `UserDataPurged` JavaDoc 에 발행자/구독자/토픽 명시
+- [ ] 각 서비스의 데이터 삭제 후 `UserDataPurged` 발행 (Outbox)
+- [ ] identity-service 의 `WithdrawalProgress` Aggregate 가 회신 수집/완료 판정
+- [ ] `WithdrawalTimeoutChecker` 스케줄러 — 미회신 알림
+- [ ] 모든 Consumer 에 `ProcessedEvent` 멱등성
+- [ ] 사용자 활동 점수 (Redis ZSET) 도 platform-service 의 purge 단계에서 ZREM
+- [ ] PII (이메일, 닉네임 등) 가 다른 서비스의 캐시/Read Model 에 남아있지 않은지 확인
+
+---
+
+## 9. 향후 보강 (후속 ADR)
+
+- 자동 보상: 미회신 시 자동 롤백 (User 상태를 ACTIVE 로 복구) — 위험: 일부 서비스만 삭제된 부분 일관성 상태
+- Sagas Orchestration 변형 (학습 비교용)
+- `UserDeleted` 이벤트 후처리: 외부 시스템 (SendGrid 구독 해지 등)
+- GDPR 우선순위: 즉시 익명화 먼저, 물리 삭제는 retention 후
+
+자세한 결정은 ADR-0002 의 후속 결정 항목 + 별도 ADR (예: ADR-00XX 회원 탈퇴 Saga 보상 정책) 에서.
