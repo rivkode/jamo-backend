@@ -1,10 +1,10 @@
 ---
-api_id: profile.retrieveProfile
+api_id: profile.getProfile
 http_method: GET
 path: /api/v1/profiles/{userId}
 auth: Y
 controller: ProfileApiController.kt
-handler: retrieveProfile
+handler: getProfile
 status: mined
 ---
 

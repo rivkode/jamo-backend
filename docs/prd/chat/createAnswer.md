@@ -1,10 +1,10 @@
 ---
-api_id: chat.registerAnswer
+api_id: chat.createAnswer
 http_method: POST
 path: /api/v1/answers
 auth: Y
 controller: AnswerApiController.kt
-handler: registerAnswer
+handler: createAnswer
 status: mined
 ---
 

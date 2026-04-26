@@ -1,10 +1,10 @@
 ---
-api_id: chat.registerQuestion
+api_id: chat.createQuestion
 http_method: POST
 path: /api/v1/questions
 auth: Y
 controller: QuestionApiController.kt
-handler: registerQuestion
+handler: createQuestion
 status: mined
 ---
 

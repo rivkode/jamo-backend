@@ -1,10 +1,10 @@
 ---
-api_id: word.registerChoiceWord
+api_id: word.createChoiceWord
 http_method: POST
 path: /api/v1/words/choice
 auth: Y
 controller: WordApiController.kt
-handler: registerChoiceWord
+handler: createChoiceWord
 status: mined
 ---
 

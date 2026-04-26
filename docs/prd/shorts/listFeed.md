@@ -1,10 +1,10 @@
 ---
-api_id: shorts.retrieveFeed
+api_id: shorts.listFeed
 http_method: GET
 path: /api/v1/shorts/feed
 auth: Y
 controller: ShortsApiController.kt
-handler: retrieveFeed
+handler: listFeed
 status: mined
 ---
 

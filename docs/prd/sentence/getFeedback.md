@@ -1,10 +1,10 @@
 ---
-api_id: sentence.retrieveFeedback
+api_id: sentence.getFeedback
 http_method: GET
 path: /api/v1/sentences/{sentenceId}/feedback
 auth: Y
 controller: SentenceApiController.kt
-handler: retrieveFeedback
+handler: getFeedback
 status: mined
 ---
 

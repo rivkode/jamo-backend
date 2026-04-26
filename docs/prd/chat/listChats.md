@@ -1,10 +1,10 @@
 ---
-api_id: chat.retrieveChatList
+api_id: chat.listChats
 http_method: GET
 path: /api/v1/chatrooms/{chatRoomId}/chat
 auth: Y
 controller: ChatRoomApiController.kt
-handler: retrieveChatList
+handler: listChats
 status: mined
 ---
 

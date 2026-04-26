@@ -1,10 +1,10 @@
 ---
-api_id: profile.retrieveSavedClips
+api_id: profile.listSavedClips
 http_method: GET
 path: /api/v1/profiles/{userId}/saved-clips
 auth: N (⚠️ `@LoginUser` 없음)
 controller: ProfileApiController.kt
-handler: retrieveSavedClips
+handler: listSavedClips
 status: mined
 ---
 

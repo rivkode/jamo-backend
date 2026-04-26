@@ -1,10 +1,10 @@
 ---
-api_id: event.events
+api_id: event.createEvent
 http_method: POST
 path: /api/v1/events
 auth: Y
 controller: EventController.kt
-handler: events
+handler: createEvent
 status: mined
 ---
 

@@ -1,10 +1,10 @@
 ---
-api_id: word.retrieveReviewWords
+api_id: word.listReviewWords
 http_method: GET
 path: /api/v1/words/review/{wordListId}
 auth: Y
 controller: WordApiController.kt
-handler: retrieveReviewWords
+handler: listReviewWords
 status: mined
 ---
 

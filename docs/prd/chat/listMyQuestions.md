@@ -1,10 +1,10 @@
 ---
-api_id: chat.retrieveMyQuestionList
+api_id: chat.listMyQuestions
 http_method: GET
 path: /api/v1/questions/me
 auth: Y
 controller: QuestionApiController.kt
-handler: retrieveMyQuestionList
+handler: listMyQuestions
 status: mined
 ---
 

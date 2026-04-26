@@ -1,10 +1,10 @@
 ---
-api_id: chat.registerChat
+api_id: chat.createChat
 http_method: POST
 path: /api/v1/chat
 auth: Y
 controller: ChatApiController.kt
-handler: registerChat
+handler: createChat
 status: mined
 ---
 

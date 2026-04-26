@@ -1,10 +1,10 @@
 ---
-api_id: diary.getDetail
+api_id: diary.get
 http_method: GET
 path: /api/v1/diaries/{diaryId}
 auth: Y
 controller: DiaryController.kt
-handler: getDetail
+handler: get
 status: mined
 ---
 

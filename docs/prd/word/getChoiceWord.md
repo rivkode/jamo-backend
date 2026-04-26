@@ -1,10 +1,10 @@
 ---
-api_id: word.retrieveChoiceWord
+api_id: word.getChoiceWord
 http_method: GET
 path: /api/v1/words/choice
 auth: Y
 controller: WordApiController.kt
-handler: retrieveChoiceWord
+handler: getChoiceWord
 status: mined
 ---
 

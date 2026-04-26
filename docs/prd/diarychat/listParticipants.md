@@ -1,10 +1,10 @@
 ---
-api_id: diarychat.participants
+api_id: diarychat.listParticipants
 http_method: GET
 path: /api/v1/diary-chatrooms/{roomId}/participants
 auth: Y
 controller: DiaryChatRoomController.kt
-handler: participants
+handler: listParticipants
 status: mined
 ---
 

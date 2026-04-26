@@ -1,10 +1,10 @@
 ---
-api_id: feedback.registerFeedback
+api_id: feedback.createFeedback
 http_method: POST
 path: /api/v1/feedbacks
 auth: Y
 controller: FeedbackApiController.kt
-handler: registerFeedback
+handler: createFeedback
 status: mined
 ---
 

@@ -1,10 +1,10 @@
 ---
-api_id: chat.registerChatRoom
+api_id: chat.createChatRoom
 http_method: POST
 path: /api/v1/chatrooms
 auth: Y
 controller: ChatRoomApiController.kt
-handler: registerChatRoom
+handler: createChatRoom
 status: mined
 ---
 
