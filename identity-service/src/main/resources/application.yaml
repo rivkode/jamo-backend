@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: identity-service
+
+# 향후 web / data-jpa / data-redis / kafka / grpc starter 추가 시 활성화 (ADR-0002)
+# server:
+#   port: 8081
+# grpc:
+#   server:
+#     port: 9091
