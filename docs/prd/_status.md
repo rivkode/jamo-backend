@@ -17,7 +17,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | 도메인 | 담당 서비스 | 총 API | mined | proposed | KEEP | FIX | DROP | 평가 진행 |
 |---|---|---:|---:|---:|---:|---:|---:|:---:|
 | auth | identity-service | 5 | 5 | 0 | - | - | - | ⏳ |
-| user | identity-service | 5 | 5 | 0 | - | - | - | ⏳ |
+| user | identity-service | 4 | 4 | 0 | - | - | - | ⏳ |
 | profile | identity-service | 4 | 4 | 0 | - | - | - | ⏳ |
 | diary | diary-service | 6 | 6 | 0 | - | - | - | ⏳ |
 | comment | diary-service | 4 | 4 | 0 | - | - | - | ⏳ |
@@ -30,7 +30,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | shorts | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | event | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | feedback | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
-| **합계** | | **63** | **60** | **3** | 0 | 0 | 0 | |
+| **합계** | | **62** | **59** | **3** | 0 | 0 | 0 | |
 
 ## 평가 절차
 
@@ -43,30 +43,30 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 
 ### identity-service
 - [`auth/start.md`](auth/start.md), [`auth/callback.md`](auth/callback.md), [`auth/exchange.md`](auth/exchange.md), [`auth/refresh.md`](auth/refresh.md), [`auth/logout.md`](auth/logout.md)
-- [`user/registerUser.md`](user/registerUser.md), [`user/sendValidationNumber.md`](user/sendValidationNumber.md), [`user/validateEmail.md`](user/validateEmail.md), [`user/getMyInfo.md`](user/getMyInfo.md), [`user/getUserProfile.md`](user/getUserProfile.md)
-- [`profile/retrieveMyProfile.md`](profile/retrieveMyProfile.md), [`profile/retrieveProfile.md`](profile/retrieveProfile.md), [`profile/updateMyProfile.md`](profile/updateMyProfile.md), [`profile/retrieveSavedClips.md`](profile/retrieveSavedClips.md)
+- [`user/createUser.md`](user/createUser.md), [`user/sendValidationNumber.md`](user/sendValidationNumber.md), [`user/validateEmail.md`](user/validateEmail.md), [`user/getMyInfo.md`](user/getMyInfo.md)
+- [`profile/getMyProfile.md`](profile/getMyProfile.md), [`profile/getProfile.md`](profile/getProfile.md), [`profile/updateMyProfile.md`](profile/updateMyProfile.md), [`profile/listSavedClips.md`](profile/listSavedClips.md)
 
 ### diary-service
-- diary: [`diary/create.md`](diary/create.md), [`diary/getDetail.md`](diary/getDetail.md), [`diary/getFeed.md`](diary/getFeed.md), [`diary/getMyFeed.md`](diary/getMyFeed.md), [`diary/delete.md`](diary/delete.md), [`diary/toggleLike.md`](diary/toggleLike.md)
+- diary: [`diary/create.md`](diary/create.md), [`diary/get.md`](diary/get.md), [`diary/listFeed.md`](diary/listFeed.md), [`diary/listMyFeed.md`](diary/listMyFeed.md), [`diary/delete.md`](diary/delete.md), [`diary/toggleLike.md`](diary/toggleLike.md)
 - comment: [`comment/create.md`](comment/create.md), [`comment/list.md`](comment/list.md), [`comment/delete.md`](comment/delete.md), [`comment/toggleLike.md`](comment/toggleLike.md)
 - validation: [`validation/validate.md`](validation/validate.md), [`validation/validateLine.md`](validation/validateLine.md)
-- diarychat: [`diarychat/create.md`](diarychat/create.md), [`diarychat/get.md`](diarychat/get.md), [`diarychat/join.md`](diarychat/join.md), [`diarychat/leave.md`](diarychat/leave.md), [`diarychat/participants.md`](diarychat/participants.md), [`diarychat/aiToggle.md`](diarychat/aiToggle.md), [`diarychat/send.md`](diarychat/send.md), [`diarychat/history.md`](diarychat/history.md), [`diarychat/poll.md`](diarychat/poll.md)
+- diarychat: [`diarychat/create.md`](diarychat/create.md), [`diarychat/get.md`](diarychat/get.md), [`diarychat/join.md`](diarychat/join.md), [`diarychat/leave.md`](diarychat/leave.md), [`diarychat/listParticipants.md`](diarychat/listParticipants.md), [`diarychat/aiToggle.md`](diarychat/aiToggle.md), [`diarychat/send.md`](diarychat/send.md), [`diarychat/listMessages.md`](diarychat/listMessages.md), [`diarychat/poll.md`](diarychat/poll.md)
 - sentence-feedback (신규): [`diary/requestSentenceFeedback.md`](diary/requestSentenceFeedback.md), [`diary/acceptSentenceFeedback.md`](diary/acceptSentenceFeedback.md), [`diary/rejectSentenceFeedback.md`](diary/rejectSentenceFeedback.md)
 
 ### chat-service
 - [`chat/generateChat.md`](chat/generateChat.md), [`chat/greeting.md`](chat/greeting.md), [`chat/hello.md`](chat/hello.md), [`chat/phrase.md`](chat/phrase.md)
-- [`chat/registerAnswer.md`](chat/registerAnswer.md), [`chat/registerChat.md`](chat/registerChat.md), [`chat/registerChatRoom.md`](chat/registerChatRoom.md), [`chat/registerQuestion.md`](chat/registerQuestion.md)
-- [`chat/retrieveAnswer.md`](chat/retrieveAnswer.md), [`chat/retrieveChatList.md`](chat/retrieveChatList.md), [`chat/retrieveChatRoomList.md`](chat/retrieveChatRoomList.md), [`chat/retrieveMyQuestionList.md`](chat/retrieveMyQuestionList.md)
+- [`chat/createAnswer.md`](chat/createAnswer.md), [`chat/createChat.md`](chat/createChat.md), [`chat/createChatRoom.md`](chat/createChatRoom.md), [`chat/createQuestion.md`](chat/createQuestion.md)
+- [`chat/getAnswer.md`](chat/getAnswer.md), [`chat/listChats.md`](chat/listChats.md), [`chat/listChatRooms.md`](chat/listChatRooms.md), [`chat/listMyQuestions.md`](chat/listMyQuestions.md)
 - [`chat/speechAudio.md`](chat/speechAudio.md), [`chat/transcribeChat.md`](chat/transcribeChat.md)
 
 ### learning-service (비배포 시작)
-- sentence: [`sentence/registerSentence.md`](sentence/registerSentence.md), [`sentence/retrieveFeedback.md`](sentence/retrieveFeedback.md), [`sentence/retrieveMySentence.md`](sentence/retrieveMySentence.md), [`sentence/retrieveMySentenceList.md`](sentence/retrieveMySentenceList.md)
-- word: [`word/registerChoiceWord.md`](word/registerChoiceWord.md), [`word/retrieveChoiceWord.md`](word/retrieveChoiceWord.md), [`word/retrieveMyWord.md`](word/retrieveMyWord.md), [`word/retrieveReviewWords.md`](word/retrieveReviewWords.md)
+- sentence: [`sentence/createSentence.md`](sentence/createSentence.md), [`sentence/getFeedback.md`](sentence/getFeedback.md), [`sentence/getMySentence.md`](sentence/getMySentence.md), [`sentence/listMySentences.md`](sentence/listMySentences.md)
+- word: [`word/createChoiceWord.md`](word/createChoiceWord.md), [`word/getChoiceWord.md`](word/getChoiceWord.md), [`word/listMyWords.md`](word/listMyWords.md), [`word/listReviewWords.md`](word/listReviewWords.md)
 
 ### platform-service
-- shorts: [`shorts/retrieveFeed.md`](shorts/retrieveFeed.md)
-- event: [`event/events.md`](event/events.md)
-- feedback: [`feedback/registerFeedback.md`](feedback/registerFeedback.md)
+- shorts: [`shorts/listFeed.md`](shorts/listFeed.md)
+- event: [`event/createEvent.md`](event/createEvent.md)
+- feedback: [`feedback/createFeedback.md`](feedback/createFeedback.md)
 
 ## 관련 문서
 
