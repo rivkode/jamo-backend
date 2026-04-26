@@ -58,7 +58,7 @@ git status                       # 아직 스테이징 안 된 것
 계층 체크 전에 **서비스 경계 위반**을 먼저 검사한다. 위반 발견 시 즉시 Critical.
 
 - [ ] 어떤 서비스의 코드가 **다른 서비스의 내부 패키지**를 import 하지 않는가?
-  예: `reservation-service` 에서 `com.example.hotel.domain.*` 또는 `com.example.guest.infrastructure.*` import → Critical
+  예: `diary-service` 에서 `app.backend.jamo.identity.domain.*` 또는 `app.backend.jamo.chat.infrastructure.*` import → Critical
 - [ ] 다른 서비스 호출은 **Domain 인터페이스로 래핑**되고, gRPC 클라이언트는 `infrastructure/grpc/client/` 에만 있는가?
 - [ ] **gRPC 호출에 `withDeadlineAfter(...)` Deadline 이 설정되어 있는가?** (없으면 Critical)
 - [ ] **gRPC 호출에 `@CircuitBreaker` + `@Retry` 가 적용되어 있는가?**
@@ -68,22 +68,24 @@ git status                       # 아직 스테이징 안 된 것
 - [ ] 새로운 Kafka Producer 는 **Outbox 패턴**으로 발행하는가? (MySQL 트랜잭션 원자성)
 - [ ] `contracts/event/` 새 타입에 `eventId`, `occurredAt` 필수 필드가 있는가?
 - [ ] `contracts` 에 Spring / JPA 어노테이션이 들어가지 않았는가?
-- [ ] Redis Read Model 과 MySQL Aggregate 이름이 명확히 구분되는가? (`Inventory` vs `AvailabilityView`)
+- [ ] Redis Read Model 과 MySQL Aggregate 이름이 명확히 구분되는가? (예: platform-service 의 활동 이벤트 SoT vs Redis ZSET `ranking:global` Read Model)
 
 ```bash
-# 서비스 경계 침범 검사
-grep -rn "import com.example.hotel\." src/main/java/ | grep -v "com.example.hotel.src"
-grep -rn "import com.example.guest\." src/main/java/
-grep -rn "import com.example.rate\." src/main/java/
+# 서비스 경계 침범 검사 (변경된 서비스의 src 에서 다른 서비스 import 여부)
+# 예: diary-service 에서 다른 서비스 패키지 import 검사
+for SVC in identity diary chat learning platform; do
+  grep -rn "import app.backend.jamo.${SVC}\." <current-service>/src/main/java/ \
+    | grep -v "app.backend.jamo.${SVC}/src"
+done
 
-# contracts 에 Spring 침투 검사
+# contracts 에 Spring/JPA 침투 검사
 grep -rn "org.springframework\|jakarta.persistence" contracts/src/main/java/
 
 # Deadline 누락 검사 (gRPC 호출)
 grep -rn "BlockingStub\b" src/main/java/ | grep -v "withDeadlineAfter"
 
 # proto 클래스가 Domain/Application 에 침투했는지
-grep -rn "import com.example.contracts.proto" src/main/java/*/domain/ src/main/java/*/application/
+grep -rn "import app.backend.jamo.contracts.proto" src/main/java/*/domain/ src/main/java/*/application/
 ```
 
 계층별로 다른 체크리스트를 적용합니다.

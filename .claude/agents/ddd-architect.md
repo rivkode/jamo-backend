@@ -36,9 +36,10 @@ tools: Read, Grep, Glob
 ### 3. 체계적 검토 (아래 순서로)
 
 #### Step A: 서비스 경계 및 Bounded Context 확인
-- **이 기능이 어느 서비스 모듈에 속하는가?** (`hotel-service` / `rate-service` / `guest-service` / `reservation-service`)
-- 제안된 Aggregate 가 **해당 서비스의 책임**과 맞는가?
-- 다른 서비스가 소유해야 할 개념을 끌어오고 있지 않은가? (예: reservation-service 에서 `Hotel` 이나 `Guest` 를 Aggregate 로 만들려 하는 것)
+- **이 기능이 어느 서비스 모듈에 속하는가?** (`identity-service` / `diary-service` / `chat-service` / `learning-service` / `platform-service` / `ai-service`)
+- 제안된 Aggregate 가 **해당 서비스의 책임**과 맞는가? (서비스 ↔ 도메인 매핑은 [`docs/architecture/service-domain-mapping.md`](../../docs/architecture/service-domain-mapping.md) 참조)
+- 다른 서비스가 소유해야 할 개념을 끌어오고 있지 않은가? (예: diary-service 에서 `User` 나 `Profile` 을 Aggregate 로 만들려 하는 것 — identity-service 의 책임)
+- AI 호출이 필요하다면 chat-service 의 `AiAssistantService` (gRPC) 를 통해 진입하는가? (다른 서비스가 ai-service 직접 호출 X — ADR-0003)
 - 여러 서비스에 걸친 로직이라면:
   - 이벤트 기반(Kafka) 으로 처리 가능한가?
   - 동기 조회(gRPC) 가 필요한 경우 Deadline + Circuit Breaker / Fallback 계획이 있는가?
