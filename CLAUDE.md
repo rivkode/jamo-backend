@@ -162,6 +162,8 @@ python-services/ai-service/     # Gradle 빌드 외부, uv/poetry
 - ❌ public setter (상태 변경은 의미 있는 메서드로)
 - ❌ Controller 에서 Repository 직접 호출 (반드시 Application Service 경유)
 - ❌ Application Service 가 다른 Application Service 직접 호출 (Domain Service 또는 이벤트로)
+- ❌ **JPA 연관관계 어노테이션** (`@ManyToOne` / `@OneToMany` / `@OneToOne` / `@ManyToMany`) — 외래 ID 컬럼만 보유 + 검증은 어플리케이션 로직 (ADR-0005)
+- ❌ **DB 레벨 FOREIGN KEY constraint** (`ON DELETE CASCADE` 포함) — 인덱스 (`INDEX idx_<table>_<col>`) 만 명시 (ADR-0005)
 
 ### 서비스 경계
 - ❌ 다른 서비스 모듈의 Domain / JpaEntity / Repository import

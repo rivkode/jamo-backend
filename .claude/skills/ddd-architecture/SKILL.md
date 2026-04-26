@@ -109,6 +109,17 @@ Infrastructure (JpaEntity, Repository 구현, Mapper, 외부 시스템 연동)
 - **비즈니스 메서드 금지** — DB 매핑 전용
 - `protected` no-arg 생성자 (JPA 요구)
 - DB 구조에 최적화된 형태로 설계 가능 (Domain과 다를 수 있음)
+- **JPA 연관관계 어노테이션 금지** (`@ManyToOne`, `@OneToMany`, `@OneToOne`, `@ManyToMany`) — 외래 ID 컬럼만 보유. 부모 존재 검증은 Application/Domain Service 가 `findById` 로 명시 처리. **DB FK constraint 도 정의하지 않음**, 대신 `INDEX idx_<table>_<col>` 명시. 자세한 근거는 [ADR-0005](../../../docs/adr/0005-no-jpa-associations.md)
+  ```java
+  // ❌ 금지
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "user_id")
+  private UserJpaEntity user;
+
+  // ✅ 권장
+  @Column(name = "user_id", columnDefinition = "BINARY(16)", nullable = false)
+  private UUID userId;
+  ```
 
 ### 4.2 Mapper
 
