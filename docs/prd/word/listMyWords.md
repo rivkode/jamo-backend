@@ -1,10 +1,10 @@
 ---
-api_id: word.retrieveMyWord
+api_id: word.listMyWords
 http_method: GET
 path: /api/v1/words/me
 auth: Y
 controller: WordApiController.kt
-handler: retrieveMyWord
+handler: listMyWords
 status: mined
 ---
 

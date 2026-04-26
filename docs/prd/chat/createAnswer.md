@@ -1,35 +1,35 @@
 ---
-api_id: chat.retrieveAnswer
-http_method: GET
-path: /api/v1/answers/{questionId}
+api_id: chat.createAnswer
+http_method: POST
+path: /api/v1/answers
 auth: Y
 controller: AnswerApiController.kt
-handler: retrieveAnswer
+handler: createAnswer
 status: mined
 ---
 
-# GET /api/v1/answers/{questionId} — 질문에 대한 답변 조회
+# POST /api/v1/answers — 답변 생성 (AI)
 
 ## 1. 요청 (Request)
 - Header: `@LoginUser`
-- Path: `questionId: Long`
+- Body: `AnswerDto.RegisterRequest` (⚠️ `@Valid` 누락)
 
 ## 2. 응답 (Response)
-- 성공: `200 OK` + `AnswerDto.RetrieveResponse(answerInfo)`
+- 성공: `201 Created` + `AnswerDto.RegisterResponse(answerInfo)`
 
 ## 3. 비즈니스 로직 (요약)
-1. `answerFacade.retrieveAnswer(userId, questionId)` → 답변 조회.
+1. `answerFacade.generateAnswer(userId, registerAnswer)` → AI로 답변 생성·저장.
 
 ## 4. 데이터 의존
-- DB read: answers, questions
+- DB write: answers
+- 외부 API: AI 모델
 
 ## 5. 예외 케이스
-- 인증 실패 → 401
-- 답변 없음 → 404
-- 권한 없음 → 403/404
+- 외부 모델 실패 → 5xx
 
 ## 6. 암묵적 로직 (Implicit)
-- "answers/" 경로지만 questionId로 조회 — 답변은 question 1:1 추정.
+- 핸들러명은 `registerAnswer`인데 Facade 메서드는 `generateAnswer` — 사용자가 답변 입력이 아니라 **AI 생성**임을 시사.
+- `@Valid` 미적용.
 
 ## 6.1 AI 호출 위임 (ADR-0003)
 - chat-service 는 직접 LLM/STT/TTS 를 호출하지 않고 **ai-service (Python, gRPC)** 에 위임한다.
@@ -49,7 +49,8 @@ status: mined
 - 모바일/웹
 
 ## 8. TODO / Open Questions
-- [ ] 답변이 N개일 가능성
-- [ ] 다른 사용자의 답변 조회 권한
+- [ ] 사용자 직접 입력 vs AI 생성 구분
+- [ ] questionId가 Body에 포함되는가
 
 ## 9. KEEP/DROP/FIX 분류 (Phase 0.5에서 채움)
+- 후보: `@Valid` 추가 → `@FIX`

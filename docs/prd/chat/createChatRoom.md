@@ -1,35 +1,33 @@
 ---
-api_id: chat.registerAnswer
+api_id: chat.createChatRoom
 http_method: POST
-path: /api/v1/answers
+path: /api/v1/chatrooms
 auth: Y
-controller: AnswerApiController.kt
-handler: registerAnswer
+controller: ChatRoomApiController.kt
+handler: createChatRoom
 status: mined
 ---
 
-# POST /api/v1/answers — 답변 생성 (AI)
+# POST /api/v1/chatrooms — 채팅방 생성
 
 ## 1. 요청 (Request)
 - Header: `@LoginUser`
-- Body: `AnswerDto.RegisterRequest` (⚠️ `@Valid` 누락)
+- Body: `ChatRoomDto.RegisterRequest` (⚠️ `@Valid` 미사용 — 검증 누락)
 
 ## 2. 응답 (Response)
-- 성공: `201 Created` + `AnswerDto.RegisterResponse(answerInfo)`
+- 성공: `201 Created` + `ChatRoomDto.RegisterResponse(chatRoomInfo)`
 
 ## 3. 비즈니스 로직 (요약)
-1. `answerFacade.generateAnswer(userId, registerAnswer)` → AI로 답변 생성·저장.
+1. `chatFacade.registerChatRoom(userId, command)` → 채팅방 생성.
 
 ## 4. 데이터 의존
-- DB write: answers
-- 외부 API: AI 모델
+- DB write: chat_rooms
 
 ## 5. 예외 케이스
-- 외부 모델 실패 → 5xx
+- 인증 실패 → 401
 
 ## 6. 암묵적 로직 (Implicit)
-- 핸들러명은 `registerAnswer`인데 Facade 메서드는 `generateAnswer` — 사용자가 답변 입력이 아니라 **AI 생성**임을 시사.
-- `@Valid` 미적용.
+- **Body에 `@Valid` 누락** — Bean Validation 어노테이션이 적용 안 됨. (`@FIX` 후보)
 
 ## 6.1 AI 호출 위임 (ADR-0003)
 - chat-service 는 직접 LLM/STT/TTS 를 호출하지 않고 **ai-service (Python, gRPC)** 에 위임한다.
@@ -49,8 +47,8 @@ status: mined
 - 모바일/웹
 
 ## 8. TODO / Open Questions
-- [ ] 사용자 직접 입력 vs AI 생성 구분
-- [ ] questionId가 Body에 포함되는가
+- [ ] 동일 사용자 중복 채팅방 생성 정책
+- [ ] 채팅방 메타데이터(이름/타입 등)
 
 ## 9. KEEP/DROP/FIX 분류 (Phase 0.5에서 채움)
 - 후보: `@Valid` 추가 → `@FIX`

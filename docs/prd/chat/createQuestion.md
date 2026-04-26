@@ -1,33 +1,33 @@
 ---
-api_id: chat.registerChatRoom
+api_id: chat.createQuestion
 http_method: POST
-path: /api/v1/chatrooms
+path: /api/v1/questions
 auth: Y
-controller: ChatRoomApiController.kt
-handler: registerChatRoom
+controller: QuestionApiController.kt
+handler: createQuestion
 status: mined
 ---
 
-# POST /api/v1/chatrooms — 채팅방 생성
+# POST /api/v1/questions — 질문 등록
 
 ## 1. 요청 (Request)
 - Header: `@LoginUser`
-- Body: `ChatRoomDto.RegisterRequest` (⚠️ `@Valid` 미사용 — 검증 누락)
+- Body: `QuestionDto.RegisterRequest` (`@Valid`)
 
 ## 2. 응답 (Response)
-- 성공: `201 Created` + `ChatRoomDto.RegisterResponse(chatRoomInfo)`
+- 성공: `201 Created` + `QuestionDto.RegisterResponse(questionInfo)`
 
 ## 3. 비즈니스 로직 (요약)
-1. `chatFacade.registerChatRoom(userId, command)` → 채팅방 생성.
+1. `questionFacade.registerQuestion(command, userId)` → 질문 저장.
 
 ## 4. 데이터 의존
-- DB write: chat_rooms
+- DB write: questions
 
 ## 5. 예외 케이스
-- 인증 실패 → 401
+- validation 실패 → 400
 
 ## 6. 암묵적 로직 (Implicit)
-- **Body에 `@Valid` 누락** — Bean Validation 어노테이션이 적용 안 됨. (`@FIX` 후보)
+- (현재 정보로 판단 가능한 것 없음)
 
 ## 6.1 AI 호출 위임 (ADR-0003)
 - chat-service 는 직접 LLM/STT/TTS 를 호출하지 않고 **ai-service (Python, gRPC)** 에 위임한다.
@@ -47,8 +47,6 @@ status: mined
 - 모바일/웹
 
 ## 8. TODO / Open Questions
-- [ ] 동일 사용자 중복 채팅방 생성 정책
-- [ ] 채팅방 메타데이터(이름/타입 등)
+- [ ] 질문 후 자동 답변 생성 트리거 여부
 
 ## 9. KEEP/DROP/FIX 분류 (Phase 0.5에서 채움)
-- 후보: `@Valid` 추가 → `@FIX`

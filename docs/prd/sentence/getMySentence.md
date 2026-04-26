@@ -1,10 +1,10 @@
 ---
-api_id: sentence.retrieveMySentence
+api_id: sentence.getMySentence
 http_method: GET
 path: /api/v1/sentences/me/{sentenceId}
 auth: Y
 controller: SentenceApiController.kt
-handler: retrieveMySentence
+handler: getMySentence
 status: mined
 ---
 

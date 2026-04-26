@@ -1,10 +1,10 @@
 ---
-api_id: user.registerUser
+api_id: user.createUser
 http_method: POST
 path: /api/v1/users
 auth: N
 controller: UserApiController.kt
-handler: registerUser
+handler: createUser
 status: mined
 ---
 

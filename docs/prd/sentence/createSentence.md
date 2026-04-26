@@ -1,10 +1,10 @@
 ---
-api_id: sentence.registerSentence
+api_id: sentence.createSentence
 http_method: POST
 path: /api/v1/sentences
 auth: Y
 controller: SentenceApiController.kt
-handler: registerSentence
+handler: createSentence
 status: mined
 ---
 

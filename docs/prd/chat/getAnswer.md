@@ -1,33 +1,35 @@
 ---
-api_id: chat.registerQuestion
-http_method: POST
-path: /api/v1/questions
+api_id: chat.getAnswer
+http_method: GET
+path: /api/v1/answers/{questionId}
 auth: Y
-controller: QuestionApiController.kt
-handler: registerQuestion
+controller: AnswerApiController.kt
+handler: getAnswer
 status: mined
 ---
 
-# POST /api/v1/questions — 질문 등록
+# GET /api/v1/answers/{questionId} — 질문에 대한 답변 조회
 
 ## 1. 요청 (Request)
 - Header: `@LoginUser`
-- Body: `QuestionDto.RegisterRequest` (`@Valid`)
+- Path: `questionId: Long`
 
 ## 2. 응답 (Response)
-- 성공: `201 Created` + `QuestionDto.RegisterResponse(questionInfo)`
+- 성공: `200 OK` + `AnswerDto.RetrieveResponse(answerInfo)`
 
 ## 3. 비즈니스 로직 (요약)
-1. `questionFacade.registerQuestion(command, userId)` → 질문 저장.
+1. `answerFacade.retrieveAnswer(userId, questionId)` → 답변 조회.
 
 ## 4. 데이터 의존
-- DB write: questions
+- DB read: answers, questions
 
 ## 5. 예외 케이스
-- validation 실패 → 400
+- 인증 실패 → 401
+- 답변 없음 → 404
+- 권한 없음 → 403/404
 
 ## 6. 암묵적 로직 (Implicit)
-- (현재 정보로 판단 가능한 것 없음)
+- "answers/" 경로지만 questionId로 조회 — 답변은 question 1:1 추정.
 
 ## 6.1 AI 호출 위임 (ADR-0003)
 - chat-service 는 직접 LLM/STT/TTS 를 호출하지 않고 **ai-service (Python, gRPC)** 에 위임한다.
@@ -47,6 +49,7 @@ status: mined
 - 모바일/웹
 
 ## 8. TODO / Open Questions
-- [ ] 질문 후 자동 답변 생성 트리거 여부
+- [ ] 답변이 N개일 가능성
+- [ ] 다른 사용자의 답변 조회 권한
 
 ## 9. KEEP/DROP/FIX 분류 (Phase 0.5에서 채움)

@@ -1,10 +1,10 @@
 ---
-api_id: diarychat.history
+api_id: diarychat.listMessages
 http_method: GET
 path: /api/v1/diary-chatrooms/{roomId}/messages
 auth: Y
 controller: DiaryChatMessageController.kt
-handler: history
+handler: listMessages
 status: mined
 ---
 
