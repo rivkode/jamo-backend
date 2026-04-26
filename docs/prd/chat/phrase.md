@@ -31,6 +31,20 @@ status: mined
 - **다른 chat 엔드포인트와 달리 `@LoginUser` 없음** — 의도된 익명 허용인지 확인 필요(`@FIX` 후보).
 - 응답 status가 201인데 read-only 변환 작업으로 보임 → 200이 더 적절할 수 있음.
 
+## 6.1 AI 호출 위임 (ADR-0003)
+- chat-service 는 직접 LLM/STT/TTS 를 호출하지 않고 **ai-service (Python, gRPC)** 에 위임한다.
+- 흐름: chat-service → `AiService.{complete|speechToText|textToSpeech}` (Deadline + Retry 1회 + Circuit Breaker) → ai-service → OpenAI / Whisper / vLLM / 자체 모델.
+- chat-service 책임: 프롬프트 템플릿 / 사용자 컨텍스트 / 사용량 / rate limit / fallback 메시지.
+- ai-service 책임: 순수 AI 추론 (LLM + STT + TTS). 무상태.
+
+**추후 chat-service / ai-service 구현 시 고려사항**:
+- 응답 streaming (현재는 unary 시작, server-streaming 도입 시 본 PRD 응답 형식 영향)
+- 사용량 / 비용 추적 단위 (사용자별 / API별 / 토큰별)
+- ai-service 장애 시 fallback UX (정형 메시지 vs 5xx)
+- 프롬프트 템플릿 버전 관리 (chat 스키마에 영속)
+- AI 응답의 PII / 금칙어 sanitization 위치 (chat-service vs ai-service)
+- 음성(STT/TTS) 데이터 처리: 바이너리 크기 제한, 파일 보관 정책
+
 ## 7. 호출자 (Clients)
 - 모바일/웹 (글쓰기 보조)
 
