@@ -132,9 +132,10 @@ graph TB
 |---|---|---|
 | [ADR-0001](docs/adr/0001-authentication-architecture.md) | 인증 아키텍처 | 별도 `auth-service` + 게이트웨이 없음 + 각 서비스 JWT 직접 검증. PKCE + Refresh Rotation + Redis 블랙리스트로 디바이스별 즉시 무효화. |
 | [ADR-0002](docs/adr/0002-service-decomposition.md) | 서비스 분할 | 13 도메인 → **5 Java 서비스** (identity / diary / chat / learning / platform). 회원 탈퇴는 Choreography Saga, 활동 랭킹은 Redis ZSET Read Model. ADR-0003 보강으로 ai-service 추가. |
-| [ADR-0003](docs/adr/0003-ai-call-architecture.md) | AI 호출 분리 | **chat-service (Java)** = 비즈니스 게이트웨이 / **ai-service (Python)** = 순수 LLM 추론. 두 서비스 사이는 gRPC 긴밀 통신. Python LLM 생태계(LangChain, vLLM) 활용. |
+| [ADR-0003](docs/adr/0003-ai-call-architecture.md) | AI 호출 분리 | **chat-service (Java)** = 비즈니스 게이트웨이 / **ai-service (Python)** = 순수 LLM/STT/TTS 추론. 두 서비스 사이는 gRPC 긴밀 통신. Python AI 생태계(LangChain, vLLM, Whisper) 활용. |
+| [ADR-0004](docs/adr/0004-contracts-naming-and-versioning.md) | contracts 명명/버전/빌드 표준 | proto 파일/서비스/메시지/Kafka 이벤트의 명명 규칙, field number 변경 금지 + Breaking Change 시 V2 버전 클래스, Java/Python 양쪽 빌드 동기화 (Makefile 권고). |
 
-> 후속 ADR (ADR-0004~ ArchUnit, contracts 표준, AI gateway proto, 회원 탈퇴 Saga 상세, 활동 점수 가중치 등) 은 트리거 시점마다 추가됩니다.
+> 후속 ADR (ArchUnit 강화, AI gateway proto 인터페이스 설계, 회원 탈퇴 Saga 상세, 활동 점수 가중치 등) 은 트리거 시점마다 추가됩니다.
 
 ---
 
@@ -193,23 +194,44 @@ PRD 는 도메인별로 정리되어 있고, 진행 상태는 [`docs/prd/_status
 
 ## 빌드 & 실행 (현재 상태)
 
-> 현재는 **그린필드 부트스트랩 단계** — Spring Initializr 기본 골격만 존재합니다. 멀티모듈 분할 + 첫 use case 구현은 후속 PR 에서 진행됩니다.
+> **Phase 0 (멀티모듈 골격) 완료.** 8 Gradle 모듈 + 1 Python 서비스 구조 등록. 실제 도메인 use case 는 Phase 1+ (identity-service OAuth) 에서 시작.
 
-### Java 측 (현재)
+### Java 측 (8 모듈)
 
 ```bash
-./gradlew clean build
-./gradlew bootRun
+./gradlew clean build              # 전체
+./gradlew :identity-service:build  # 단일 서비스
+./gradlew :identity-service:bootRun
 ```
 
-### Python 측 (예정 — `python-services/ai-service/`)
+각 서비스 별도 bootRun. 8 모듈: `:contracts`, `:common-auth-jwt`, `:common-infrastructure`, `:identity-service`, `:diary-service`, `:chat-service`, `:learning-service`, `:platform-service`.
+
+### Python ai-service (`python-services/ai-service/`)
 
 ```bash
 cd python-services/ai-service
-uv sync
-uv run python main.py        # FastAPI (REST: health/admin)
-uv run python grpc_server.py # gRPC AiService
+uv sync                           # 의존성 동기화
+uv run python main.py             # FastAPI (REST: health/admin) — :8086
+uv run python grpc_server.py      # gRPC AiService 서버 — :9090 (placeholder)
 ```
+
+자세한 내용은 [`python-services/ai-service/README.md`](python-services/ai-service/README.md).
+
+### proto 빌드 (contracts 변경 시)
+
+```bash
+# Java
+./gradlew :contracts:generateProto
+
+# Python (contracts/*.proto → python-services/ai-service/proto/*_pb2.py)
+cd python-services/ai-service
+uv run python -m grpc_tools.protoc \
+    --proto_path=../../contracts/src/main/proto \
+    --python_out=proto --grpc_python_out=proto \
+    ../../contracts/src/main/proto/ai.proto
+```
+
+자동화 (Makefile) 는 [ADR-0004 §7](docs/adr/0004-contracts-naming-and-versioning.md) 권고대로 Phase 1 시점에 추가.
 
 실제 도메인 흐름은 ADR-0001/0002/0003 결정에 따라 단계별로 추가됩니다 — 시작은 identity-service 의 OAuth 흐름 use case PR 부터.
 
@@ -241,16 +263,16 @@ jamo-backend/                          # monorepo 루트
 
 ## 후속 작업 로드맵 (요약)
 
-| Phase | 내용 |
-|---|---|
-| **0** | 멀티모듈 골격 (5 Java 서비스 + contracts + common 모듈 + `python-services/ai-service/` Python 디렉토리) + ArchUnit + ADR-0004 (contracts 표준) |
-| **1** | identity-service: OAuth 시작/콜백/토큰 교환 use case |
-| **2** | identity-service: 토큰 회전/로그아웃 |
-| **3** | identity-service: LOCAL 가입 + 이메일 검증 |
-| **4** | diary-service: 일기 작성/조회/피드 |
-| **5** | **chat-service (Java) + ai-service (Python) 골격 + gRPC `AiService` 시연** (proto 빌드 자동화 + Python OpenAI 클라이언트) — **ADR-0005 (gRPC 인터페이스 설계) 함께** |
-| **6** | diary-service: sentence-feedback (PRD 3개 구현) — chat-service → ai-service 호출 흐름 검증 |
-| **7+** | diarychat / chat 도메인 나머지 / platform-service 활동·랭킹 / 회원 탈퇴 Saga |
+| Phase | 내용 | 상태 |
+|---|---|:---:|
+| **0** | 멀티모듈 골격 (5 Java 서비스 + contracts + 2 common 모듈 + `python-services/ai-service/`) + ArchUnit 골격 + ADR-0004 (contracts 표준) | ✅ 완료 (PR #4~#7) |
+| **1** | identity-service: OAuth 시작/콜백/토큰 교환 use case + Makefile (proto 빌드 자동화) | ▶ 다음 |
+| **2** | identity-service: 토큰 회전/로그아웃 | |
+| **3** | identity-service: LOCAL 가입 + 이메일 검증 | |
+| **4** | diary-service: 일기 작성/조회/피드 | |
+| **5** | **chat-service (Java) + ai-service (Python) 실 구현 + gRPC `AiService.Complete` 시연** (proto 작성 + AiServiceServicer + OpenAI 클라이언트) — **ADR-0005 (gRPC 인터페이스 설계) 함께** | |
+| **6** | diary-service: sentence-feedback (PRD 3개 구현) — chat-service → ai-service 호출 흐름 검증 | |
+| **7+** | diarychat / chat 도메인 나머지 / platform-service 활동·랭킹 / 회원 탈퇴 Saga | |
 
 ---
 
