@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: chat-service
+
+# server:
+#   port: 8083
+# grpc:
+#   server:
+#     port: 9093
+# grpc:
+#   client:
+#     ai-service:
+#       address: "static://${services.ai.host:ai-service}:${services.ai.grpc-port:9090}"
+#       negotiation-type: plaintext
