@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+
+# uv
+.uv/
+
+# 테스트 / 빌드 산출물
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.egg-info/
+build/
+dist/
+
+# IDE
+.idea/
+.vscode/
+
+# proto 생성 산출물 — 빌드시 자동 생성 (ADR-0004 §7)
+# 생성된 *_pb2.py / *_pb2_grpc.py 는 git 에 커밋하지 않음 (자동 생성물)
+proto/*_pb2.py
+proto/*_pb2_grpc.py
+proto/*_pb2.pyi

@@ -2,9 +2,9 @@
 
 `:contracts` 모듈에 정의된 모든 **gRPC 서비스(proto)** 와 **Kafka 이벤트(Java record)** 의 카탈로그.
 
-> 현재는 모듈/proto/이벤트가 **아직 작성되지 않았으며**, 본 문서는 ADR-0002/0003 결정에 따라 등장할 예정 항목을 사전 카탈로그화한 placeholder. 실제 작성 시점마다 본 문서를 갱신해야 한다 (작성/수정 PR에 본 문서 갱신을 함께 포함).
+> `:contracts` 모듈은 [PR #5](https://github.com/rivkode/jamo-backend/pull/5) 로 골격이 등록됐고, 첫 proto/이벤트는 use case 진행 시점에 PR 별로 추가된다. 본 문서는 작성/수정 PR 마다 함께 갱신해야 한다.
 
-명명/버전 정책은 ADR-0004(예정) 에서 확정.
+명명/버전/빌드 표준은 [ADR-0004](../adr/0004-contracts-naming-and-versioning.md) 에서 확정.
 
 ---
 
