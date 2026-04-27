@@ -71,7 +71,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 ## 진행 속도 / 페이스 (참고)
 
 > **운영 규약**: 모든 PR 머지 후 본 절을 즉시 갱신한다. 단계 행 추가 + 누적 시간 계산 + 남은 작업 추정 갱신.
-> 마지막 갱신: PR #23 머지 (2026-04-27 23:06) — user 도메인 첫 시리즈 (이메일 검증) 완성 — PR5-a/b/c.
+> 마지막 갱신: PR #27 머지 (2026-04-28 08:39 KST) — user 도메인 두 번째 시리즈 (LOCAL 회원가입) 완성 — PR6-a/b/c.
 
 ### 단계별 누적 시간 (2026-04-26 18:22 시작)
 
@@ -92,9 +92,13 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | Phase 5-b — user 코드: Domain + Port | ValidationCode VO + EmailSender / ValidationCodeStore / ValidationRateLimiter / EmailValidatedFlag port + 4 도메인 예외 + 결정 문서 (port 분리) | #21 | 35m | 26h 30m |
 | Phase 5-c — user 코드: Application + Infra | Send/Verify Service + Redis 어댑터 3 + LogEmailSender stub + EmailValidationProperties + 결정 문서 (운영 배포 체크리스트) | #22 | 27m | 26h 57m |
 | Phase 5-d — user 코드: Presentation + E2E | UserValidationController + 2 Request DTO + UserErrorCode/UserErrorResponse + UserExceptionHandler + WebMvcTest 13 + E2E 7 | #23 | 20m | **27h 17m** |
+| (별도) docs 페이스 갱신 (PR5 시리즈 머지 반영) | `_status.md` 단계 행 + 합계 + 남은 작업 갱신 | #24 | 7m | (트랙 외) |
+| Phase 5-e — user 코드: createUser 도메인+port | AccountType + HashedPassword VO + PasswordEncoder port + User.registerLocal + invariant 4 + 도메인 예외 2 + 결정 문서 (LOCAL 자격증명 모델링) | #25 | 40m | 27h 57m |
+| Phase 5-e — user 코드: createUser app+infra | RegisterUser Command/Result/Service (TransactionTemplate, BCrypt 트랜잭션 외부) + BCryptPasswordEncoderAdapter + Flyway V3 (CHECK + idx 통합) + UserMapper 정합 + 결정 문서 (운영 배포 체크리스트) | #26 | 35m (security 1차 NEEDS CHANGES → 재작성 포함) | 28h 32m |
+| Phase 5-e — user 코드: createUser presentation+E2E | UserRegistrationController + Request/Response DTO (WRITE_ONLY + toString 마스킹) + UserErrorCode 2종 + UserExceptionHandler 매핑 + WebMvcTest 13 + E2E 4 | #27 | 20m (test 1차 NEEDS CHANGES → 재작성 포함) | **28h 52m** |
 
-- 누적 21 PR (본 트랙) + 3 PR (#15·#18·#20 docs 페이스) / **27h 17m 실측**, 잠·식사·limit wait 약 ~9h 제외 시 **실작업 약 18-19h**
-- **평균 1.3h/PR** (AI 협업 페이스 — PR3 시리즈 1.5h/PR → PR4 시리즈 1.4h/PR → PR5 시리즈 슬라이스 평균 27m/PR 로 가속). PR5-a (PRD 평가) 의 plan + 결정 문서 비용을 제외한 코드 슬라이스 (#21~#23) 만 보면 1h 22m / 3 PR = **27m/PR**
+- 누적 24 PR (본 트랙) + 4 PR (#15·#18·#20·#24 docs 페이스) / **28h 52m 실측**, 잠·식사·limit wait 약 ~17h 제외 시 **실작업 약 12h**
+- **평균 1.2h/PR** (AI 협업 페이스 — PR3 시리즈 1.5h/PR → PR4 시리즈 1.4h/PR → PR5 시리즈 슬라이스 평균 27m/PR → PR6 시리즈 슬라이스 평균 32m/PR). PR6 슬라이스 (#25~#27) 만 보면 1h 35m / 3 PR = **32m/PR** — security 1차 NEEDS CHANGES 재작업 비용 포함, sanitize 정책이 결정 문서 5건과 PR4-c security trail 에 의해 표준화된 결과 PR5 페이스 유지
 
 ### 일반 개발 페이스 대비 배수
 
@@ -107,6 +111,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | 단일 CRUD API (Domain~Presentation+테스트) | 0.5-1일 | 1.4h | **4-8×** |
 | 단일 도메인 PRD 일괄 평가 (4건 + 도메인 경계 결정 문서) | 0.5-1일 | 2h 39m (#19) | **2-4×** |
 | 도메인 첫 코드 시리즈 (3 슬라이스 a/b/c, port 4종 + VO + 4 예외 + WebMvc/E2E + 결정 문서 2종) | 2-4일 | 1h 22m (#21~#23) | **14-35×** |
+| 도메인 두 번째 코드 시리즈 (3 슬라이스, BCrypt + Flyway V3 CHECK + 트랜잭션 분리 + 결정 문서 2종 + security 재작업) | 2-4일 | 1h 35m (#25~#27) | **12-30×** |
 
 - 품질 신호 양호: 모든 PR 에 의사결정 박제(ADR/Decision Log), ArchUnit 룰 통과, multi-agent 리뷰(code/test/security/ddd-architect) 트레일 일관 유지.
 - 속도-품질 trade-off 가 발생했다는 지표(테스트 커버리지 누락, `@Disabled`, ArchUnit 우회 등) 는 현재까지 발견되지 않음.
@@ -118,19 +123,24 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | ~~auth refresh+logout (PR4-a/b/c)~~ | ~~2~~ | ~~3~~ | ~~2h 54m~~ | ✅ 완료 (#14, #16, #17) |
 | user 평가 (Phase 5-a) | — | 1 | 2h 39m | ✅ 완료 (#19) — getMyInfo DROP, 3 FIX |
 | user 코드 — 이메일 검증 (Phase 5-b/c/d) | 2 | 3 | 1h 22m | ✅ 완료 (#21·#22·#23) — sendValidationNumber + validateEmail |
-| user 코드 — createUser (Phase 5-e) | 1 | 1-3 | ~30m-1.5h | 다음 진입 (PasswordEncoder port + LOCAL 가입 흐름 + EmailValidatedFlag.consume 사전조건) |
-| profile 평가 + 코드 | 4 | 4-6 | ~6-9h | createUser 후 (응답 스키마에 identity 필드 흡수 필수) |
+| user 코드 — createUser (Phase 5-e) | 1 | 3 | 1h 35m | ✅ 완료 (#25·#26·#27) — LOCAL 가입 + BCrypt + EmailValidatedFlag.consume 사전조건 |
+| profile 평가 + 코드 | 4 | 4-6 | ~6-9h | 다음 진입 (응답 스키마에 identity 필드 흡수 필수 — decisions/identity/user-profile-domain-boundary.md 정합) |
 | diary 계열 (diary+comment+validation+diarychat+sentence-feedback) | 24 | 24-30 | ~36-45h | profile 후 |
 | chat | 14 | 14-18 | ~21-27h | diary 후 |
 | learning (sentence + word) | 8 | 8-10 | ~12-15h | — |
 | platform (shorts + event + feedback) | 3 | 3 | ~5h | — |
-| **남은 합계** | **54** | **~55-71** | **~80-103h ≈ 영업일 10-13일** | |
+| **남은 합계** | **53** | **~52-68** | **~78-101h ≈ 영업일 10-13일** | |
 
 후속 별도 PR (PR4-c, PR5-b, PR5-c security/test 리뷰 deferral):
 - **PR4-c** Security H1 (Spring Security default-deny), H2 (rate limiting), M1 (refresh transport 결정), M2 (ArchUnit 호출자 룰), M3 (cause class logging), M5 (deviceId binding)
 - **PR4-c** Code M1 (AuthErrorCode 그룹화), M2 (AuthExchangeResponse.from 팩토리), M3 (common-auth-web 모듈 분리)
 - **PR5-b** 운영 배포 체크리스트 ([decisions/identity/email-validation-deployment-checklist.md](../decisions/identity/email-validation-deployment-checklist.md)) — LogEmailSender 운영 차단 검증, 운영 SMTP/SES 어댑터, dailyLimit 운영값 결정, 메트릭 / 알람
 - **PR5-c** Code M1 (Auth advice scope 좁히기 — `assignableTypes` 또는 `..presentation.controller.auth` 재배치)
+- **PR6-b** 운영 배포 체크리스트 ([decisions/identity/local-credential-deployment-checklist.md](../decisions/identity/local-credential-deployment-checklist.md)) — V3 마이그레이션 사전 측정 + maintenance window, BCrypt cost 운영 부하 검증, HikariCP sizing
+- **PR6-b** Security M1 (createUser IP 기반 rate limit — `createUser:ip:{ip}` Redis counter, accepted risk)
+- **PR6-b** Security M2 (LOCAL 가입자 enumeration 시도 모니터링 alarm — 동일 IP 의 register 4xx 응답률)
+- **PR6-c** Testcontainers reuse mode — E2E 컨테이너 시동 비용 절감 (현재 클래스 단위 격리)
+- **PR6-c** ArchitectureTest — user controller 추가 시 UserExceptionHandler.assignableTypes 등록 강제 검증
 
 추정의 한계:
 - AI 의존 chat API (generateChat, createAnswer 등 6-7개) 는 ai-service 진척도에 종속.
