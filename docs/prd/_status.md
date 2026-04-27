@@ -17,7 +17,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | 도메인 | 담당 서비스 | 총 API | mined | proposed | KEEP | FIX | DROP | 평가 진행 |
 |---|---|---:|---:|---:|---:|---:|---:|:---:|
 | auth | identity-service | 5 | 5 | 0 | 0 | 5 | 0 | ✅ |
-| user | identity-service | 4 | 4 | 0 | - | - | - | ⏳ |
+| user | identity-service | 4 | 4 | 0 | 0 | 3 | 1 | ✅ |
 | profile | identity-service | 4 | 4 | 0 | - | - | - | ⏳ |
 | diary | diary-service | 6 | 6 | 0 | - | - | - | ⏳ |
 | comment | diary-service | 4 | 4 | 0 | - | - | - | ⏳ |
@@ -30,7 +30,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | shorts | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | event | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | feedback | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
-| **합계** | | **62** | **59** | **3** | 0 | 5 | 0 | |
+| **합계** | | **62** | **59** | **3** | 0 | 8 | 1 | |
 
 ## 평가 절차
 
