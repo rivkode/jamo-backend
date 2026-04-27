@@ -42,4 +42,18 @@ status: mined
 - [ ] 코드 TTL 정책 확인
 - [ ] 재사용 방지(one-time) 구현 위치 확인
 
-## 9. KEEP/DROP/FIX 분류 (Phase 0.5에서 채움)
+## 9. KEEP/DROP/FIX 분류
+
+**판정: KEEP (with FIX)** — 2026-04-27
+
+PRD 의 핵심 흐름(authCode → access+refresh 토큰 페어 발급)은 그대로 유지. 다음 항목 FIX:
+
+| 변경점 | 근거 |
+|---|---|
+| TODO §8 의 "코드 TTL 정책" → **60s** (`jamo.oauth.authcode-ttl: PT60S`) | [ADR-0001 세부 정책 표](../../adr/0001-authentication-architecture.md#세부-정책) |
+| TODO §8 의 "재사용 방지(one-time)" → **Redis `getAndDelete` 로 atomic consume**. 이미 구현된 `AuthorizationCodeRedisStore` 가 보장 | PR2 skeleton (`AuthorizationCodeRedisStore.consume`) |
+| AuthExchangeFacade 명칭 → **`AuthExchangeService` (application service)**. Facade 도입 안 함 | DDD 구현 PR3-b |
+| Response DTO 확정 — `{ userId, accessToken, refreshToken, expiresIn(=900) }`. 추후 `displayNameTruncated`, `isNewUser` 등 보조 플래그 추가 가능 | PR3-b 구현 시점 |
+| Refresh 와 동일 응답 DTO 재사용 → **OK** (PRD 의 ExchangeResponse 패턴 유지). 신규 가입 / 기존 로그인 구분이 필요할 경우 별도 필드로 추가 | KEEP |
+
+**구현 PR**: PR3-b (AuthExchangeService + Controller + JWT 발급 + RefreshToken Redis 저장)

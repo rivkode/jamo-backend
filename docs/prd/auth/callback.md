@@ -50,4 +50,18 @@ status: mined
 - [ ] OAuthFacade.login 내부 신규 가입 정책
 - [ ] state 쿠키의 보안 속성 (HttpOnly/Secure/SameSite)
 
-## 9. KEEP/DROP/FIX 분류 (Phase 0.5에서 채움)
+## 9. KEEP/DROP/FIX 분류
+
+**판정: KEEP (with FIX)** — 2026-04-27, ADR-0006 와 함께 결정
+
+PRD 의 핵심 흐름(state 검증 → token+userinfo 호출 → 자체 authCode 발급 → 프론트 redirect → finally 쿠키 clear)은 그대로 유지. 다음 항목 FIX:
+
+| 변경점 | 근거 |
+|---|---|
+| TODO §8 의 "OAuthFacade.login 내부 신규 가입 정책" → **명시화: provider+providerUserId 로 매칭, 없으면 새 User 등록. 같은 email 이 다른 User 에 있어도 자동 링크 안 함** | [ADR-0006 결정 4](../../adr/0006-oauth-provider-integration.md#결정-4--이메일-중복-시-자동-링크-여부-msa-정합성) |
+| TODO §8 의 "state 쿠키 보안 속성" → start.md §9 와 동일하게 ADR-0001 + ADR-0006 으로 위임 | [ADR-0001](../../adr/0001-authentication-architecture.md) |
+| state 검증을 단순 cookie==query 비교에서 **flowSession Redis 조회 + state match + PKCE verifier 회수** 로 확장 | [ADR-0006 결정 1](../../adr/0006-oauth-provider-integration.md) |
+| Provider nickname 길이 처리 → **`DisplayName.truncated()` 32자 자동 잘림 + `displayNameTruncated` 플래그** | [ADR-0006 결정 3](../../adr/0006-oauth-provider-integration.md#결정-3--provider-nickname--displayname-길이-처리) |
+| OAuthFacade 명칭 → **`OAuthCallbackService` (application service)**. Facade 패턴 도입 안 함 (단일 진입점이라 불필요한 간접 계층) | DDD 구현 PR3-b |
+
+**구현 PR**: PR3-a (OAuthProviderClient port + HTTP adapter), PR3-b (OAuthCallbackService + Controller + UserRegistration)

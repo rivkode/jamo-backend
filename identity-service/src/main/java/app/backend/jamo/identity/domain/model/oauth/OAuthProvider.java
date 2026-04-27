@@ -21,8 +21,4 @@ public enum OAuthProvider {
             default -> throw new UnsupportedOAuthProviderException("unknown provider");
         };
     }
-
-    public boolean requiresPkce() {
-        return this != NAVER;
-    }
 }
