@@ -24,3 +24,4 @@ ADR 보다 **가벼운 단위의 결정 기록**. 한 도메인/모듈 안에서
 | auth | [Refresh Token Hash 알고리즘](auth/refresh-token-hash.md) | Accepted | 2026-04-27 | HMAC-SHA256 + pepper (envvar) — bcrypt 는 과잉, SHA-256 단독은 rainbow 표 위험 |
 | auth | [ConfigurationProperties 패키지 위치](auth/properties-package-location.md) | Accepted (단기 우회) | 2026-04-27 | Application → Infrastructure config 의존을 단기 허용. PR4 에서 패키지 이동 또는 Settings 추상화 |
 | auth | [OAuth Cookie 정책](auth/cookie-policy.md) | Accepted | 2026-04-27 | State cookie (Path=/api/v1/auth/oauth, 5분) + Device cookie (Path=/, 1년) — HttpOnly+Lax+Secure(prod) |
+| auth | [Refresh 회전 + Blacklist 도메인 Port](auth/refresh-rotation-blacklist-ports.md) | Accepted | 2026-04-27 | SessionBlacklist / SessionIdGenerator port + RefreshTokenStore.findAllSessionIds — Refresh 예외 3종 분리, SessionId VO 격상은 보류 |
