@@ -5,6 +5,7 @@ import app.backend.jamo.identity.domain.model.oauth.OAuthIdentityId;
 import app.backend.jamo.identity.domain.model.oauth.OAuthProvider;
 import app.backend.jamo.identity.domain.model.oauth.OAuthUserInfo;
 import app.backend.jamo.identity.domain.model.oauth.ProviderUserId;
+import app.backend.jamo.identity.domain.model.user.AccountType;
 import app.backend.jamo.identity.domain.model.user.DisplayName;
 import app.backend.jamo.identity.domain.model.user.Email;
 import app.backend.jamo.identity.domain.model.user.User;
@@ -93,6 +94,7 @@ class UserRegistrationServiceTest {
                 PROVIDER_USER_ID, NOW.minusSeconds(86400));
         User existingUser = User.restore(
                 existingUserId, new DisplayName("existing"), new Email("e@k.com"),
+                AccountType.OAUTH, null,
                 NOW.minusSeconds(86400), NOW.minusSeconds(86400), List.of(identity));
 
         when(oauthIdentityRepository.findByProviderAndProviderUserId(OAuthProvider.KAKAO, PROVIDER_USER_ID))
