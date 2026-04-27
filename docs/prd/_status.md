@@ -71,7 +71,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 ## 진행 속도 / 페이스 (참고)
 
 > **운영 규약**: 모든 PR 머지 후 본 절을 즉시 갱신한다. 단계 행 추가 + 누적 시간 계산 + 남은 작업 추정 갱신.
-> 마지막 갱신: PR #17 머지 (2026-04-27 17:38) — auth 도메인 5/5 완료.
+> 마지막 갱신: PR #19 머지 (2026-04-27 20:31) — user 도메인 PRD 평가 완료 (3 FIX / 1 DROP) + User vs Profile 도메인 경계 결정.
 
 ### 단계별 누적 시간 (2026-04-26 18:22 시작)
 
@@ -86,9 +86,11 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | Phase 4-b — refresh/logout | application + infrastructure | #16 | 1h 43m | 22h 44m |
 | (별도) docs 페이스 분석 추가 | `_status.md` 진행 속도 절 | #15 | 6m | (트랙 외) |
 | Phase 4-c — refresh/logout | presentation + E2E + @LoginUser | #17 | 32m | **23h 16m** |
+| (별도) docs 페이스 living rules | `_status.md` 운영 규약 + 마지막 갱신 노트 | #18 | 14m | (트랙 외) |
+| Phase 5-a — user PRD 평가 | createUser/sendValidation/validateEmail KEEP+FIX + getMyInfo DROP + 도메인 경계 결정 문서 | #19 | 2h 39m (limit wait 포함) | **25h 55m** |
 
-- 누적 17 PR (PR4 본 트랙) + 1 PR (#15 docs) / **23h 16m 실측**, 잠·식사 약 ~9h 제외 시 **실작업 약 14-15h**
-- **평균 1.4h/PR** (AI 협업 페이스 — PR3 시리즈에서 1.5h/PR → PR4 시리즈에서 1.4h/PR 로 미세 가속)
+- 누적 18 PR (본 트랙) + 2 PR (#15·#18 docs 페이스) / **25h 55m 실측**, 잠·식사·limit wait 약 ~9h 제외 시 **실작업 약 16-17h**
+- **평균 1.5h/PR** (AI 협업 페이스 — PR3 시리즈 1.5h/PR → PR4 시리즈 1.4h/PR → user 진입 첫 PR(#19) 은 plan + 결정 문서 비용으로 2h 39m, 본 트랙 평균 1.5h/PR 로 회귀)
 
 ### 일반 개발 페이스 대비 배수
 
@@ -99,6 +101,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | OAuth2 + PKCE + JWT 발급 모듈 (start/callback/exchange) | 2-4주 | 약 1일 (PR3 시리즈) | **8-15×** |
 | Refresh rotation + reuse detection + sid blacklist + logout | 1-2주 | **2h 54m (PR4 시리즈, #14→#17)** | **~14-28×** |
 | 단일 CRUD API (Domain~Presentation+테스트) | 0.5-1일 | 1.4h | **4-8×** |
+| 단일 도메인 PRD 일괄 평가 (4건 + 도메인 경계 결정 문서) | 0.5-1일 | 2h 39m (#19) | **2-4×** |
 
 - 품질 신호 양호: 모든 PR 에 의사결정 박제(ADR/Decision Log), ArchUnit 룰 통과, multi-agent 리뷰(code/test/security/ddd-architect) 트레일 일관 유지.
 - 속도-품질 trade-off 가 발생했다는 지표(테스트 커버리지 누락, `@Disabled`, ArchUnit 우회 등) 는 현재까지 발견되지 않음.
@@ -108,12 +111,14 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | 범위 | API 수 | 추정 PR | 추정 시간 | 상태 |
 |---|---|---|---|---|
 | ~~auth refresh+logout (PR4-a/b/c)~~ | ~~2~~ | ~~3~~ | ~~2h 54m~~ | ✅ 완료 (#14, #16, #17) |
-| user + profile | 8 | 8-12 | ~12-18h | 다음 진입 |
+| user 평가 (Phase 5-a) | — | 1 | 2h 39m | ✅ 완료 (#19) — getMyInfo DROP, 3 FIX |
+| user 코드 (sendValidation + validateEmail + createUser) | 3 | 3-5 | ~5-8h | 다음 진입 (BCrypt + EmailSender + ValidationCodeStore port) |
+| profile 평가 + 코드 | 4 | 4-6 | ~6-9h | user 코드 후 (응답 스키마에 identity 필드 흡수 필수) |
 | diary 계열 (diary+comment+validation+diarychat+sentence-feedback) | 24 | 24-30 | ~36-45h | profile 후 |
 | chat | 14 | 14-18 | ~21-27h | diary 후 |
 | learning (sentence + word) | 8 | 8-10 | ~12-15h | — |
 | platform (shorts + event + feedback) | 3 | 3 | ~5h | — |
-| **남은 합계** | **57** | **~57-73** | **~86-110h ≈ 영업일 11-14일** | |
+| **남은 합계** | **56** | **~57-73** | **~85-109h ≈ 영업일 11-14일** | |
 
 후속 별도 PR (PR4-c security/test 리뷰 deferral, decisions/auth/presentation-error-policy.md):
 - Security H1 (Spring Security default-deny), H2 (rate limiting), M1 (refresh transport 결정), M2 (ArchUnit 호출자 룰), M3 (cause class logging), M5 (deviceId binding)
