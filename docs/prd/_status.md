@@ -68,6 +68,51 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 - event: [`event/createEvent.md`](event/createEvent.md)
 - feedback: [`feedback/createFeedback.md`](feedback/createFeedback.md)
 
+## 진행 속도 / 페이스 (참고)
+
+### 단계별 누적 시간 (2026-04-26 18:22 시작)
+
+| 단계 | 범위 | PR | 단계 소요 | 누적 |
+|---|---|---|---|---|
+| bootstrap | Spring Boot 3.5 + Java 21 + Gradle KTS | — | — | 0h |
+| Phase 0 — 스켈레톤 | 멀티모듈, contracts, common, ai-service phase0 | #1~#7 | 3h 13m | 3h 13m |
+| Phase 1 — 기반 | PRD 네이밍 정리, `common-auth-jwt` 라이브러리 | #8~#9 | 3h 5m (식사·휴식 포함) | 6h 18m |
+| Phase 2 — identity skeleton | identity-service 도메인 layer 골격 | #10 | 56m | 7h 14m |
+| Phase 3 — identity OAuth | start/callback/exchange (PR3-a/b/c) | #11~#13 | 13h 14m (잠 ~8h 포함) | 20h 28m |
+| Phase 4-a — refresh/logout | domain + port | #14 | 39m | **21h 1m** |
+
+- 누적 14 PR / **21h 1m 실측**, 잠·식사 약 ~9h 제외 시 **실작업 약 12-13h**
+- **평균 1.5h/PR** (AI 협업 페이스)
+
+### 일반 개발 페이스 대비 배수
+
+| 작업 | 일반 솔로 개발자 | 본 프로젝트 (실측) | 배수 |
+|---|---|---|---|
+| 멀티모듈 + contracts + common + skeleton 셋업 | 1-2일 | 3h 13m | **4-12×** |
+| `common-auth-jwt` 라이브러리 (RS256 + verifier + blacklist hook) | 2-3일 | 약 15m + 사전 PRD 작업 | **20-30×** |
+| OAuth2 + PKCE + JWT 발급 + refresh rotation 인증 모듈 | 2-4주 | 약 1.5일 (PR4-c 완료 추정) | **7-15×** |
+| 단일 CRUD API (Domain~Presentation+테스트) | 0.5-1일 | 1.5h | **4-8×** |
+
+- 품질 신호 양호: 모든 PR 에 의사결정 박제(ADR/Decision Log), ArchUnit 룰 통과, multi-agent 리뷰(code/test/security/ddd-architect) 트레일 일관 유지.
+- 속도-품질 trade-off 가 발생했다는 지표(테스트 커버리지 누락, `@Disabled`, ArchUnit 우회 등) 는 현재까지 발견되지 않음.
+
+### 남은 작업 추정 (현 페이스 유지 + 단순 CRUD 가정)
+
+| 범위 | API 수 | 추정 PR | 추정 시간 |
+|---|---|---|---|
+| auth refresh+logout (PR4-b/c) | 2 | 2 | ~3h |
+| user + profile | 8 | 8-12 | ~12-18h |
+| diary 계열 (diary+comment+validation+diarychat+sentence-feedback) | 24 | 24-30 | ~36-45h |
+| chat | 14 | 14-18 | ~21-27h |
+| learning (sentence + word) | 8 | 8-10 | ~12-15h |
+| platform (shorts + event + feedback) | 3 | 3 | ~5h |
+| **합계** | **59** | **~60-75** | **~90-115h ≈ 영업일 11-14일** |
+
+추정의 한계:
+- AI 의존 chat API (generateChat, createAnswer 등 6-7개) 는 ai-service 진척도에 종속.
+- 인증·권한이 얽힌 도메인(diarychat 의 권한 검증, sentence-feedback 의 비동기 워크플로) 은 단순 CRUD 가정보다 길어질 수 있음.
+- diary/chat 진입 가능 시점은 PR4-c 머지 직후 (현 페이스로 약 1-2일 후).
+
 ## 관련 문서
 
 - [Service ↔ Domain Mapping](../architecture/service-domain-mapping.md)
