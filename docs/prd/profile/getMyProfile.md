@@ -33,5 +33,6 @@ status: mined
 
 ## 8. TODO / Open Questions
 - [ ] private vs public 필드 분리
+- [ ] **(2026-04-27 결정 반영 필요)** `user.getMyInfo` DROP 결정으로 identity 필드 5종(id / email / displayName / providers / createdAt) 흡수 예정 — [identity/user-profile-domain-boundary](../../decisions/identity/user-profile-domain-boundary.md). profile 도메인 평가 PR 에서 §1 / §2 응답 스키마 확정.
 
 ## 9. KEEP/DROP/FIX 분류 (Phase 0.5에서 채움)

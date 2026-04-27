@@ -26,3 +26,4 @@ ADR 보다 **가벼운 단위의 결정 기록**. 한 도메인/모듈 안에서
 | auth | [OAuth Cookie 정책](auth/cookie-policy.md) | Accepted | 2026-04-27 | State cookie (Path=/api/v1/auth/oauth, 5분) + Device cookie (Path=/, 1년) — HttpOnly+Lax+Secure(prod) |
 | auth | [Refresh 회전 + Blacklist 도메인 Port](auth/refresh-rotation-blacklist-ports.md) | Accepted | 2026-04-27 | SessionBlacklist / SessionIdGenerator port + RefreshTokenStore.findAllSessionIds — Refresh 예외 3종 분리, SessionId VO 격상은 보류 |
 | auth | [Presentation 응답 ErrorCode + 인증 메커니즘](auth/presentation-error-policy.md) | Accepted | 2026-04-27 | REUSE→INVALID 통합 + 인증 실패 단일 UNAUTHORIZED + @LoginUser ArgumentResolver (Spring Security 보류) — 별도 PR 9건 후속 명시 |
+| identity | [User vs Profile 도메인 경계 — `/me` 조회 단일화](identity/user-profile-domain-boundary.md) | Accepted | 2026-04-27 | `user.getMyInfo` DROP, `profile.getMyProfile` 가 identity 필드(id/email/displayName/providers/createdAt) 흡수. user 도메인은 write-only |
