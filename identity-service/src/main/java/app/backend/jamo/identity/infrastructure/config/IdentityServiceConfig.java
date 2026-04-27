@@ -8,6 +8,8 @@ import app.backend.jamo.common.auth.RsaJwtIssuer;
 import app.backend.jamo.common.auth.RsaJwtVerifier;
 import app.backend.jamo.common.auth.RsaKeyPairKeyProvider;
 import app.backend.jamo.identity.domain.model.auth.AuthorizationCodeGenerator;
+import app.backend.jamo.identity.domain.service.RefreshTokenHasher;
+import app.backend.jamo.identity.infrastructure.security.HmacRefreshTokenHasher;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.RSAKey;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -19,7 +21,11 @@ import java.text.ParseException;
 import java.time.Clock;
 
 @Configuration
-@EnableConfigurationProperties({JwtProperties.class, OAuthProviderProperties.class})
+@EnableConfigurationProperties({
+        JwtProperties.class,
+        OAuthProviderProperties.class,
+        RefreshTokenHashProperties.class
+})
 public class IdentityServiceConfig {
 
     @Bean
@@ -68,5 +74,10 @@ public class IdentityServiceConfig {
     @Bean
     public BlacklistChecker blacklistChecker() {
         return BlacklistChecker.noop();
+    }
+
+    @Bean
+    public RefreshTokenHasher refreshTokenHasher(RefreshTokenHashProperties properties) {
+        return new HmacRefreshTokenHasher(properties);
     }
 }

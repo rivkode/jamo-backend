@@ -40,6 +40,9 @@ jamo:
     access-ttl: PT15M
     refresh-ttl: P30D
     clock-skew: PT30S
+  refresh-token-hash:
+    # ≥ 32자 (256 bits) 강제. 운영 미설정 시 application 시작이 실패한다 (fail-fast).
+    pepper: ${JWT_REFRESH_HASH_PEPPER:}
   oauth:
     authcode-ttl: PT60S
     connect-timeout: PT3S
