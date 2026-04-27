@@ -45,4 +45,17 @@ status: mined
 - [ ] state 쿠키 SameSite/Secure 속성
 - [ ] PKCE 적용 여부
 
-## 9. KEEP/DROP/FIX 분류 (Phase 0.5에서 채움)
+## 9. KEEP/DROP/FIX 분류
+
+**판정: KEEP (with FIX)** — 2026-04-27, ADR-0006 와 함께 결정
+
+PRD 의 핵심 흐름(state 쿠키 + 302 redirect + provider별 authorize URL 빌드)은 그대로 유지. 다음 항목 FIX:
+
+| 변경점 | 근거 |
+|---|---|
+| TODO §8 의 "PKCE 적용 여부" → **provider별 `pkceEnabled` flag 로 결정** (Google: true, Kakao/Naver: false) | [ADR-0006 결정 1](../../adr/0006-oauth-provider-integration.md#결정-1--pkce-적용-정책-per-provider-flag) |
+| TODO §8 의 "state 쿠키 SameSite/Secure" → **`Lax` + HttpOnly + 운영 환경에서 Secure=true** | [ADR-0001](../../adr/0001-authentication-architecture.md), application.yaml `jamo.oauth.state-cookie` |
+| `X-Device-Id` 헤더 신규 입력 (없으면 fallback `web-{UUID}`, 응답 쿠키 `jamo_device_id` 로 SPA 에 전달) | [ADR-0006 결정 2](../../adr/0006-oauth-provider-integration.md#결정-2--deviceid-출처와-fallback) |
+| flowSession Redis 추가 — `state → {provider, pkceVerifier?, deviceId, redirectUri, expiresAt}` (TTL 5분) — state 쿠키만으로는 PKCE verifier 보관 불가 | [ADR-0006 결정 1·2](../../adr/0006-oauth-provider-integration.md) |
+
+**구현 PR**: PR3-a (OAuth client port + adapter), PR3-b (Application + Controller + flowSession + state cookie)
