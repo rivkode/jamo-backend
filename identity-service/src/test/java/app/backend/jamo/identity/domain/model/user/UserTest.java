@@ -1,6 +1,7 @@
 package app.backend.jamo.identity.domain.model.user;
 
 import app.backend.jamo.identity.domain.model.oauth.OAuthIdentity;
+import app.backend.jamo.identity.domain.model.oauth.OAuthIdentityId;
 import app.backend.jamo.identity.domain.model.oauth.OAuthProvider;
 import app.backend.jamo.identity.domain.model.oauth.ProviderUserId;
 import org.junit.jupiter.api.Test;
@@ -108,5 +109,100 @@ class UserTest {
         List<OAuthIdentity> view = user.oauthIdentities();
 
         assertThatThrownBy(() -> view.add(null)).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void register_local_creates_user_with_password_and_no_oauth() {
+        User user = User.registerLocal(
+                new DisplayName("jamo"),
+                new Email("u@jamoai.app"),
+                new HashedPassword("$2a$12$hash"),
+                NOW
+        );
+
+        assertThat(user.id()).isNotNull();
+        assertThat(user.accountType()).isEqualTo(AccountType.LOCAL);
+        assertThat(user.hashedPassword()).isPresent();
+        assertThat(user.hashedPassword().get().value()).isEqualTo("$2a$12$hash");
+        assertThat(user.email()).isPresent();
+        assertThat(user.email().get().value()).isEqualTo("u@jamoai.app");
+        assertThat(user.oauthIdentities()).isEmpty();
+        assertThat(user.createdAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void register_local_rejects_null_email() {
+        assertThatThrownBy(() -> User.registerLocal(
+                new DisplayName("jamo"), null, new HashedPassword("$2a$12$h"), NOW))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void register_local_rejects_null_password() {
+        assertThatThrownBy(() -> User.registerLocal(
+                new DisplayName("jamo"), new Email("u@jamoai.app"), null, NOW))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void register_with_oauth_has_oauth_account_type() {
+        User user = User.registerWithOAuth(
+                OAuthProvider.KAKAO, new ProviderUserId("k1"), new DisplayName("u"),
+                new Email("u@k.com"), NOW);
+
+        assertThat(user.accountType()).isEqualTo(AccountType.OAUTH);
+        assertThat(user.hashedPassword()).isEmpty();
+    }
+
+    @Test
+    void restore_rejects_local_without_password() {
+        UserId id = UserId.generate();
+
+        assertThatThrownBy(() -> User.restore(
+                id, new DisplayName("u"), new Email("u@j.app"),
+                AccountType.LOCAL, null, NOW, NOW, List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("LOCAL account requires hashedPassword");
+    }
+
+    @Test
+    void restore_rejects_oauth_with_password() {
+        UserId id = UserId.generate();
+        OAuthIdentity identity = OAuthIdentity.restore(
+                OAuthIdentityId.generate(),
+                id, OAuthProvider.KAKAO, new ProviderUserId("k1"), NOW);
+
+        assertThatThrownBy(() -> User.restore(
+                id, new DisplayName("u"), new Email("u@k.com"),
+                AccountType.OAUTH, new HashedPassword("$2a$12$h"),
+                NOW, NOW, List.of(identity)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("OAUTH account must not have hashedPassword");
+    }
+
+    @Test
+    void restore_rejects_local_with_oauth_identities() {
+        UserId id = UserId.generate();
+        OAuthIdentity identity = OAuthIdentity.restore(
+                OAuthIdentityId.generate(),
+                id, OAuthProvider.KAKAO, new ProviderUserId("k1"), NOW);
+
+        assertThatThrownBy(() -> User.restore(
+                id, new DisplayName("u"), new Email("u@j.app"),
+                AccountType.LOCAL, new HashedPassword("$2a$12$h"),
+                NOW, NOW, List.of(identity)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("LOCAL account must not have oauth identities");
+    }
+
+    @Test
+    void restore_rejects_oauth_without_identity() {
+        UserId id = UserId.generate();
+
+        assertThatThrownBy(() -> User.restore(
+                id, new DisplayName("u"), new Email("u@k.com"),
+                AccountType.OAUTH, null, NOW, NOW, List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("OAUTH account requires at least one oauth identity");
     }
 }

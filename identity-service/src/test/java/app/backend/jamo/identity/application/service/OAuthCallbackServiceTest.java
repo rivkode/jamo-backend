@@ -9,9 +9,12 @@ import app.backend.jamo.identity.domain.model.auth.AuthorizationCode;
 import app.backend.jamo.identity.domain.model.auth.AuthorizationCodeGenerator;
 import app.backend.jamo.identity.domain.model.auth.OAuthFlowSession;
 import app.backend.jamo.identity.domain.model.auth.PkceVerifier;
+import app.backend.jamo.identity.domain.model.oauth.OAuthIdentity;
+import app.backend.jamo.identity.domain.model.oauth.OAuthIdentityId;
 import app.backend.jamo.identity.domain.model.oauth.OAuthProvider;
 import app.backend.jamo.identity.domain.model.oauth.OAuthUserInfo;
 import app.backend.jamo.identity.domain.model.oauth.ProviderUserId;
+import app.backend.jamo.identity.domain.model.user.AccountType;
 import app.backend.jamo.identity.domain.model.user.DisplayName;
 import app.backend.jamo.identity.domain.model.user.Email;
 import app.backend.jamo.identity.domain.model.user.User;
@@ -32,7 +35,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -91,8 +94,11 @@ class OAuthCallbackServiceTest {
 
     private User sampleUser() {
         UserId id = UserId.generate();
+        OAuthIdentity identity = OAuthIdentity.restore(
+                OAuthIdentityId.generate(), id, OAuthProvider.KAKAO,
+                new ProviderUserId("kakao-1"), NOW);
         return User.restore(id, new DisplayName("jamo"), new Email("u@k.com"),
-                NOW, NOW, Collections.emptyList());
+                AccountType.OAUTH, null, NOW, NOW, List.of(identity));
     }
 
     @Test
