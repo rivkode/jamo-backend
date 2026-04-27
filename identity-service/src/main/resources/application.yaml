@@ -81,5 +81,22 @@ jamo:
         userinfo-url: https://openidconnect.googleapis.com/v1/userinfo
         scope: openid profile email
         pkce-enabled: true
+  device-cookie:
+    # decisions/auth/cookie-policy.md — 운영 deploy 시 secure=true 강제
+    domain: ${DEVICE_COOKIE_DOMAIN:}
+    secure: ${DEVICE_COOKIE_SECURE:false}
+    same-site: Lax
+    max-age: P365D
   frontend:
     base-url: ${FRONTEND_BASE_URL:https://jamoai.app}
+
+# Actuator endpoint 차단 — health 만 노출. configprops/env 노출 시 secret leak 위험
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
