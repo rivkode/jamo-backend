@@ -5,6 +5,7 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 
@@ -71,4 +72,21 @@ public class ArchitectureTest {
                 "app.backend.jamo.identity.presentation.."
             )
             .as("domain 은 외곽 계층(application/infrastructure/presentation) 에 의존하지 않는다 (DDD 의존성 역전)");
+
+    /** R4 — Presentation 은 Repository 인터페이스를 직접 의존하지 않는다 (Application Service 경유). */
+    @ArchTest
+    static final ArchRule presentation_should_not_depend_on_repository =
+        noClasses()
+            .that().resideInAPackage("app.backend.jamo.identity.presentation..")
+            .should().dependOnClassesThat()
+            .resideInAPackage("app.backend.jamo.identity.domain.repository..")
+            .as("Controller 는 Application Service 만 사용한다 (Repository 직접 호출 금지)");
+
+    /** R6 — @RestController 는 ..presentation.controller.. 에만 위치한다. */
+    @ArchTest
+    static final ArchRule rest_controllers_must_reside_in_presentation_controller =
+        classes()
+            .that().areAnnotatedWith(org.springframework.web.bind.annotation.RestController.class)
+            .should().resideInAPackage("..presentation.controller..")
+            .as("@RestController 는 ..presentation.controller.. 에만 위치한다");
 }

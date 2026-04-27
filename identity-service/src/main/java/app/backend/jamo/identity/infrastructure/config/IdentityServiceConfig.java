@@ -12,6 +12,7 @@ import app.backend.jamo.identity.domain.service.RefreshTokenHasher;
 import app.backend.jamo.identity.infrastructure.security.HmacRefreshTokenHasher;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.RSAKey;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,7 +25,9 @@ import java.time.Clock;
 @EnableConfigurationProperties({
         JwtProperties.class,
         OAuthProviderProperties.class,
-        RefreshTokenHashProperties.class
+        RefreshTokenHashProperties.class,
+        DeviceCookieProperties.class,
+        FrontendProperties.class
 })
 public class IdentityServiceConfig {
 
@@ -44,6 +47,7 @@ public class IdentityServiceConfig {
     }
 
     @Bean
+    @ConditionalOnMissingBean(KeyProvider.class)
     public KeyProvider jwtKeyProvider(JwtProperties props) {
         try {
             RSAKey key = JwkPemReader.readSigningKey(props.privateKeyPem(), props.publicKeyPem(), props.keyId());

@@ -203,8 +203,10 @@ infrastructure/external/HttpOAuthProviderClient
 
 ## 후속 결정이 필요한 항목
 
-- [ ] **PR3-b**: state 쿠키 SameSite 속성 (`Lax` vs `None+Secure`) — SPA/모바일 도메인 구성 확정 후
-- [ ] **PR3-b**: `@RestControllerAdvice` 에서 `OAuthAuthenticationException` → 고정 ErrorCode 응답 매핑 (`OAUTH_AUTHORIZATION_FAILED` / `OAUTH_STATE_INVALID` / `OAUTH_PROVIDER_UNAVAILABLE`). 본 ADR 의 "에러 매핑 정책" 의 클라이언트측 enforcement.
+- [x] **state 쿠키 SameSite 속성** → `Lax` 채택. cookie 속성 전체는 [decisions/auth/cookie-policy.md](../decisions/auth/cookie-policy.md) (PR3-c, 2026-04-27)
+- [x] **`@RestControllerAdvice` 에서 ErrorCode 매핑** → `AuthExceptionHandler` 가 `AuthCodeNotFound/Expired` → `AUTH_CODE_INVALID` (401). Callback 의 OAuth 예외는 controller try-catch → `frontendBaseUrl/auth/error?code=<ErrorCode>` 302 redirect (PR3-c, 2026-04-27)
+- [x] **`frontend.base-url` fail-fast 검증** → `FrontendProperties` compact constructor 가 http/https scheme + URI 형식 강제. 화이트리스트 host 검증 (Open Redirect 추가 방어) 은 별도 운영 PR (PR3-c, 2026-04-27, code review M4)
+- [x] **`/api/v1/auth/oauth/{provider}/start` log injection 방어** → controller 가 OAuth 2.0 RFC 6749 §4.1.2.1 error code 화이트리스트 (`^[a-z_]{1,40}$`) 만 그대로 로깅, 그 외는 `<invalid>` (PR3-c, 2026-04-27, security review M1)
 - [ ] **PR4+**: 명시적 계정 연결 (`POST /auth/link/{provider}`) API 도입 시점 — UX 요구 수렴 후
 - [ ] **PR4+**: deviceId 채택률 metric 수집 + fallback 비율 alarming
 - [ ] **운영**: provider 별 Circuit Breaker / Retry / Fallback 정책 (Resilience4j) — gRPC 와 동일하게 외부 호출 SLO 정의 필요
