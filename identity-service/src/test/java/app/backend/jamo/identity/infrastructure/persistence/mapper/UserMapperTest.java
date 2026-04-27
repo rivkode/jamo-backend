@@ -2,8 +2,10 @@ package app.backend.jamo.identity.infrastructure.persistence.mapper;
 
 import app.backend.jamo.identity.domain.model.oauth.OAuthProvider;
 import app.backend.jamo.identity.domain.model.oauth.ProviderUserId;
+import app.backend.jamo.identity.domain.model.user.AccountType;
 import app.backend.jamo.identity.domain.model.user.DisplayName;
 import app.backend.jamo.identity.domain.model.user.Email;
+import app.backend.jamo.identity.domain.model.user.HashedPassword;
 import app.backend.jamo.identity.domain.model.user.User;
 import app.backend.jamo.identity.infrastructure.persistence.entity.OAuthIdentityJpaEntity;
 import app.backend.jamo.identity.infrastructure.persistence.entity.UserJpaEntity;
@@ -112,8 +114,61 @@ class UserMapperTest {
         assertThat(restored.id()).isEqualTo(original.id());
         assertThat(restored.displayName()).isEqualTo(original.displayName());
         assertThat(restored.email()).isEqualTo(original.email());
+        assertThat(restored.accountType()).isEqualTo(AccountType.OAUTH);
+        assertThat(restored.hashedPassword()).isEmpty();
         assertThat(restored.oauthIdentities()).hasSize(1);
         assertThat(restored.oauthIdentities().get(0).provider()).isEqualTo(OAuthProvider.GOOGLE);
         assertThat(restored.oauthIdentities().get(0).userId()).isEqualTo(original.id());
+    }
+
+    @Test
+    void to_jpa_entity_preserves_local_account_fields() {
+        User user = User.registerLocal(
+                new DisplayName("jamo"),
+                new Email("u@jamoai.app"),
+                new HashedPassword("$2a$12$hash"),
+                NOW
+        );
+
+        UserJpaEntity entity = UserMapper.toJpaEntity(user);
+
+        assertThat(entity.getAccountType()).isEqualTo(AccountType.LOCAL);
+        assertThat(entity.getPasswordHash()).isEqualTo("$2a$12$hash");
+        assertThat(entity.getEmail()).isEqualTo("u@jamoai.app");
+    }
+
+    @Test
+    void to_oauth_entities_for_local_user_is_empty() {
+        User user = User.registerLocal(
+                new DisplayName("jamo"),
+                new Email("u@jamoai.app"),
+                new HashedPassword("$2a$12$hash"),
+                NOW
+        );
+
+        List<OAuthIdentityJpaEntity> oauthEntities = UserMapper.toOAuthEntities(user);
+
+        assertThat(oauthEntities).isEmpty();
+    }
+
+    @Test
+    void to_domain_round_trip_restores_local_user_with_password_hash() {
+        User original = User.registerLocal(
+                new DisplayName("jamo"),
+                new Email("u@jamoai.app"),
+                new HashedPassword("$2a$12$hash"),
+                NOW
+        );
+
+        UserJpaEntity entity = UserMapper.toJpaEntity(original);
+        User restored = UserMapper.toDomain(entity, List.of());
+
+        assertThat(restored.id()).isEqualTo(original.id());
+        assertThat(restored.accountType()).isEqualTo(AccountType.LOCAL);
+        assertThat(restored.hashedPassword()).isPresent();
+        assertThat(restored.hashedPassword().get().value()).isEqualTo("$2a$12$hash");
+        assertThat(restored.email()).isPresent();
+        assertThat(restored.email().get().value()).isEqualTo("u@jamoai.app");
+        assertThat(restored.oauthIdentities()).isEmpty();
     }
 }

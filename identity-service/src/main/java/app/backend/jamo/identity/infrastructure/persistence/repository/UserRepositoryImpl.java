@@ -1,5 +1,7 @@
 package app.backend.jamo.identity.infrastructure.persistence.repository;
 
+import app.backend.jamo.identity.domain.model.user.AccountType;
+import app.backend.jamo.identity.domain.model.user.Email;
 import app.backend.jamo.identity.domain.model.user.User;
 import app.backend.jamo.identity.domain.model.user.UserId;
 import app.backend.jamo.identity.domain.repository.UserRepository;
@@ -57,5 +59,10 @@ public class UserRepositoryImpl implements UserRepository {
     public Optional<User> findById(UserId id) {
         return userRepo.findById(id.value())
                 .map(entity -> UserMapper.toDomain(entity, oauthRepo.findAllByUserId(entity.getId())));
+    }
+
+    @Override
+    public boolean existsLocalAccountByEmail(Email email) {
+        return userRepo.existsByEmailAndAccountType(email.value(), AccountType.LOCAL);
     }
 }

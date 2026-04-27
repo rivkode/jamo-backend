@@ -30,3 +30,4 @@ ADR 보다 **가벼운 단위의 결정 기록**. 한 도메인/모듈 안에서
 | identity | [User 도메인 이메일 검증 Port 3-분리](identity/user-validation-port-split.md) | Accepted | 2026-04-27 | `ValidationCodeStore` (code+attempts 5분) + `ValidationRateLimiter` (1일) + `EmailValidatedFlag` (10분 소비형) — 라이프사이클별 분리 |
 | identity | [이메일 검증 흐름 운영 배포 체크리스트](identity/email-validation-deployment-checklist.md) | Accepted | 2026-04-27 | 운영 배포 BLOCK 조건 5건 (LogEmailSender 격리 / 메시지 sanitize / dailyLimit 5 / envvar override / 메트릭) |
 | identity | [LOCAL 자격증명 모델링](identity/local-credential-modeling.md) | Accepted | 2026-04-27 | `users.account_type` + `password_hash` 컬럼 추가, `OAuthProvider.LOCAL` 미추가. AccountType invariant + PasswordEncoder port 도입 |
+| identity | [LOCAL 회원가입 운영 배포 체크리스트](identity/local-credential-deployment-checklist.md) | Accepted | 2026-04-28 | V3 fail-safe (DEFAULT 제거 + CHECK 2종) / BCrypt 트랜잭션 외부 / enumeration accepted risk / yaml defensive error policy |

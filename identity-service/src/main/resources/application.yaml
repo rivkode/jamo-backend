@@ -29,6 +29,12 @@ spring:
 
 server:
   port: ${IDENTITY_SERVER_PORT:8081}
+  error:
+    # 5xx 응답에 stack trace / message 노출 차단 (PR6-b security review M3, OWASP A09).
+    # 도메인 invariant 예외 (User.restore IAE 등) 가 generic handler 까지 도달했을 때
+    # 내부 메시지가 클라이언트에 누출되지 않도록 명시적으로 끄기.
+    include-stacktrace: never
+    include-message: never
 
 jamo:
   jwt:
