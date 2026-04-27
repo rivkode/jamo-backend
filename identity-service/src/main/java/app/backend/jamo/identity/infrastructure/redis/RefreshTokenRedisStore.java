@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.Set;
 
 @Component
 public class RefreshTokenRedisStore implements RefreshTokenStore {
@@ -59,6 +60,13 @@ public class RefreshTokenRedisStore implements RefreshTokenStore {
     @Override
     public void delete(UserId userId, String sessionId) {
         redis.delete(key(userId, sessionId));
+    }
+
+    @Override
+    public Set<String> findAllSessionIds(UserId userId) {
+        throw new UnsupportedOperationException(
+                "findAllSessionIds will be implemented in PR4-b — refresh:user:%s 보조 인덱스 도입 예정"
+                        .formatted(userId.asString()));
     }
 
     private String key(UserId userId, String sessionId) {
