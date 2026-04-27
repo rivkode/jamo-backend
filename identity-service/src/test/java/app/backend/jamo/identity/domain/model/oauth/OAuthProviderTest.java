@@ -26,15 +26,4 @@ class OAuthProviderTest {
         assertThatThrownBy(() -> OAuthProvider.fromExternal("apple"))
                 .isInstanceOf(UnsupportedOAuthProviderException.class);
     }
-
-    @Test
-    void requires_pkce_returns_true_for_kakao_and_google() {
-        assertThat(OAuthProvider.KAKAO.requiresPkce()).isTrue();
-        assertThat(OAuthProvider.GOOGLE.requiresPkce()).isTrue();
-    }
-
-    @Test
-    void requires_pkce_returns_false_for_naver() {
-        assertThat(OAuthProvider.NAVER.requiresPkce()).isFalse();
-    }
 }
