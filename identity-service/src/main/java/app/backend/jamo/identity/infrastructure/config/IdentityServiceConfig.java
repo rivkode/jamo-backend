@@ -8,8 +8,11 @@ import app.backend.jamo.common.auth.RsaJwtIssuer;
 import app.backend.jamo.common.auth.RsaJwtVerifier;
 import app.backend.jamo.common.auth.RsaKeyPairKeyProvider;
 import app.backend.jamo.identity.domain.model.auth.AuthorizationCodeGenerator;
+import app.backend.jamo.identity.domain.repository.SessionBlacklist;
 import app.backend.jamo.identity.domain.service.RefreshTokenHasher;
+import app.backend.jamo.identity.domain.service.SessionIdGenerator;
 import app.backend.jamo.identity.infrastructure.security.HmacRefreshTokenHasher;
+import app.backend.jamo.identity.infrastructure.security.UuidSessionIdGenerator;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.RSAKey;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -75,13 +78,22 @@ public class IdentityServiceConfig {
         );
     }
 
+    /**
+     * common-auth-jwt 의 {@link BlacklistChecker} 어댑터 — JWT verify hot path 에서
+     * {@link SessionBlacklist#contains} 를 호출해 logout/reuse-detection 등록 sid 를 즉시 거부.
+     */
     @Bean
-    public BlacklistChecker blacklistChecker() {
-        return BlacklistChecker.noop();
+    public BlacklistChecker blacklistChecker(SessionBlacklist sessionBlacklist) {
+        return sessionBlacklist::contains;
     }
 
     @Bean
     public RefreshTokenHasher refreshTokenHasher(RefreshTokenHashProperties properties) {
         return new HmacRefreshTokenHasher(properties);
+    }
+
+    @Bean
+    public SessionIdGenerator sessionIdGenerator() {
+        return new UuidSessionIdGenerator();
     }
 }

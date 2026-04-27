@@ -128,7 +128,7 @@ public final class RsaJwtVerifier implements JwtVerifier {
             throw new JwtVerificationException("exp claim missing");
         }
         if (!clock.instant().isBefore(exp.toInstant().plus(clockSkew))) {
-            throw new JwtVerificationException("token expired");
+            throw new JwtExpiredException("token expired");
         }
     }
 

@@ -79,7 +79,7 @@ class RsaJwtIssuerVerifierTest {
         assertThatThrownBy(() ->
                 verifier(BlacklistChecker.noop(), FIXED_NOW.plusSeconds(901)).verify(token)
         )
-                .isInstanceOf(JwtVerificationException.class)
+                .isInstanceOf(JwtExpiredException.class)
                 .hasMessageContaining("expired");
     }
 
@@ -90,7 +90,7 @@ class RsaJwtIssuerVerifierTest {
         assertThatThrownBy(() ->
                 verifier(BlacklistChecker.noop(), FIXED_NOW.plusSeconds(930), Duration.ofSeconds(30)).verify(token)
         )
-                .isInstanceOf(JwtVerificationException.class)
+                .isInstanceOf(JwtExpiredException.class)
                 .hasMessageContaining("expired");
     }
 

@@ -14,6 +14,7 @@ import app.backend.jamo.identity.domain.repository.AuthorizationCodeStore;
 import app.backend.jamo.identity.domain.repository.OAuthFlowSessionStore;
 import app.backend.jamo.identity.domain.service.OAuthAuthenticationRequest;
 import app.backend.jamo.identity.domain.service.OAuthProviderClient;
+import app.backend.jamo.identity.domain.service.SessionIdGenerator;
 import app.backend.jamo.identity.infrastructure.config.OAuthProviderProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * OAuth callback use case (PRD auth/callback.md).
@@ -56,6 +56,7 @@ public class OAuthCallbackService {
     private final UserRegistrationService userRegistrationService;
     private final AuthorizationCodeGenerator authCodeGenerator;
     private final AuthorizationCodeStore authCodeStore;
+    private final SessionIdGenerator sessionIdGenerator;
     private final OAuthProviderProperties properties;
     private final Clock clock;
 
@@ -64,6 +65,7 @@ public class OAuthCallbackService {
                                 UserRegistrationService userRegistrationService,
                                 AuthorizationCodeGenerator authCodeGenerator,
                                 AuthorizationCodeStore authCodeStore,
+                                SessionIdGenerator sessionIdGenerator,
                                 OAuthProviderProperties properties,
                                 Clock clock) {
         this.flowSessionStore = flowSessionStore;
@@ -71,6 +73,7 @@ public class OAuthCallbackService {
         this.userRegistrationService = userRegistrationService;
         this.authCodeGenerator = authCodeGenerator;
         this.authCodeStore = authCodeStore;
+        this.sessionIdGenerator = sessionIdGenerator;
         this.properties = properties;
         this.clock = clock;
     }
@@ -136,7 +139,7 @@ public class OAuthCallbackService {
 
     private String issueAuthorizationCode(User user, OAuthFlowSession flowSession, Instant now) {
         String value = authCodeGenerator.generate();
-        String sessionId = UUID.randomUUID().toString();
+        String sessionId = sessionIdGenerator.newSessionId();
         AuthorizationCode authCode = new AuthorizationCode(
                 value,
                 user.id(),
