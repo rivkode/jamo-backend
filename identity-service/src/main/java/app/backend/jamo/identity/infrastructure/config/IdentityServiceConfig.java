@@ -30,7 +30,8 @@ import java.time.Clock;
         OAuthProviderProperties.class,
         RefreshTokenHashProperties.class,
         DeviceCookieProperties.class,
-        FrontendProperties.class
+        FrontendProperties.class,
+        EmailValidationProperties.class
 })
 public class IdentityServiceConfig {
 

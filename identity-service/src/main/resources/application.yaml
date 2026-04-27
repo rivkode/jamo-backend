@@ -89,6 +89,15 @@ jamo:
     max-age: P365D
   frontend:
     base-url: ${FRONTEND_BASE_URL:https://jamoai.app}
+  user-validation:
+    # PRD user/sendValidationNumber.md §9 + user/validateEmail.md §9
+    # 운영 배포 시 envvar 로 강화 가능 — decisions/identity/email-validation-deployment-checklist.md
+    code-ttl: ${USER_VALIDATION_CODE_TTL:PT5M}
+    max-attempts: ${USER_VALIDATION_MAX_ATTEMPTS:5}
+    cooldown: ${USER_VALIDATION_COOLDOWN:PT30S}
+    # 정상 사용자 5회면 충분 (30s × 5 = 2.5분 윈도우). 운영 모니터링 후 조정.
+    daily-limit: ${USER_VALIDATION_DAILY_LIMIT:5}
+    validated-flag-ttl: ${USER_VALIDATION_FLAG_TTL:PT10M}
 
 # Actuator endpoint 차단 — health 만 노출. configprops/env 노출 시 secret leak 위험
 management:
