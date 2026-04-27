@@ -20,6 +20,22 @@ public enum AuthErrorCode {
     /** Exchange — authorization code 가 없거나 만료/이미 사용됨 (HTTP 401) */
     AUTH_CODE_INVALID,
 
+    /** Refresh — refresh JWT exp 만료 (HTTP 401, SPA 가 재로그인 redirect) */
+    REFRESH_EXPIRED,
+
+    /**
+     * Refresh — refresh JWT 위조/서명 실패/tokenType 불일치/이미 폐기된 sid 재사용.
+     * reuse detection 도 본 코드로 통합 — OWASP 권고에 따라 "reuse 감지" 신호를
+     * 클라이언트에 노출하지 않는다 (보상 트랜잭션은 server-side log/메트릭 으로만 가시화).
+     */
+    REFRESH_INVALID,
+
+    /**
+     * 인증 필요 endpoint — Authorization 헤더 부재/만료/위조/blacklist 등록된 sid 등
+     * 모든 인증 실패 (HTTP 401). 만료/위조 분기를 제공하지 않는 것이 보안 표준.
+     */
+    UNAUTHORIZED,
+
     /** Callback — provider 가 authorize 단계에서 error 또는 code 부재 */
     OAUTH_AUTHORIZATION_FAILED,
 

@@ -1,5 +1,6 @@
 package app.backend.jamo.identity.presentation.controller;
 
+import app.backend.jamo.common.auth.JwtVerifier;
 import app.backend.jamo.identity.application.dto.AuthExchangeCommand;
 import app.backend.jamo.identity.application.dto.AuthExchangeResult;
 import app.backend.jamo.identity.application.service.AuthExchangeService;
@@ -33,6 +34,9 @@ class AuthExchangeControllerTest {
 
     @MockitoBean
     private AuthExchangeService authExchangeService;
+
+    @MockitoBean
+    private JwtVerifier jwtVerifier;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 

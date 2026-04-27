@@ -3,8 +3,12 @@ package app.backend.jamo.identity.presentation.exception;
 import app.backend.jamo.identity.domain.exception.AuthCodeExpiredException;
 import app.backend.jamo.identity.domain.exception.AuthCodeNotFoundException;
 import app.backend.jamo.identity.domain.exception.OAuthAuthenticationException;
+import app.backend.jamo.identity.domain.exception.RefreshTokenExpiredException;
+import app.backend.jamo.identity.domain.exception.RefreshTokenInvalidException;
+import app.backend.jamo.identity.domain.exception.RefreshTokenReuseDetectedException;
 import app.backend.jamo.identity.presentation.dto.AuthErrorCode;
 import app.backend.jamo.identity.presentation.dto.AuthErrorResponse;
+import app.backend.jamo.identity.presentation.web.UnauthorizedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -39,8 +43,42 @@ public class AuthExceptionHandler {
                         "authorization code is invalid"));
     }
 
+    @ExceptionHandler(RefreshTokenExpiredException.class)
+    public ResponseEntity<AuthErrorResponse> handleRefreshExpired(RefreshTokenExpiredException ex) {
+        log.warn("refresh rejected reason={}", ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new AuthErrorResponse(
+                        AuthErrorCode.REFRESH_EXPIRED,
+                        "refresh token expired"));
+    }
+
+    /**
+     * Refresh JWT 위조/위반 + reuse detection 통합 401 응답.
+     * reuse 감지 신호를 클라이언트에 노출하지 않는 보안 표준 (decisions Q2 — OWASP 권고).
+     * 보상 트랜잭션 트리거는 이미 application service 가 server-side 로 수행 + 별도 log/메트릭.
+     */
+    @ExceptionHandler({RefreshTokenInvalidException.class, RefreshTokenReuseDetectedException.class})
+    public ResponseEntity<AuthErrorResponse> handleRefreshInvalid(Exception ex) {
+        log.warn("refresh rejected reason={}", ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new AuthErrorResponse(
+                        AuthErrorCode.REFRESH_INVALID,
+                        "refresh token is invalid"));
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<AuthErrorResponse> handleUnauthorized(UnauthorizedException ex) {
+        log.warn("authorization rejected reason={}", ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new AuthErrorResponse(
+                        AuthErrorCode.UNAUTHORIZED,
+                        "authentication required"));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<AuthErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+        // BindingResult 의 user input 일부가 ex.toString() 에 포함될 수 있어 클래스명만 로깅 (CWE-532).
+        log.warn("validation failed reason={}", ex.getClass().getSimpleName());
         return ResponseEntity.badRequest()
                 .body(new AuthErrorResponse(
                         AuthErrorCode.VALIDATION_FAILED,
@@ -49,6 +87,8 @@ public class AuthExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<AuthErrorResponse> handleNotReadable(HttpMessageNotReadableException ex) {
+        // Jackson 의 message 가 raw refresh token 일부를 포함할 수 있어 ex 객체 자체 로깅 회피 (security M4, CWE-532).
+        log.warn("request body malformed reason={}", ex.getClass().getSimpleName());
         return ResponseEntity.badRequest()
                 .body(new AuthErrorResponse(
                         AuthErrorCode.VALIDATION_FAILED,

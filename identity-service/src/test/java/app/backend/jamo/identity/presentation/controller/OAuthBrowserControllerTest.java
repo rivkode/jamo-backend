@@ -1,5 +1,6 @@
 package app.backend.jamo.identity.presentation.controller;
 
+import app.backend.jamo.common.auth.JwtVerifier;
 import app.backend.jamo.identity.application.dto.OAuthCallbackCommand;
 import app.backend.jamo.identity.application.dto.OAuthCallbackResult;
 import app.backend.jamo.identity.application.dto.OAuthStartCommand;
@@ -56,6 +57,9 @@ class OAuthBrowserControllerTest {
 
     @MockitoBean
     private DeviceIdResolver deviceIdResolver;
+
+    @MockitoBean
+    private JwtVerifier jwtVerifier;
 
     @TestConfiguration
     static class TestConfig {
