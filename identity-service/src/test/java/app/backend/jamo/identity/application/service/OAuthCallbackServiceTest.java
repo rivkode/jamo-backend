@@ -77,7 +77,7 @@ class OAuthCallbackServiceTest {
 
         service = new OAuthCallbackService(
                 flowSessionStore, providerClient, userRegistrationService,
-                gen, authCodeStore, properties, CLOCK);
+                gen, authCodeStore, () -> "test-sid", properties, CLOCK);
     }
 
     private OAuthFlowSession sampleFlowSession(AuthState state, OAuthProvider provider, PkceVerifier verifier) {
