@@ -10,6 +10,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    // BCryptPasswordEncoder 만 사용 — full Spring Security 미포함 (decisions/identity/local-credential-modeling.md)
+    implementation("org.springframework.security:spring-security-crypto")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-mysql")
 

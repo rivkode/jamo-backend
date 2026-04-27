@@ -19,6 +19,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.security.SecureRandom;
 import java.text.ParseException;
@@ -38,6 +40,15 @@ public class IdentityServiceConfig {
     @Bean
     public Clock systemClock() {
         return Clock.systemUTC();
+    }
+
+    /**
+     * Application service 가 트랜잭션 경계를 메서드 단위가 아닌 코드 블록 단위로 좁힐 때 사용
+     * (예: BCrypt encode 같은 CPU bound 작업을 트랜잭션 외부로 빼기 위함 — PR6-b security review H2).
+     */
+    @Bean
+    public TransactionTemplate transactionTemplate(PlatformTransactionManager transactionManager) {
+        return new TransactionTemplate(transactionManager);
     }
 
     @Bean
