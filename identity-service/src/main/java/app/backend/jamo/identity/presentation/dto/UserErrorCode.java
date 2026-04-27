@@ -26,6 +26,20 @@ public enum UserErrorCode {
     /** 발송 rate limit 초과 (HTTP 429) — 30초 쿨다운 또는 1일 한도 도달. */
     VALIDATION_RATE_LIMITED,
 
+    /**
+     * createUser 진입 시 이메일 검증 flag 가 없거나 만료 (HTTP 400).
+     * 미발급/만료 사유는 enumeration 회피를 위해 응답에 분리하지 않음 (PR6-c).
+     */
+    EMAIL_NOT_VALIDATED,
+
+    /**
+     * LOCAL 가입 한정 이메일 중복 (HTTP 409).
+     * OAuth 가입자와의 email 충돌은 본 코드 범위 밖 (ADR-0006 결정 4).
+     * accepted risk: 검증 코드 통과 사용자에 한해 LOCAL 가입자 enumeration window 존재
+     * (decisions/identity/local-credential-deployment-checklist.md 결정 3).
+     */
+    EMAIL_ALREADY_REGISTERED,
+
     /** 매핑되지 않은 모든 서버 오류 (HTTP 500) — sanitize 책임. */
     INTERNAL_ERROR
 }
