@@ -15,6 +15,17 @@ public record JwtProperties(
         Duration refreshTtl,
         Duration clockSkew
 ) {
+    /**
+     * sid blacklist 등록 시 사용할 TTL — access JWT 만료 시간 + clockSkew leeway.
+     *
+     * <p>{@code RsaJwtVerifier} 가 exp+clockSkew 까지 토큰을 유효로 보므로 blacklist 도
+     * 동일 윈도우를 커버해야 logout/회전 직후 clockSkew 안의 access JWT 가 통과되는
+     * 보안 boundary 약화를 막는다.
+     */
+    public Duration blacklistTtl() {
+        return accessTtl.plus(clockSkew);
+    }
+
     public JwtProperties {
         if (issuer == null || issuer.isBlank()) {
             throw new IllegalArgumentException("issuer must not be blank");
