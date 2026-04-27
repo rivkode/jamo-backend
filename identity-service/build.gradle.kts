@@ -24,6 +24,8 @@ dependencies {
     testImplementation(platform("org.testcontainers:testcontainers-bom:1.20.4"))
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mysql")
+    // WireMock — OAuth provider stub (ADR-0006 결정 5: HttpOAuthProviderClient 단위 테스트)
+    testImplementation("org.wiremock:wiremock-standalone:3.9.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

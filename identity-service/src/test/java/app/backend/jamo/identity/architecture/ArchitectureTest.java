@@ -58,4 +58,17 @@ public class ArchitectureTest {
             .orShould().beAnnotatedWith(jakarta.persistence.OneToOne.class)
             .orShould().beAnnotatedWith(jakarta.persistence.ManyToMany.class)
             .as("JPA 연관관계 어노테이션 금지 — ID 컬럼만 보유 (ADR-0005)");
+
+    /** R3-b — domain 계층은 application/infrastructure/presentation 어떤 계층도 import 하지 않는다. */
+    @ArchTest
+    static final ArchRule domain_must_not_depend_on_outer_layers =
+        noClasses()
+            .that().resideInAPackage("app.backend.jamo.identity.domain..")
+            .should().dependOnClassesThat()
+            .resideInAnyPackage(
+                "app.backend.jamo.identity.application..",
+                "app.backend.jamo.identity.infrastructure..",
+                "app.backend.jamo.identity.presentation.."
+            )
+            .as("domain 은 외곽 계층(application/infrastructure/presentation) 에 의존하지 않는다 (DDD 의존성 역전)");
 }
