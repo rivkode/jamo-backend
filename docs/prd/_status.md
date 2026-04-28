@@ -22,7 +22,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | diary | diary-service | 6 | 6 | 0 | 0 | 6 | 0 | ✅ |
 | comment | diary-service | 4 | 4 | 0 | 0 | 4 | 0 | ✅ |
 | validation | diary-service | 2 | 2 | 0 | 0 | 2 | 0 | ✅ |
-| diarychat | diary-service | 9 | 9 | 0 | - | - | - | ⏳ |
+| diarychat | diary-service | 10 | 9 | 1 | 0 | 8 | 1 | ✅ |
 | sentence-feedback (diary 흡수) | diary-service | 3 | 0 | 3 | - | - | - | ⏳ |
 | chat | chat-service | 14 | 14 | 0 | - | - | - | ⏳ |
 | sentence | learning-service | 4 | 4 | 0 | - | - | - | ⏳ |
@@ -30,7 +30,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | shorts | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | event | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | feedback | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
-| **합계** | | **61** | **58** | **3** | 0 | 23 | 1 | |
+| **합계** | | **62** | **58** | **4** | 0 | 31 | 2 | |
 
 ## 평가 절차
 
@@ -50,7 +50,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 - diary: [`diary/create.md`](diary/create.md), [`diary/get.md`](diary/get.md), [`diary/listFeed.md`](diary/listFeed.md), [`diary/listMyFeed.md`](diary/listMyFeed.md), [`diary/delete.md`](diary/delete.md), [`diary/toggleLike.md`](diary/toggleLike.md)
 - comment: [`comment/create.md`](comment/create.md), [`comment/list.md`](comment/list.md), [`comment/delete.md`](comment/delete.md), [`comment/toggleLike.md`](comment/toggleLike.md)
 - validation: [`validation/validate.md`](validation/validate.md), [`validation/validateLine.md`](validation/validateLine.md)
-- diarychat: [`diarychat/create.md`](diarychat/create.md), [`diarychat/get.md`](diarychat/get.md), [`diarychat/join.md`](diarychat/join.md), [`diarychat/leave.md`](diarychat/leave.md), [`diarychat/listParticipants.md`](diarychat/listParticipants.md), [`diarychat/aiToggle.md`](diarychat/aiToggle.md), [`diarychat/send.md`](diarychat/send.md), [`diarychat/listMessages.md`](diarychat/listMessages.md), [`diarychat/poll.md`](diarychat/poll.md)
+- diarychat: [`diarychat/create.md`](diarychat/create.md), [`diarychat/get.md`](diarychat/get.md), [`diarychat/join.md`](diarychat/join.md), [`diarychat/leave.md`](diarychat/leave.md), [`diarychat/listParticipants.md`](diarychat/listParticipants.md), [`diarychat/aiToggle.md`](diarychat/aiToggle.md), [`diarychat/send.md`](diarychat/send.md), [`diarychat/listMessages.md`](diarychat/listMessages.md), [`diarychat/poll.md`](diarychat/poll.md), [`diarychat/getMessageAudio.md`](diarychat/getMessageAudio.md) (proposed)
 - sentence-feedback (신규): [`diary/requestSentenceFeedback.md`](diary/requestSentenceFeedback.md), [`diary/acceptSentenceFeedback.md`](diary/acceptSentenceFeedback.md), [`diary/rejectSentenceFeedback.md`](diary/rejectSentenceFeedback.md)
 
 ### chat-service
