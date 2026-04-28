@@ -58,6 +58,8 @@
 - Java `record` 로 불변. 순수 JDK 타입만.
 - 필수 필드: `eventId`(UUID, 멱등성 키), `occurredAt`(Instant)
 - JavaDoc 으로 **발행자 / 구독자 / 토픽 / 용도** 명시 필수
+- 필드명은 **Java record 컨벤션 — camelCase** (`eventId`, `occurredAt`, `userId`). proto 의 snake_case (§1, ADR-0004 §3) 와는 별개. 또한 proto 의 `request_id` (호출 trace) 와 record 의 `eventId` (Kafka 멱등성 키) 는 의미와 컨텍스트가 다름.
+- Compact constructor 검증은 [`event/EventFields`](../../contracts/src/main/java/app/backend/jamo/contracts/event/EventFields.java) 헬퍼 사용 (반복 패턴 회피, 메시지 형식 일관성).
 - Breaking Change 시 새 버전 클래스 (`UserWithdrawalRequestedV2`)
 - ai-service 는 무상태이므로 Kafka 이벤트 발행/구독 없음 (gRPC 만 사용)
 
@@ -65,36 +67,38 @@
 
 #### 활동/랭킹 (platform-service event 도메인)
 
-| 이벤트 | 패키지 | 발행자 | 구독자 | 토픽 | 용도 |
-|---|---|---|---|---|---|
-| `ActivityHappened` | `event/activity/` | diary, chat, comment, learning(활성화 시) | platform | `activity-events` | 사용자 활동 점수 가산 |
+| 이벤트 | 패키지 | 발행자 | 구독자 | 토픽 | 용도 | 상태 |
+|---|---|---|---|---|---|---|
+| `ActivityHappened` | `event/activity/` | diary, chat, comment, learning(활성화 시) | platform | `activity-events` | 사용자 활동 점수 가산 (음수 points 보상 가능) | ✅ 등재 |
 
 #### 회원 탈퇴 Saga (Choreography)
 
-| 이벤트 | 패키지 | 발행자 | 구독자 | 토픽 | 용도 |
-|---|---|---|---|---|---|
-| `UserWithdrawalRequested` | `event/identity/` | identity | diary, chat, learning, platform | `user-events` | 사용자 데이터 일괄 삭제 트리거 |
-| `UserDataPurged` | `event/identity/` | diary, chat, learning, platform | identity | `user-events` | 각 서비스의 삭제 완료 회신 (identity 가 모두 수신 시 User HARD DELETE) |
+| 이벤트 | 패키지 | 발행자 | 구독자 | 토픽 | 용도 | 상태 |
+|---|---|---|---|---|---|---|
+| `UserWithdrawalRequested` | `event/identity/` | identity | diary, chat, learning, platform | `user-events` | 사용자 데이터 일괄 삭제 트리거 | ✅ 등재 |
+| `UserDataPurged` | `event/identity/` | diary, chat, learning, platform | identity | `user-events` | 각 서비스의 삭제 완료 회신 (identity 가 모두 수신 시 User HARD DELETE). `sourceService` 로 발행 서비스 식별 | ✅ 등재 |
 
 #### 도메인 이벤트 (diary)
 
-| 이벤트 | 패키지 | 발행자 | 구독자 | 토픽 | 용도 |
-|---|---|---|---|---|---|
-| `DiaryCreated` | `event/diary/` | diary | platform(랭킹) | `diary-events` | 일기 작성 활동 점수 가산 |
-| `DiaryDeleted` | `event/diary/` | diary | platform(랭킹 정정) | `diary-events` | 활동 점수 차감 |
-| `CommentCreated` | `event/diary/` | diary | platform(랭킹) | `diary-events` | 댓글 작성 활동 점수 |
-| `SentenceFeedbackRequested` | `event/diary/` | diary | platform(랭킹), 학습 분석 | `diary-events` | 문장 피드백 요청 활동 |
-| `SentenceFeedbackAccepted` | `event/diary/` | diary | platform(랭킹 가중치), 학습 분석 | `diary-events` | 제안 수락 — 추가 점수 |
-| `SentenceFeedbackRejected` | `event/diary/` | diary | (선택) 학습 분석 | `diary-events` | 제안 거부 — 학습 신호 |
+| 이벤트 | 패키지 | 발행자 | 구독자 | 토픽 | 용도 | 상태 |
+|---|---|---|---|---|---|---|
+| `DiaryCreated` | `event/diary/` | diary | platform(랭킹) | `diary-events` | 일기 작성 활동 점수 가산 | ✅ 등재 |
+| `DiaryDeleted` | `event/diary/` | diary | platform(랭킹 정정) | `diary-events` | 활동 점수 차감 | 📝 미작성 (diary 도메인 PR) |
+| `CommentCreated` | `event/diary/` | diary | platform(랭킹) | `diary-events` | 댓글 작성 활동 점수 | ✅ 등재 |
+| `SentenceFeedbackRequested` | `event/diary/` | diary | platform(랭킹), 학습 분석 | `diary-events` | 문장 피드백 요청 활동 | 📝 미작성 (sentence-feedback PR) |
+| `SentenceFeedbackAccepted` | `event/diary/` | diary | platform(랭킹 가중치), 학습 분석 | `diary-events` | 제안 수락 — 추가 점수 | 📝 미작성 (sentence-feedback PR) |
+| `SentenceFeedbackRejected` | `event/diary/` | diary | (선택) 학습 분석 | `diary-events` | 제안 거부 — 학습 신호 | 📝 미작성 (sentence-feedback PR) |
 
 #### 도메인 이벤트 (chat)
 
-| 이벤트 | 패키지 | 발행자 | 구독자 | 토픽 | 용도 |
-|---|---|---|---|---|---|
-| `ChatGenerated` | `event/chat/` | chat | platform(랭킹) | `chat-events` | AI 채팅 생성 활동 |
-| `VoiceInputProcessed` | `event/chat/` | chat | platform(랭킹) | `chat-events` | 음성 입력 활동 |
+| 이벤트 | 패키지 | 발행자 | 구독자 | 토픽 | 용도 | 상태 |
+|---|---|---|---|---|---|---|
+| `ChatGenerated` | `event/chat/` | chat | platform(랭킹) | `chat-events` | AI 채팅 생성 활동. `roomId` 빈 문자열 = 1:1 chat | ✅ 등재 |
+| `VoiceInputProcessed` | `event/chat/` | chat | platform(랭킹) | `chat-events` | 음성 입력 활동. `durationMs` 가중치 산정 가능 | ✅ 등재 |
 
-> 모든 이벤트는 **Outbox 패턴**으로 발행. 구독 측은 **`ProcessedEvent` 멱등성 검증** 필수. 자세한 내용은 `.claude/skills/module-boundary/SKILL.md` (PR #2b 갱신 후) 참조.
+> 모든 이벤트는 **Outbox 패턴**으로 발행. 구독 측은 **`ProcessedEvent` 멱등성 검증** 필수. 자세한 내용은 `.claude/skills/module-boundary/SKILL.md` §3.5 / §4 참조.
+>
+> 모든 등재 record 는 compact constructor 검증 (필수 필드 null/blank 차단) + `ContractsArchitectureTest.no_spring_or_jpa_in_contracts` 로 프레임워크 의존 차단 (Spring / JPA / Hibernate / Jackson).
 
 ---
 
