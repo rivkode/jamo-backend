@@ -11,6 +11,7 @@ import app.backend.jamo.identity.domain.model.oauth.OAuthProvider;
 import app.backend.jamo.identity.domain.repository.OAuthFlowSessionStore;
 import app.backend.jamo.identity.infrastructure.config.OAuthProviderProperties;
 import app.backend.jamo.identity.infrastructure.config.OAuthProviderProperties.ProviderConfig;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -28,22 +29,13 @@ import java.util.UUID;
  * authorize URL 빌드. 실제 cookie set / 302 응답은 Presentation 계층 책임.
  */
 @Service
+@RequiredArgsConstructor
 public class OAuthStartService {
 
     private final OAuthProviderProperties properties;
     private final OAuthFlowSessionStore flowSessionStore;
     private final SecureRandom secureRandom;
     private final Clock clock;
-
-    public OAuthStartService(OAuthProviderProperties properties,
-                             OAuthFlowSessionStore flowSessionStore,
-                             SecureRandom secureRandom,
-                             Clock clock) {
-        this.properties = properties;
-        this.flowSessionStore = flowSessionStore;
-        this.secureRandom = secureRandom;
-        this.clock = clock;
-    }
 
     public OAuthStartResult start(OAuthStartCommand command) {
         OAuthProvider provider = command.provider();

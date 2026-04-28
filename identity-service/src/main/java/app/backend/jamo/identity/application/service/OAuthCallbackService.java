@@ -16,8 +16,8 @@ import app.backend.jamo.identity.domain.service.OAuthAuthenticationRequest;
 import app.backend.jamo.identity.domain.service.OAuthProviderClient;
 import app.backend.jamo.identity.domain.service.SessionIdGenerator;
 import app.backend.jamo.identity.infrastructure.config.OAuthProviderProperties;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -47,9 +47,9 @@ import java.time.Instant;
  * Controller 가 try-catch 후 frontend redirect URL 로 매핑.
  */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class OAuthCallbackService {
-
-    private static final Logger log = LoggerFactory.getLogger(OAuthCallbackService.class);
 
     private final OAuthFlowSessionStore flowSessionStore;
     private final OAuthProviderClient providerClient;
@@ -59,24 +59,6 @@ public class OAuthCallbackService {
     private final SessionIdGenerator sessionIdGenerator;
     private final OAuthProviderProperties properties;
     private final Clock clock;
-
-    public OAuthCallbackService(OAuthFlowSessionStore flowSessionStore,
-                                OAuthProviderClient providerClient,
-                                UserRegistrationService userRegistrationService,
-                                AuthorizationCodeGenerator authCodeGenerator,
-                                AuthorizationCodeStore authCodeStore,
-                                SessionIdGenerator sessionIdGenerator,
-                                OAuthProviderProperties properties,
-                                Clock clock) {
-        this.flowSessionStore = flowSessionStore;
-        this.providerClient = providerClient;
-        this.userRegistrationService = userRegistrationService;
-        this.authCodeGenerator = authCodeGenerator;
-        this.authCodeStore = authCodeStore;
-        this.sessionIdGenerator = sessionIdGenerator;
-        this.properties = properties;
-        this.clock = clock;
-    }
 
     public OAuthCallbackResult handle(OAuthCallbackCommand command) {
         OAuthFlowSession flowSession = verifyAndConsumeFlowSession(command);

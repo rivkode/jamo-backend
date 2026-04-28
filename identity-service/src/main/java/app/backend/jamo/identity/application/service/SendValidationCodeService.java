@@ -8,6 +8,7 @@ import app.backend.jamo.identity.domain.repository.EmailSender;
 import app.backend.jamo.identity.domain.repository.ValidationCodeStore;
 import app.backend.jamo.identity.domain.repository.ValidationRateLimiter;
 import app.backend.jamo.identity.infrastructure.config.EmailValidationProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
@@ -23,22 +24,13 @@ import org.springframework.stereotype.Service;
  * 흐름에서 best-effort 처리.
  */
 @Service
+@RequiredArgsConstructor
 public class SendValidationCodeService {
 
     private final ValidationCodeStore codeStore;
     private final ValidationRateLimiter rateLimiter;
     private final EmailSender emailSender;
     private final EmailValidationProperties properties;
-
-    public SendValidationCodeService(ValidationCodeStore codeStore,
-                                     ValidationRateLimiter rateLimiter,
-                                     EmailSender emailSender,
-                                     EmailValidationProperties properties) {
-        this.codeStore = codeStore;
-        this.rateLimiter = rateLimiter;
-        this.emailSender = emailSender;
-        this.properties = properties;
-    }
 
     public void send(SendValidationCodeCommand command) {
         Email email = new Email(command.email());

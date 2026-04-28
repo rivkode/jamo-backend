@@ -8,11 +8,13 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import lombok.Getter;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
+@Getter
 @Table(
         name = "oauth_identity",
         uniqueConstraints = @UniqueConstraint(
@@ -51,9 +53,5 @@ public class OAuthIdentityJpaEntity {
         this.createdAt = createdAt;
     }
 
-    public UUID getId() { return id; }
-    public UUID getUserId() { return userId; }
-    public OAuthProvider getProvider() { return provider; }
-    public String getProviderUserId() { return providerUserId; }
-    public Instant getCreatedAt() { return createdAt; }
+    // setter 없음 — id / userId / provider / providerUserId / createdAt 모두 immutable.
 }

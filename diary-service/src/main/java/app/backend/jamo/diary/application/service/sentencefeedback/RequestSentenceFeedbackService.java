@@ -11,6 +11,7 @@ import app.backend.jamo.diary.domain.model.sentencefeedback.Tone;
 import app.backend.jamo.diary.domain.repository.OutboxEventPublisher;
 import app.backend.jamo.diary.domain.repository.SentenceFeedbackAiGateway;
 import app.backend.jamo.diary.domain.repository.SentenceFeedbackRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -19,7 +20,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -45,6 +45,7 @@ import java.util.UUID;
  * 로 변환해 반환 (Adapter 책임) — 본 Service 는 분기 X.
  */
 @Service
+@RequiredArgsConstructor
 public class RequestSentenceFeedbackService {
 
     private static final Duration TTL = Duration.ofHours(24);
@@ -55,23 +56,7 @@ public class RequestSentenceFeedbackService {
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
-    public RequestSentenceFeedbackService(
-        SentenceFeedbackRepository repository,
-        SentenceFeedbackAiGateway aiGateway,
-        OutboxEventPublisher outboxEventPublisher,
-        TransactionTemplate transactionTemplate,
-        Clock clock
-    ) {
-        this.repository = Objects.requireNonNull(repository, "repository");
-        this.aiGateway = Objects.requireNonNull(aiGateway, "aiGateway");
-        this.outboxEventPublisher = Objects.requireNonNull(outboxEventPublisher, "outboxEventPublisher");
-        this.transactionTemplate = Objects.requireNonNull(transactionTemplate, "transactionTemplate");
-        this.clock = Objects.requireNonNull(clock, "clock");
-    }
-
     public SentenceFeedbackResult request(RequestSentenceFeedbackCommand command) {
-        Objects.requireNonNull(command, "command");
-
         SentenceText sentence = new SentenceText(command.sentence());
         Tone tone = parseTone(command.toneOrNull());
 

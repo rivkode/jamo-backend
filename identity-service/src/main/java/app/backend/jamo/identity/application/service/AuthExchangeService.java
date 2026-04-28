@@ -14,6 +14,7 @@ import app.backend.jamo.identity.infrastructure.config.JwtProperties;
 import app.backend.jamo.common.auth.JwtClaims;
 import app.backend.jamo.common.auth.JwtIssuer;
 import app.backend.jamo.common.auth.JwtTokenType;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -30,6 +31,7 @@ import java.time.Instant;
  * {@link AuthCodeExpiredException}. ExceptionHandler 가 401 매핑.
  */
 @Service
+@RequiredArgsConstructor
 public class AuthExchangeService {
 
     private final AuthorizationCodeStore authCodeStore;
@@ -38,20 +40,6 @@ public class AuthExchangeService {
     private final RefreshTokenStore refreshTokenStore;
     private final JwtProperties jwtProperties;
     private final Clock clock;
-
-    public AuthExchangeService(AuthorizationCodeStore authCodeStore,
-                               JwtIssuer jwtIssuer,
-                               RefreshTokenHasher refreshTokenHasher,
-                               RefreshTokenStore refreshTokenStore,
-                               JwtProperties jwtProperties,
-                               Clock clock) {
-        this.authCodeStore = authCodeStore;
-        this.jwtIssuer = jwtIssuer;
-        this.refreshTokenHasher = refreshTokenHasher;
-        this.refreshTokenStore = refreshTokenStore;
-        this.jwtProperties = jwtProperties;
-        this.clock = clock;
-    }
 
     public AuthExchangeResult exchange(AuthExchangeCommand command) {
         AuthorizationCode authCode = authCodeStore.consume(command.code())

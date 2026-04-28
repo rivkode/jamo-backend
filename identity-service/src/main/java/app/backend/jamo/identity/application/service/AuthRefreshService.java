@@ -18,8 +18,8 @@ import app.backend.jamo.identity.domain.repository.SessionBlacklist;
 import app.backend.jamo.identity.domain.service.RefreshTokenHasher;
 import app.backend.jamo.identity.domain.service.SessionIdGenerator;
 import app.backend.jamo.identity.infrastructure.config.JwtProperties;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -66,9 +66,10 @@ import java.util.Set;
  * 추출 재고 (Rule of Three).
  */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class AuthRefreshService {
 
-    private static final Logger log = LoggerFactory.getLogger(AuthRefreshService.class);
     private static final int SID_LOG_PREFIX_LENGTH = 8;
 
     private final JwtVerifier jwtVerifier;
@@ -79,24 +80,6 @@ public class AuthRefreshService {
     private final SessionIdGenerator sessionIdGenerator;
     private final JwtProperties jwtProperties;
     private final Clock clock;
-
-    public AuthRefreshService(JwtVerifier jwtVerifier,
-                              JwtIssuer jwtIssuer,
-                              RefreshTokenHasher refreshTokenHasher,
-                              RefreshTokenStore refreshTokenStore,
-                              SessionBlacklist sessionBlacklist,
-                              SessionIdGenerator sessionIdGenerator,
-                              JwtProperties jwtProperties,
-                              Clock clock) {
-        this.jwtVerifier = jwtVerifier;
-        this.jwtIssuer = jwtIssuer;
-        this.refreshTokenHasher = refreshTokenHasher;
-        this.refreshTokenStore = refreshTokenStore;
-        this.sessionBlacklist = sessionBlacklist;
-        this.sessionIdGenerator = sessionIdGenerator;
-        this.jwtProperties = jwtProperties;
-        this.clock = clock;
-    }
 
     public AuthExchangeResult refresh(AuthRefreshCommand command) {
         JwtClaims claims = verifyRefreshJwt(command.refreshTokenJwt());

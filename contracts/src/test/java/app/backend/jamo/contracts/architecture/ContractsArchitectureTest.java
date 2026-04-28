@@ -34,4 +34,16 @@ public class ContractsArchitectureTest {
                 "com.fasterxml.jackson.."
             )
             .as("contracts 모듈은 프레임워크 의존성 없는 순수 record + proto 만 보유 (ADR-0002 §3)");
+
+    /**
+     * R12 — contracts 의 도메인 (event record / proto message) 은 Lombok annotation 미사용.
+     * contracts 전체가 도메인 계약 격이라 R10 정책을 모듈 전체에 확장 적용 (ADR-0008 §C).
+     */
+    @ArchTest
+    static final ArchRule contracts_should_not_depend_on_lombok =
+        noClasses()
+            .that().resideInAPackage("app.backend.jamo.contracts..")
+            .should().dependOnClassesThat()
+            .resideInAPackage("lombok..")
+            .as("contracts 모듈은 Lombok annotation 을 사용하지 않는다 (ADR-0008 §C)");
 }

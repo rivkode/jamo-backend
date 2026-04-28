@@ -9,8 +9,8 @@ import app.backend.jamo.identity.domain.model.user.ValidationCode;
 import app.backend.jamo.identity.domain.repository.EmailValidatedFlag;
 import app.backend.jamo.identity.domain.repository.ValidationCodeStore;
 import app.backend.jamo.identity.infrastructure.config.EmailValidationProperties;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -35,21 +35,13 @@ import java.util.Optional;
  * <p>본 service 는 Redis 만 다루므로 {@code @Transactional} 미보유.
  */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class VerifyValidationCodeService {
-
-    private static final Logger log = LoggerFactory.getLogger(VerifyValidationCodeService.class);
 
     private final ValidationCodeStore codeStore;
     private final EmailValidatedFlag validatedFlag;
     private final EmailValidationProperties properties;
-
-    public VerifyValidationCodeService(ValidationCodeStore codeStore,
-                                       EmailValidatedFlag validatedFlag,
-                                       EmailValidationProperties properties) {
-        this.codeStore = codeStore;
-        this.validatedFlag = validatedFlag;
-        this.properties = properties;
-    }
 
     public void verify(VerifyValidationCodeCommand command) {
         Email email = new Email(command.email());

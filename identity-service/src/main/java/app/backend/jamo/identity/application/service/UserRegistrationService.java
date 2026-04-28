@@ -9,11 +9,11 @@ import app.backend.jamo.identity.domain.model.user.Email;
 import app.backend.jamo.identity.domain.model.user.User;
 import app.backend.jamo.identity.domain.repository.OAuthIdentityRepository;
 import app.backend.jamo.identity.domain.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -32,25 +32,16 @@ import java.util.Optional;
  * 필요해지면 별도 use case service 로 분리할 것. (code review M1)
  */
 @Service
+@RequiredArgsConstructor
 public class UserRegistrationService {
 
     private final UserRepository userRepository;
     private final OAuthIdentityRepository oauthIdentityRepository;
 
-    public UserRegistrationService(UserRepository userRepository,
-                                   OAuthIdentityRepository oauthIdentityRepository) {
-        this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
-        this.oauthIdentityRepository = Objects.requireNonNull(oauthIdentityRepository, "oauthIdentityRepository");
-    }
-
     @Transactional
     public UserRegistrationResult findOrRegister(OAuthProvider provider,
                                                  OAuthUserInfo info,
                                                  Instant now) {
-        Objects.requireNonNull(provider, "provider");
-        Objects.requireNonNull(info, "info");
-        Objects.requireNonNull(now, "now");
-
         Optional<OAuthIdentity> existing =
                 oauthIdentityRepository.findByProviderAndProviderUserId(provider, info.providerUserId());
         if (existing.isPresent()) {
