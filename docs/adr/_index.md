@@ -30,6 +30,7 @@ Architecture Decision Records — jamo-backend 의 되돌리기 어려운 아키
 | [0005](0005-no-jpa-associations.md) | JPA 연관관계 금지 | Accepted | 2026-04-26 | `@ManyToOne`/`@OneToMany` 등 금지. 외래 ID 컬럼만. DB FK 제약도 미사용 |
 | [0006](0006-oauth-provider-integration.md) | OAuth Provider 통합 | Accepted | 2026-04-27 | Per-provider PKCE flag, deviceId 헤더, 이메일 중복 시 새 user 등록 (자동 링크 X), per-provider extractor 전략 |
 | [0007](0007-contracts-first-parallel-development.md) | Contracts-First 병렬 개발 | Accepted | 2026-04-28 | Phase 6 진입 직전, 4 트리거(profile boundary 결정 + 다른 서비스 placeholder + 인프라 완비 + contracts 비어있음) 동시 충족 시점에 채택. proto 3종 + 이벤트 record 5-7종 선행 → profile + diary 트랙 병렬 |
+| [0008](0008-architecture-style-and-lombok-policy.md) | 아키텍처 스타일 + Lombok 정책 | Accepted | 2026-04-29 | DDD Layered 4-디렉토리 유지 + **Hexagonal in/out 용어 금지** (port/adapter 디렉토리 분리 / inbound·outbound port 명명 미도입) + **Lombok 화이트리스트 도입** (`@RequiredArgsConstructor` / `@Slf4j` / `@Builder` / `@Getter` JPA Entity 한정. `@Data` / `@Setter` / `@AllArgsConstructor` 금지. 도메인 layer 미적용 — 5가지 근거 박제) + ArchUnit R10 (도메인 lombok 의존 차단) / R11 (`@Data` 등 차단) |
 
 ## 주제별 빠른 인덱스
 
@@ -40,3 +41,4 @@ Architecture Decision Records — jamo-backend 의 되돌리기 어려운 아키
 | 데이터 모델링 / 영속성 | 0005 |
 | 외부 시스템 통합 | 0001, 0003, 0006 |
 | 개발 프로세스 / 병렬화 | 0007 |
+| 아키텍처 스타일 / 코드 표현 | 0008 |
