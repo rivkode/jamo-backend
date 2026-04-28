@@ -18,7 +18,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 |---|---|---:|---:|---:|---:|---:|---:|:---:|
 | auth | identity-service | 5 | 5 | 0 | 0 | 5 | 0 | ✅ |
 | user | identity-service | 4 | 4 | 0 | 0 | 3 | 1 | ✅ |
-| profile | identity-service | 3 | 3 | 0 | - | - | - | ⏳ |
+| profile | identity-service | 3 | 3 | 0 | 0 | 3 | 0 | ✅ |
 | diary | diary-service | 6 | 6 | 0 | - | - | - | ⏳ |
 | comment | diary-service | 4 | 4 | 0 | - | - | - | ⏳ |
 | validation | diary-service | 2 | 2 | 0 | - | - | - | ⏳ |
@@ -30,7 +30,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | shorts | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | event | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | feedback | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
-| **합계** | | **61** | **58** | **3** | 0 | 8 | 1 | |
+| **합계** | | **61** | **58** | **3** | 0 | 11 | 1 | |
 
 ## 평가 절차
 
@@ -71,7 +71,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 ## 진행 속도 / 페이스 (참고)
 
 > **운영 규약**: 모든 PR 머지 후 본 절을 즉시 갱신한다. 단계 행 추가 + 누적 시간 계산 + 남은 작업 추정 갱신.
-> 마지막 갱신: PR #37 머지 (2026-04-28) — clip 도메인 미사용 폐기 (listSavedClips PRD 삭제 + ADR-0007 Track A 4 API → 3 API 갱신). PR #36 (Kafka 이벤트 7종) 행 측정값 보강 포함. 본 갱신 시점에 **병렬 트랙 운영 포기 → 단일 트랙 회귀** (profile 선행, diary 순차).
+> 마지막 갱신: PR #39 머지 (2026-04-28) — profile 도메인 3 API 일괄 평가 (Phase 6-a, KEEP+FIX 3건, DROP 0). ddd-architect 1차 NEEDS CHANGES (8건: P1-P5 + F1-F3) → 2차 KEEP 까지 보강 포함.
 
 ### 단계별 누적 시간 (2026-04-26 18:22 시작)
 
@@ -102,9 +102,10 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | (별도) contracts identity.proto | `identity.proto` 정의 (UserSummaryService.GetUserSummary 단건 Deadline 2s + BatchGetUserSummaries 일괄 최대 200 Deadline 5s, 5 message, 모든 message reserved 슬롯, 모든 요청 request_id, public-safe 필드만 — email/providers/createdAt 제외, `user_status` 와 RPC `status` 의미 분리) | #35 | 35m (code-reviewer Medium 4 + Low 3 재작업 포함, 부수로 PR #34 머지 충돌 시 누락된 chat.proto _status 행 복구 + 마지막 갱신 노트 보정 포함) | (트랙 외 — Phase 6 contracts-first 선행, ADR-0007) |
 | (별도) contracts Kafka 이벤트 7종 | event/{activity,identity,diary,chat}/ 하위 7 record (ActivityHappened / UserWithdrawalRequested / UserDataPurged / DiaryCreated / CommentCreated / ChatGenerated / VoiceInputProcessed) + EventFields 검증 헬퍼 (requireNonBlank/NonNull/NonNegative). 각 record JavaDoc (발행자/구독자/토픽/용도). 7 *Test (ParameterizedTest @NullSource @ValueSource 로 압축, 총 82 케이스) 통과 + ContractsArchitectureTest R2 (Spring/Jackson 차단) 통과 + archunit.properties failOnEmptyShould=false → true 전환. DiaryDeleted / SentenceFeedback* 4종은 도메인 PR 시점 별도 | #36 | 약 2h (식사 포함, 7 record + JavaDoc + 82 케이스 + ArchUnit failOnEmptyShould 전환) | (트랙 외 — Phase 6 contracts-first 선행 마무리, ADR-0007) |
 | (별도) clip 도메인 미사용 폐기 | `listSavedClips.md` PRD 삭제 + `_index.md` 갱신 (59→58 endpoint, profile 4→3) + ADR-0007 Track A 정의 갱신 (4 API → 3 API + cross-reference) + `decisions/identity/clip-domain-removal.md` 박제 (검토 옵션 / 선택 근거 / `user-profile-domain-boundary.md` 보존 사유 / Non-Goals). 본 PR 시점에 병렬 트랙 운영 포기 결정 → profile 선행, diary 순차로 회귀 | #37 | 26m (단일 commit, 코드 변경 0, 4 파일) | (Track A — profile 평가 선행 정리) |
+| Phase 6-a — profile PRD 평가 | `getMyProfile` (private 8 필드, identity 5종 흡수) / `getProfile` (public-safe 4 필드, UserSummary 정합) / `updateMyProfile` (화이트리스트 4 필드 + displayName 7일 1회 + 고유성 미적용) KEEP+FIX 3건. `decisions/identity/profile-prd-evaluation.md` 박제 — displayName SoT=User aggregate 박제 + cross-aggregate 트랜잭션 박제 (IDDD Ch.10 Rule of Thumb 2 예외) + Profile shared identifier (`Profile.id == User.id`) + gRPC only (이벤트 미채택) + Handle VO 후속 + 빈 문자열 4 필드 / 응답 합성 패턴 명시. ddd-architect 1차 NEEDS CHANGES 8건 (P1-P5 + F1-F3) → 2차 KEEP. 후속 구현 검토 2건 박제 (markChanged commit 시점 + Profile 생성 시점) | #39 | 17m (amend 1회, ddd 재작업 포함. user #19 대비 4× 빠름 — 선행 결정 frame 정합 효과) | **29h 9m** |
 
-- 누적 24 PR (본 트랙) + 4 PR (#15·#18·#20·#24 docs 페이스) / **28h 52m 실측**, 잠·식사·limit wait 약 ~17h 제외 시 **실작업 약 12h**
-- **평균 1.2h/PR** (AI 협업 페이스 — PR3 시리즈 1.5h/PR → PR4 시리즈 1.4h/PR → PR5 시리즈 슬라이스 평균 27m/PR → PR6 시리즈 슬라이스 평균 32m/PR). PR6 슬라이스 (#25~#27) 만 보면 1h 35m / 3 PR = **32m/PR** — security 1차 NEEDS CHANGES 재작업 비용 포함, sanitize 정책이 결정 문서 5건과 PR4-c security trail 에 의해 표준화된 결과 PR5 페이스 유지
+- 누적 25 PR (본 트랙, ~PR #27 + #39) + 4 PR (#15·#18·#20·#24 docs 페이스) / **29h 9m 실측**, 잠·식사·limit wait 약 ~17h 제외 시 **실작업 약 12h** (트랙 외 PR #28~#38 의 contracts/docker/ADR/_status 갱신 시리즈는 별도 — 병렬 트랙 포기 후 누적 통합은 추후)
+- **평균 1.2h/PR** (AI 협업 페이스 — PR3 시리즈 1.5h/PR → PR4 시리즈 1.4h/PR → PR5 시리즈 슬라이스 평균 27m/PR → PR6 시리즈 슬라이스 평균 32m/PR → Phase 6-a (profile 평가, #39) **17m**). Phase 6-a 가 user #19 평가 (2h 39m) 대비 4× 빠른 이유는 선행 결정 (`user-profile-domain-boundary` / `clip-domain-removal` / `local-credential-modeling` / `UserSummaryService` public-safe) 의 frame 이 미리 박혀있어 11 Open Question 중 6 건이 frame 정합으로 자동 해소된 효과
 
 ### 일반 개발 페이스 대비 배수
 
@@ -115,7 +116,8 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | OAuth2 + PKCE + JWT 발급 모듈 (start/callback/exchange) | 2-4주 | 약 1일 (PR3 시리즈) | **8-15×** |
 | Refresh rotation + reuse detection + sid blacklist + logout | 1-2주 | **2h 54m (PR4 시리즈, #14→#17)** | **~14-28×** |
 | 단일 CRUD API (Domain~Presentation+테스트) | 0.5-1일 | 1.4h | **4-8×** |
-| 단일 도메인 PRD 일괄 평가 (4건 + 도메인 경계 결정 문서) | 0.5-1일 | 2h 39m (#19) | **2-4×** |
+| 단일 도메인 PRD 일괄 평가 — frame 부재 (4건 + 도메인 경계 결정 문서) | 0.5-1일 | 2h 39m (#19, user) | **2-4×** |
+| 단일 도메인 PRD 일괄 평가 — frame 정합 (3건 + ddd-architect 보강 8건) | 0.5-1일 | 17m (#39, profile) | **30-60×** |
 | 도메인 첫 코드 시리즈 (3 슬라이스 a/b/c, port 4종 + VO + 4 예외 + WebMvc/E2E + 결정 문서 2종) | 2-4일 | 1h 22m (#21~#23) | **14-35×** |
 | 도메인 두 번째 코드 시리즈 (3 슬라이스, BCrypt + Flyway V3 CHECK + 트랜잭션 분리 + 결정 문서 2종 + security 재작업) | 2-4일 | 1h 35m (#25~#27) | **12-30×** |
 
@@ -130,7 +132,8 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | user 평가 (Phase 5-a) | — | 1 | 2h 39m | ✅ 완료 (#19) — getMyInfo DROP, 3 FIX |
 | user 코드 — 이메일 검증 (Phase 5-b/c/d) | 2 | 3 | 1h 22m | ✅ 완료 (#21·#22·#23) — sendValidationNumber + validateEmail |
 | user 코드 — createUser (Phase 5-e) | 1 | 3 | 1h 35m | ✅ 완료 (#25·#26·#27) — LOCAL 가입 + BCrypt + EmailValidatedFlag.consume 사전조건 |
-| profile 평가 + 코드 | 3 | 3-5 | ~5-8h | 다음 진입 (clip 폐기로 4→3 축소, listSavedClips 제외 — decisions/identity/clip-domain-removal.md). 응답 스키마에 identity 필드 흡수 필수 — decisions/identity/user-profile-domain-boundary.md 정합 |
+| profile 평가 (Phase 6-a) | — | 1 | 17m | ✅ 완료 (#39) — KEEP+FIX 3건 / DROP 0, ddd-architect 1차 NEEDS CHANGES 8건 → 2차 KEEP. 박제: profile-prd-evaluation.md (displayName SoT=User, cross-aggregate 트랜잭션, shared identifier, gRPC only) |
+| profile 코드 (Phase 6-b 슬라이스) | 3 | 3-5 | ~4-7h | 다음 진입. Profile aggregate (shared identifier=UserId) + DisplayName VO 격상 (User 측) + Bio/AvatarUrl/Locale VO + DisplayNameChangeRateLimiter port + cross-aggregate 트랜잭션 (`User.rename` + `Profile.update`) + 후속 검토 2건 (markChanged commit 시점 / Profile 생성 시점) |
 | diary 계열 (diary+comment+validation+diarychat+sentence-feedback) | 24 | 24-30 | ~36-45h | profile 후 |
 | chat | 14 | 14-18 | ~21-27h | diary 후 |
 | learning (sentence + word) | 8 | 8-10 | ~12-15h | — |
