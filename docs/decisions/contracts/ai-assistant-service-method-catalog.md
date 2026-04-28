@@ -21,15 +21,17 @@
 
 `AiAssistantService` 는 호출 측 use case 별 명시적 메서드를 가진다. 단일 일반화 메서드 (`call(type, payload)`) 는 채택하지 않는다.
 
-### 초기 메서드 카탈로그 (3개)
+### 메서드 카탈로그 (5개)
 
-본 PR (`chat.proto` 첫 정의) 시점에서 등록되는 메서드는 3개. 각각 현재 PRD 의 use case 와 1:1 매핑.
+PR D-b-2 (`feature/contracts-chat-audio-methods`) 시점 5개로 확장. 각각 현재 PRD 의 use case 와 1:1 매핑. 초기 3개는 PR-B (`chat.proto` 첫 정의) 시점, 후속 2개는 D-a-4-eval (PR #54) 의 §17 선행 필요 contracts 해소.
 
-| 메서드 | 호출자 PRD | 호출자 서비스 | 용도 | Deadline (호출 측) |
-|---|---|---|---|---|
-| `RequestSentenceFeedback` | [`diary/requestSentenceFeedback.md`](../../prd/diary/requestSentenceFeedback.md) | diary-service | 일기 한 문장 (1~50자) 에 대한 AI 대안 제안 | 35s (chat 자체 + ai 30s 마진) |
-| `ValidateDiaryContent` | [`validation/validate.md`](../../prd/validation/validate.md), [`validation/validateLine.md`](../../prd/validation/validateLine.md) | diary-service | 일기 다중 라인 검증 (룰 + LLM 혼합) | 20s |
-| `GenerateChatResponse` | [`diarychat/send.md`](../../prd/diarychat/send.md) | diary-service | diarychat 의 AI 어시스턴트 자동 응답 (aiAssistantEnabled=ON 시) | 35s |
+| 메서드 | 호출자 PRD | 호출자 서비스 | 용도 | Deadline (호출 측) | 등장 시점 |
+|---|---|---|---|---|---|
+| `RequestSentenceFeedback` | [`diary/requestSentenceFeedback.md`](../../prd/diary/requestSentenceFeedback.md) | diary-service | 일기 한 문장 (1~50자) 에 대한 AI 대안 제안 | 35s (chat 자체 + ai 30s 마진) | PR-B (`chat.proto` 첫 정의) |
+| `ValidateDiaryContent` | [`validation/validate.md`](../../prd/validation/validate.md), [`validation/validateLine.md`](../../prd/validation/validateLine.md) | diary-service | 일기 다중 라인 검증 (룰 + LLM 혼합) | 20s | PR-B |
+| `GenerateChatResponse` | [`diarychat/send.md`](../../prd/diarychat/send.md) | diary-service | diarychat 의 AI 어시스턴트 자동 응답 (aiAssistantEnabled=ON 시) | 35s | PR-B |
+| `TranscribeUserAudio` | [`diarychat/send.md`](../../prd/diarychat/send.md) | diary-service | diarychat send 의 audio-only / text+audio 입력 STT 변환 (chat-service 가 audio_url 다운로드 후 ai-service.SpeechToText 호출) | **65s** (ai-service.SpeechToText 60s + chat 다운로드/마진 5s) | PR D-b-2 (본 PR) |
+| `SynthesizeAudio` | [`diarychat/getMessageAudio.md`](../../prd/diarychat/getMessageAudio.md) | diary-service | TTS lazy GET 시 메시지 음성 합성 (chat-service 가 ai-service.TextToSpeech 후 storage 업로드 + presigned URL 발행) | **35s** (ai-service.TextToSpeech 30s + chat storage 업로드/마진 5s) | PR D-b-2 (본 PR) |
 
 ### 확장 정책
 
@@ -113,12 +115,61 @@ service AiAssistantService {
 - 메시지의 field number 1~ 영구 사용.
 - Breaking Change 시 새 메서드 (`RequestSentenceFeedbackV2` 등) + 이전 메서드 deprecation 주석.
 
+### Audio 흐름 결정 — Option A (URL 일관)
+
+`TranscribeUserAudio` (STT) / `SynthesizeAudio` (TTS) 의 audio 모델은 **Option A: URL 일관** 채택 (PR D-b-2).
+
+| RPC | Request audio | Response audio |
+|---|---|---|
+| `TranscribeUserAudio` | `audio_url` (string, http/https) — chat-service 가 다운로드 | (없음) |
+| `SynthesizeAudio` | (없음) | `audio_url` (string, presigned 가능) — chat-service 가 storage 업로드 후 발행 |
+
+**책임 분담**:
+
+| 책임 | 주체 | 비고 |
+|---|---|---|
+| audio_url 발행 (사용자 업로드) | 클라 / 별 file 도메인 (Non-Goals) | [diarychat-domain-policy §8](../diary/diarychat-domain-policy.md) — "이미 업로드된 audioUrl 받음" |
+| audio_url 다운로드 (STT 입력) | **chat-service** | bytes 변환 후 ai-service.SpeechToText 호출 |
+| ai-service 호출 (LLM/STT/TTS) | **chat-service** | 게이트웨이 책임 (ADR-0003) |
+| audio bytes storage 업로드 (TTS 결과) | **chat-service** | presigned URL 발행 |
+| audio_url 메타 영속 | 호출자 (diary-service: `messages.audio_url`) | 단순 metadata 저장 |
+| audio storage 만료 / 재생성 | **chat-service** (잠정 — 운영 PR 시점 정책 박제) | presigned URL TTL |
+
+**Option B (bytes 직접)** 거부 이유:
+- diary-service 가 `audioUrl` 첨부 받음 → 다운로드 → bytes 로 chat-service 전달 → ... → 다시 storage 업로드 후 URL 발행 (다중 hop).
+- diarychat-domain-policy §8 의 "audioUrl 만 받음" 모델과 충돌.
+- 4MB unary 제한 (TTS 평균 ~1MB 충분, STT 1분 wav 4MB 경계).
+
+**ADR-0003 책임 범위 확장 인정**: chat-service 가 storage (S3 등) 접근 권한 / 인증 / mTLS 추가 책임. 게이트웨이 + 객체 storage 의 응집성 (LLM 비용 추적 + audio 캐시 정책 일관 관리) 우위.
+
+### `tone` 운영 enum 후속 항목 해소 (§147 후속 검토)
+
+[sentence-feedback-domain-policy §10](../diary/sentence-feedback-domain-policy.md) 박제 정합:
+
+| 값 | 의미 |
+|---|---|
+| `casual` | 친근한 표현 |
+| `formal` | 정중한 표현 |
+| `neutral` | 중립 표현 (default 처리) |
+| `null` (미명시) | 클라 미명시 — chat-service 가 default 정책 적용 (현재는 `neutral` 와 동등) |
+
+**proto field 정책** — `SentenceFeedbackRequest.tone` 은 **string 유지** (proto3 enum 으로 변경 X).
+
+근거:
+- `finish_reason` / `status` / `format` / `mode` 와 동일 정책 — 공급사별 / 후속 신규 값 추가에 contracts breaking change 없이 호환.
+- chat-service 가 알려진 값 (`casual` / `formal` / `neutral` / `null`) 만 분기, unknown 은 default 로 처리.
+- 신규 값 추가 시 본 catalog 갱신 + chat-service 정책 갱신 (proto 변경 0).
+
+`SentenceFeedbackRequest` 의 `reserved 6 to 9` 슬롯은 **유지** (locale / 50자 산정 mode / 후속 새 필드용). enum 도입을 위해 사용하지 않음.
+
 ### 후속 메서드 후보 (현재 미정의, 등장 PR 시점에 추가)
 | 메서드 | 호출자 | 용도 | 등장 시점 |
 |---|---|---|---|
 | (chat 도메인 자체 흐름) | chat-service 자체 | (자기 application service 가 ai-service 직접 호출) | (해당 메서드 미생성, ai.proto 직접 호출) |
 | `EvaluateSentence` (가칭) | learning-service | sentence 학습 평가 | learning-service 활성화 시 |
 | `GenerateGreeting` (가칭) | platform-service / 기타 | 마케팅 / 알림용 | use case 등장 시 |
+| `TranscribeUserAudio` server-streaming 변형 | diary-service / 향후 | 4MB 초과 긴 음성 입력 (3분+) | 후속 ADR (현재 unary, ADR-0003 후속) |
+| `SynthesizeAudio` server-streaming 변형 | diary-service / 향후 | 긴 텍스트 → audio chunk 스트리밍 (UX 즉시 재생) | 후속 ADR |
 
 ### 각 메서드 status 카탈로그
 
@@ -134,6 +185,12 @@ service AiAssistantService {
 | `GenerateChatResponse` | `OK` | 정상 응답 생성 (assistant_message 비어있지 않음). |
 | `GenerateChatResponse` | `FAILED` | AI 호출 실패. 호출 측 fallback (예: "지금은 답변할 수 없어요"). |
 | `GenerateChatResponse` | `RATE_LIMITED` | 사용자별 호출 한도 초과. 호출 측은 사용자에게 한도 안내. gRPC `Status.RESOURCE_EXHAUSTED` 와 별개로 200 + status 응답 (호출 측 UX 단순화 — 5xx 매핑 정책 후속). |
+| `TranscribeUserAudio` | `OK` | 정상 전사 (text 비어있지 않음). |
+| `TranscribeUserAudio` | `FAILED` | audio 다운로드 실패 (404 / 인증 / 네트워크) / STT 모델 오류 / format 미지원. 호출 측 (diary-service) 은 메시지 row 의 text=null + audioUrl 만 저장 + 안내 표시 (200 응답, [diarychat-domain-policy §9](../diary/diarychat-domain-policy.md)). |
+| `TranscribeUserAudio` | `RATE_LIMITED` | 사용자별 STT 호출 한도 초과. |
+| `SynthesizeAudio` | `OK` | 정상 합성 + storage 업로드 (audio_url 비어있지 않음). |
+| `SynthesizeAudio` | `FAILED` | TTS 모델 오류 / storage 업로드 실패. 호출 측 (diary-service) 은 messages.audio_url 미채움 + 503 또는 200+null 응답 (D-a-4-impl-app 시점 결정, [getMessageAudio.md §5](../../prd/diarychat/getMessageAudio.md)). |
+| `SynthesizeAudio` | `RATE_LIMITED` | 사용자별 TTS 호출 한도 초과. |
 
 **규칙**:
 - 호출 측은 알려진 값만 분기, unknown 은 fallback 으로 처리 (forward 호환).
@@ -144,8 +201,12 @@ service AiAssistantService {
 - 각 메서드의 정확한 message 필드 / field number — 본 PR 의 `chat.proto` 자체에서 정의 (별도 결정 로그 불필요, proto 헤더 주석 + 본 PR description 으로 박제 충분).
 - gRPC 인증 (사용자 JWT 전파 여부) — ADR-0003 Open Item.
 - chat-service 의 메서드별 사용량 카운터 / 비용 추적 정책 — ADR-0003 Open Item.
-- `tone` 운영 enum 후보 (`casual` / `formal` / ...) — PRD `requestSentenceFeedback.md` §8 Open Question. 해소 시 `SentenceFeedbackRequest` 의 `reserved 6 to 9` 슬롯 활용.
-- `validation/validate.md` PRD 가 mined 상태 — 향후 KEEP/FIX/DROP 평가 시 `ValidateDiaryContent` 의 status 카탈로그 / mode 카탈로그 PRD 측 정합 검토.
+- ~~`tone` 운영 enum 후보 (`casual` / `formal` / ...) — PRD `requestSentenceFeedback.md` §8 Open Question.~~ ✅ **해소 (PR D-b-2)** — `casual / formal / neutral` 박제, proto field 는 string 유지 (catalog `tone 운영 enum 후속 항목 해소` 절). `reserved 6 to 9` 슬롯은 다른 후속 필드용으로 유지.
+- ~~`validation/validate.md` PRD 가 mined 상태 — 향후 KEEP/FIX/DROP 평가 시 `ValidateDiaryContent` 의 status 카탈로그 / mode 카탈로그 PRD 측 정합 검토.~~ ✅ **해소 (PR D-a-1 #48)** — [`validation-ai-fallback-policy.md`](../diary/validation-ai-fallback-policy.md) 박제 (status `VALID/INVALID/FAILED` + mode 룰→LLM + Deadline 20s 정합).
+- `TranscribeUserAudio` / `SynthesizeAudio` 의 사용자별 quota 정책 — D-a-4-impl-app 시점 결정.
+- presigned URL 만료 / 재생성 정책 (`SynthesizeAudio.expires_at_epoch_ms` 운영 값) — 운영 PR. **`expires_at_epoch_ms = 0` 의 "영구 URL" 의미는 운영 정책으로 명시 박제 필요** (presigned URL 모델에서는 거의 사용되지 않음 — 기본은 만료값 채움).
+- audio storage 의 mTLS / shared secret 인증 (chat-service ↔ S3 등) — 운영 PR.
+- **`TranscribeUserAudioRequest.audio_url` SSRF 방어 정책** — chat-service 가 임의 URL 다운로드 = SSRF 표면. 호스트 화이트리스트 (자기 storage 도메인만) / 사이즈 상한 (4MB / 추후 증액) / 다운로드 타임아웃 / private IP 차단. 운영 PR 박제 + D-a-4-impl-infra 시점 security-reviewer 호출.
 
 ### Non-Goals
 - chat 도메인 14 API 의 chat-service 내부 흐름 (HTTP → application service → ai-service) — 본 결정 범위 외.
