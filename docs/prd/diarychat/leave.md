@@ -35,4 +35,21 @@ status: mined
 ## 8. TODO / Open Questions
 - [ ] 방장(owner) 퇴장 시 처리
 
-## 9. KEEP/DROP/FIX 분류 (Phase 0.5에서 채움)
+## 9. KEEP/DROP/FIX 분류
+
+**DROP** — [`decisions/diary/diarychat-domain-policy.md`](../../decisions/diary/diarychat-domain-policy.md) §7 박제 적용.
+
+근거 — 사용자 명시:
+> 나간다는 요구사항은 없어.
+
+| 항목 | 결정 | 박제 § |
+|---|---|---|
+| 분류 | **DROP** | §7 |
+| HTTP endpoint | 미구현 (`POST /leave` 미배포) | §7 |
+| 파일 처리 | 본 §9 에 DROP 표기 + **파일 보존** (history 추적) | §7 |
+| 방 종료 행위 | 사용자가 명시적으로 leave 하지 않음 — `DiaryDeleted` Saga cascade 만이 방을 종료 (`chatrooms.deleted_at` soft-delete) | §7, §16 |
+| 방장 / owner 모델 | 도입하지 않음 (별 개념 미도입, [diarychat §2](../../decisions/diary/diarychat-domain-policy.md#2-방-생성--누구나-일기당-단일-방)) | §2 |
+
+후속 (Open Questions §8 해소):
+- 방장 퇴장 처리: 방장 / owner 개념 자체를 도입하지 않으므로 N/A. 일기 작성자가 aiToggle 권한자 — 작성자 leave 자체가 N/A (leave 없음).
+

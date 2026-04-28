@@ -35,5 +35,20 @@ status: mined
 ## 8. TODO / Open Questions
 - [ ] 비참여자 접근 차단
 
-## 9. KEEP/DROP/FIX 분류 (Phase 0.5에서 채움)
-- 후보: 권한 검사 추가 → `@FIX`
+## 9. KEEP/DROP/FIX 분류
+
+**KEEP+FIX** — [`decisions/diary/diarychat-domain-policy.md`](../../decisions/diary/diarychat-domain-policy.md) 박제 적용.
+
+| 항목 | 결정 | 박제 § |
+|---|---|---|
+| Path `roomId` 타입 | `Long` → **UUID** | §1 |
+| 권한 가드 | **참여자 only**, 비참여자 → 404 (IDOR) | §4 |
+| 비공개 일기 + 비작성자 | 404 | §3, §4 |
+| 삭제된 방 | 404 | §16 |
+| 응답 schema | `ParticipantItem { userId: UUID, displayName: String, joinedAt: Instant }` 3 필드 | §13 |
+| displayName 조립 | `UserSummaryService.BatchGetUserSummaries` (PR #35, max 200) 일괄 조회 | §13 |
+
+근거: §6 의 "권한 검사 누락 가능성 (userId 가 facade 에 안 들어감)" 부채 — Application Service 가 userId 받아 참여자 검증 후 응답 조립. `BatchGetUserSummaries` 로 N+1 회피.
+
+후속 (Open Questions §8 해소): 비참여자 접근 차단 → 404 통일 박제 완료.
+
