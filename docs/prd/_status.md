@@ -71,7 +71,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 ## 진행 속도 / 페이스 (참고)
 
 > **운영 규약**: 모든 PR 머지 후 본 절을 즉시 갱신한다. 단계 행 추가 + 누적 시간 계산 + 남은 작업 추정 갱신.
-> 마지막 갱신: PR #42 머지 (2026-04-28) — Phase 6-b-a profile Domain + Port 슬라이스 (Profile aggregate shared identifier, VO 3종, Port 2종, 도메인 예외 2종, 단위 테스트 30+ 케이스). PR #41 정정 (DisplayName 30→32 + existing 사실 명시) 도 별도 단계로 포함.
+> 마지막 갱신: PR #44 머지 (2026-04-28) — Phase 6-b-b profile Application + Infrastructure 슬라이스 (cross-aggregate 트랜잭션, AFTER_COMMIT 메모리 이벤트, lazy + Read 기본값, Flyway V4, 결정 박제 신규). 3 reviewer (ddd-architect KEEP / code+test reviewer APPROVE WITH COMMENTS) 통과 + H1 2건 (`@Version` / Aggregate Mocking) 반영.
 
 ### 단계별 누적 시간 (2026-04-26 18:22 시작)
 
@@ -105,9 +105,10 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | Phase 6-a — profile PRD 평가 | `getMyProfile` (private 8 필드, identity 5종 흡수) / `getProfile` (public-safe 4 필드, UserSummary 정합) / `updateMyProfile` (화이트리스트 4 필드 + displayName 7일 1회 + 고유성 미적용) KEEP+FIX 3건. `decisions/identity/profile-prd-evaluation.md` 박제 — displayName SoT=User aggregate 박제 + cross-aggregate 트랜잭션 박제 (IDDD Ch.10 Rule of Thumb 2 예외) + Profile shared identifier (`Profile.id == User.id`) + gRPC only (이벤트 미채택) + Handle VO 후속 + 빈 문자열 4 필드 / 응답 합성 패턴 명시. ddd-architect 1차 NEEDS CHANGES 8건 (P1-P5 + F1-F3) → 2차 KEEP. 후속 구현 검토 2건 박제 (markChanged commit 시점 + Profile 생성 시점) | #39 | 17m (amend 1회, ddd 재작업 포함. user #19 대비 4× 빠름 — 선행 결정 frame 정합 효과) | **29h 9m** |
 | (별도) Phase 6-a 박제 정정 | `DisplayName` VO + `User.rename` 메서드가 이미 existing (PR3/#11 OAuth 시리즈 도입) 사실 발견 — Phase 6-a 박제 5 위치 정정 (DisplayName 1-30자 → 1-32자, "VO 격상" → "existing 호출만"). 코드 변경 0, ADR-0006 결정 3 truncate 정합 | #41 | 8m (3 파일, 5 위치 정정) | (트랙 외 — Phase 6-b 진입 직전 정합 회복) |
 | Phase 6-b-a — profile Domain + Port | Profile aggregate (shared identifier=UserId, displayName 미보유 / changeBio · unsetBio · changeAvatarUrl · unsetAvatarUrl · changeLocale 부분 변경) + VO 3종 (Bio canonical trim / AvatarUrl http/https + userInfo 차단 / Locale 화이트리스트 ko·en + DEFAULT) + Port 2종 (ProfileRepository / DisplayNameChangeRateLimiter, key prefix `user:`) + 도메인 예외 2종. 단위 테스트 4 파일 / 30+ 케이스 (Spring 없이). code-reviewer 1차 KEEP (Bio/AvatarUrl 보강) + test-reviewer 1차 NEEDS CHANGES (H1 trim 정규화 / H2 경계 / M1 길이 정확 / L1 isSameAs) → 2차 APPROVE. application/infrastructure/presentation 은 b-b/b-c 후속 | #42 | 13m (amend 시 timestamp 보존, 실 작업은 review 2 라운드 + 수정 + 보안 강화 포함) | **29h 35m** |
+| Phase 6-b-b — profile App + Infra | 결정 박제 신규 (`profile-app-infra-decisions.md`): markChanged = AFTER_COMMIT 메모리 이벤트 / Profile 생성 시점 = Lazy + Read 기본값 / 응답 합성 = 단일 트랜잭션 / 락 순서 = User → Profile / Flyway V4. **Application**: DTO 5종 + Service 3종 (`UpdateMyProfileService` cross-aggregate 트랜잭션, IDDD Ch.10 예외) + `DisplayNameChangeRateLimiterListener` (`@TransactionalEventListener(AFTER_COMMIT)`). **Domain Event**: `DisplayNameChanged` (Spring `ApplicationEvent` record, Kafka 미경유). **Infrastructure**: `ProfileJpaEntity` (`@Version` optimistic locking) + `ProfileRepositoryImpl` + `ProfileMapper` (mergeInto) + `DisplayNameChangeRateLimiterRedisStore` (key `user:displayName_changed:{userId}`). **Migration**: `V4__create_profile.sql` (PK `user_id BINARY(16)`, `display_name` 미생성, FK 미사용, `version` 컬럼). 6 테스트 파일 / 30+ 케이스. 3 reviewer 통과: ddd-architect KEEP / code reviewer APPROVE (H1 `@Version` + M2/M3/M4 반영) / test reviewer APPROVE (H1 Aggregate Mocking 제거 + M1/M2/M3 반영) | #44 | 약 1h 24m (24 파일 1588 lines, 결정 박제 + 3 reviewer 라운드 + H1 2건 반영 포함) | **30h 59m** |
 
-- 누적 26 PR (본 트랙, ~PR #27 + #39 + #42) + 4 PR (#15·#18·#20·#24 docs 페이스) / **29h 35m 실측**, 잠·식사·limit wait 약 ~17h 제외 시 **실작업 약 12.5h** (트랙 외 PR #28~#41 의 contracts/docker/ADR/_status/박제 정정 시리즈는 별도 — 병렬 트랙 포기 후 누적 통합은 추후)
-- **평균 1.1h/PR** (AI 협업 페이스 — PR3 시리즈 1.5h/PR → PR4 시리즈 1.4h/PR → PR5 시리즈 슬라이스 평균 27m/PR → PR6 시리즈 슬라이스 평균 32m/PR → Phase 6-a (profile 평가, #39) 17m → Phase 6-b-a (profile Domain, #42) **13m**). Phase 6-a/b-a 가 user 시리즈 대비 4-5× 빠른 이유는 선행 결정 (`user-profile-domain-boundary` / `clip-domain-removal` / `local-credential-modeling` / `UserSummaryService` public-safe / `profile-prd-evaluation`) 의 frame 이 미리 박혀있어 결정 분량 자체가 적었음 + Phase 6-b-a 는 `User.rename` / `DisplayName` VO existing 으로 작성 분량 추가 절감
+- 누적 27 PR (본 트랙, ~PR #27 + #39 + #42 + #44) + 4 PR (#15·#18·#20·#24 docs 페이스) / **30h 59m 실측**, 잠·식사·limit wait 약 ~17h 제외 시 **실작업 약 14h** (트랙 외 PR #28~#43 의 contracts/docker/ADR/_status/박제 정정 시리즈는 별도)
+- **평균 1.1h/PR** (AI 협업 페이스 — PR3 1.5h/PR → PR4 1.4h/PR → PR5 27m/PR → PR6 32m/PR → Phase 6-a (#39) 17m → Phase 6-b-a (#42) 13m → Phase 6-b-b (#44) **1h 24m**). Phase 6-b-b 가 6-a/b-a 대비 다시 길어진 이유: 결정 박제 신규 1건 + 24 파일 / 1588 lines + 3 reviewer 라운드 + H1 2건 (`@Version` / Aggregate Mocking) 반영. 코드 분량 큰 슬라이스라 user 도메인 PR6-b (#26, 35m, App+Infra) 와 직접 비교 시 4× 길어짐 — cross-aggregate 트랜잭션 + AFTER_COMMIT 이벤트 + lazy + Flyway V4 + 결정 박제가 첫 도입이라 검토 비용 가중
 
 ### 일반 개발 페이스 대비 배수
 
@@ -137,13 +138,13 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | user 코드 — createUser (Phase 5-e) | 1 | 3 | 1h 35m | ✅ 완료 (#25·#26·#27) — LOCAL 가입 + BCrypt + EmailValidatedFlag.consume 사전조건 |
 | profile 평가 (Phase 6-a) | — | 1 | 17m | ✅ 완료 (#39) — KEEP+FIX 3건 / DROP 0, ddd-architect 1차 NEEDS CHANGES 8건 → 2차 KEEP. 박제: profile-prd-evaluation.md (displayName SoT=User, cross-aggregate 트랜잭션, shared identifier, gRPC only) |
 | profile 코드 — Domain (Phase 6-b-a) | — | 1 | 13m | ✅ 완료 (#42) — Profile aggregate (shared identifier) + VO 3종 + Port 2종 + 도메인 예외 2종 + 30+ 단위 테스트. code-reviewer KEEP / test-reviewer 1차 NEEDS CHANGES → 2차 APPROVE |
-| profile 코드 — App+Infra (Phase 6-b-b) | — | 1-2 | ~30-50m | 다음 진입. 3 Application Service (Retrieve* / Update*) + ProfileRepository impl + RedisDisplayNameChangeRateLimiterAdapter + Flyway V4 (`profiles` 테이블, `display_name` 미생성) + ProfileMapper + cross-aggregate 트랜잭션 (`User.rename` + `Profile.update`). 후속 결정 2건 (markChanged commit 시점 / Profile 생성 시점) 박제 |
+| profile 코드 — App+Infra (Phase 6-b-b) | — | 1 | 1h 24m | ✅ 완료 (#44) — Application 5 DTO + 3 Service (cross-aggregate 트랜잭션) + Domain Event + AFTER_COMMIT Listener + ProfileJpaEntity (`@Version`) + ProfileRepositoryImpl + ProfileMapper + Redis adapter + Flyway V4. 후속 결정 2건 박제 (`profile-app-infra-decisions.md`) |
 | profile 코드 — Presentation+E2E (Phase 6-b-c) | 3 | 1 | ~25-40m | b-b 후. ProfileController 3 endpoint + DTO 4종 (MyProfileResponse / PublicProfileResponse / UpdateMyProfileRequest / UpdateMyProfileResponse=재사용) + ProfileErrorCode 4종 + ExceptionHandler 매핑 + WebMvcTest + E2E + `@SecurityRequirement(BearerJwt)` |
 | diary 계열 (diary+comment+validation+diarychat+sentence-feedback) | 24 | 24-30 | ~36-45h | profile 후 |
 | chat | 14 | 14-18 | ~21-27h | diary 후 |
 | learning (sentence + word) | 8 | 8-10 | ~12-15h | — |
 | platform (shorts + event + feedback) | 3 | 3 | ~5h | — |
-| **남은 합계** | **52** | **~51-64** | **~75-95h ≈ 영업일 9-12일** | |
+| **남은 합계** | **52** | **~50-63** | **~74-94h ≈ 영업일 9-12일** | |
 
 후속 별도 PR (PR4-c, PR5-b, PR5-c security/test 리뷰 deferral):
 - **PR4-c** Security H1 (Spring Security default-deny), H2 (rate limiting), M1 (refresh transport 결정), M2 (ArchUnit 호출자 룰), M3 (cause class logging), M5 (deviceId binding)
