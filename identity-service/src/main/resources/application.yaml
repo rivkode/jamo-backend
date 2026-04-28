@@ -115,3 +115,24 @@ management:
     health:
       show-details: never
       show-components: never
+
+# springdoc-openapi (Swagger UI).
+# 운영(prod) profile 에서는 비활성 — 아래 multi-document 섹션 참조.
+springdoc:
+  swagger-ui:
+    path: /swagger
+    operations-sorter: alpha
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+---
+# prod profile 전용 override — swagger-ui / api-docs 비활성
+spring:
+  config:
+    activate:
+      on-profile: prod
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
