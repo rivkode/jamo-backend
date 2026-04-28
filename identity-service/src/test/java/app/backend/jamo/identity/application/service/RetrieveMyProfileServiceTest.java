@@ -2,7 +2,7 @@ package app.backend.jamo.identity.application.service;
 
 import app.backend.jamo.identity.application.dto.MyProfileResult;
 import app.backend.jamo.identity.application.dto.RetrieveMyProfileQuery;
-import app.backend.jamo.identity.domain.exception.UserNotFoundException;
+import app.backend.jamo.identity.domain.exception.AuthenticatedUserNotFoundException;
 import app.backend.jamo.identity.domain.model.oauth.OAuthIdentity;
 import app.backend.jamo.identity.domain.model.oauth.OAuthProvider;
 import app.backend.jamo.identity.domain.model.oauth.ProviderUserId;
@@ -90,7 +90,7 @@ class RetrieveMyProfileServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.retrieve(new RetrieveMyProfileQuery(userId)))
-                .isInstanceOf(UserNotFoundException.class);
+                .isInstanceOf(AuthenticatedUserNotFoundException.class);
     }
 
     @Test

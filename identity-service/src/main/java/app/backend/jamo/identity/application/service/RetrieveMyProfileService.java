@@ -2,7 +2,7 @@ package app.backend.jamo.identity.application.service;
 
 import app.backend.jamo.identity.application.dto.MyProfileResult;
 import app.backend.jamo.identity.application.dto.RetrieveMyProfileQuery;
-import app.backend.jamo.identity.domain.exception.UserNotFoundException;
+import app.backend.jamo.identity.domain.exception.AuthenticatedUserNotFoundException;
 import app.backend.jamo.identity.domain.model.oauth.OAuthIdentity;
 import app.backend.jamo.identity.domain.model.oauth.OAuthProvider;
 import app.backend.jamo.identity.domain.model.profile.Locale;
@@ -41,7 +41,8 @@ public class RetrieveMyProfileService {
         Objects.requireNonNull(query, "query");
 
         User user = userRepository.findById(query.userId())
-                .orElseThrow(() -> new UserNotFoundException("user not found: " + query.userId().value()));
+                .orElseThrow(() -> new AuthenticatedUserNotFoundException(
+                        "authenticated user not found: " + query.userId().value()));
 
         Optional<Profile> profileOpt = profileRepository.findById(query.userId());
 

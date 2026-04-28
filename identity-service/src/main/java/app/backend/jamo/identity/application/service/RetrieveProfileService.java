@@ -20,8 +20,8 @@ import java.util.Optional;
  * <p>{@code email} / {@code providers} / {@code createdAt} / {@code locale} 노출 X (UserSummaryService
  * 정합). viewer-context (follow 여부) 미적용 — follow 도메인 부재로 Non-Goal.
  *
- * <p>{@code loginUserId} 는 인증 검증 외 미사용 — 향후 follow 도메인 도입 시 viewer-context 합성에
- * 활용 예정.
+ * <p>인증 검증 ({@code @LoginUser}) 은 Presentation 책임. follow 도메인 도입 시 query 에 `viewerId`
+ * 추가 + viewer-context 합성 (Phase 6-b-c, code-reviewer M1 후속 박제).
  */
 @Service
 public class RetrieveProfileService {

@@ -43,7 +43,6 @@ class RetrieveProfileServiceTest {
 
     @Test
     void retrieve_returns_public_safe_4_fields_only() {
-        UserId loginUserId = UserId.generate();
         UserId targetUserId = UserId.generate();
         User user = User.registerWithOAuth(
                 OAuthProvider.GOOGLE, new ProviderUserId("g-1"),
@@ -54,7 +53,7 @@ class RetrieveProfileServiceTest {
         when(userRepository.findById(targetUserId)).thenReturn(Optional.of(user));
         when(profileRepository.findById(targetUserId)).thenReturn(Optional.of(profile));
 
-        PublicProfileResult result = service.retrieve(new RetrieveProfileQuery(loginUserId, targetUserId));
+        PublicProfileResult result = service.retrieve(new RetrieveProfileQuery(targetUserId));
 
         assertThat(result.id()).isEqualTo(user.id());
         assertThat(result.displayName()).isEqualTo(new DisplayName("nick"));
@@ -65,7 +64,6 @@ class RetrieveProfileServiceTest {
 
     @Test
     void retrieve_returns_null_optional_fields_when_profile_missing() {
-        UserId loginUserId = UserId.generate();
         UserId targetUserId = UserId.generate();
         User user = User.registerWithOAuth(
                 OAuthProvider.KAKAO, new ProviderUserId("k-1"),
@@ -74,7 +72,7 @@ class RetrieveProfileServiceTest {
         when(userRepository.findById(targetUserId)).thenReturn(Optional.of(user));
         when(profileRepository.findById(targetUserId)).thenReturn(Optional.empty());
 
-        PublicProfileResult result = service.retrieve(new RetrieveProfileQuery(loginUserId, targetUserId));
+        PublicProfileResult result = service.retrieve(new RetrieveProfileQuery(targetUserId));
 
         assertThat(result.bio()).isNull();
         assertThat(result.avatarUrl()).isNull();
@@ -83,11 +81,10 @@ class RetrieveProfileServiceTest {
 
     @Test
     void retrieve_throws_when_user_not_found() {
-        UserId loginUserId = UserId.generate();
         UserId targetUserId = UserId.generate();
         when(userRepository.findById(targetUserId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.retrieve(new RetrieveProfileQuery(loginUserId, targetUserId)))
+        assertThatThrownBy(() -> service.retrieve(new RetrieveProfileQuery(targetUserId)))
                 .isInstanceOf(UserNotFoundException.class);
     }
 }

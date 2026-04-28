@@ -26,6 +26,10 @@ public record AvatarUrl(String value) {
         if (value.length() > MAX_LENGTH) {
             throw new IllegalArgumentException("avatarUrl length out of range: max " + MAX_LENGTH);
         }
+        // CRLF / control character 차단 (Log/Header injection 방어, security review M1)
+        if (value.chars().anyMatch(c -> c < 0x20 || c == 0x7F)) {
+            throw new IllegalArgumentException("avatarUrl must not contain control characters");
+        }
         URI uri;
         try {
             uri = new URI(value);

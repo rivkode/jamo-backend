@@ -4,7 +4,7 @@ import app.backend.jamo.identity.application.dto.MyProfileResult;
 import app.backend.jamo.identity.application.dto.UpdateMyProfileCommand;
 import app.backend.jamo.identity.domain.event.DisplayNameChanged;
 import app.backend.jamo.identity.domain.exception.DisplayNameChangeTooFrequentException;
-import app.backend.jamo.identity.domain.exception.UserNotFoundException;
+import app.backend.jamo.identity.domain.exception.AuthenticatedUserNotFoundException;
 import app.backend.jamo.identity.domain.model.oauth.OAuthProvider;
 import app.backend.jamo.identity.domain.model.oauth.ProviderUserId;
 import app.backend.jamo.identity.domain.model.profile.AvatarUrl;
@@ -182,7 +182,7 @@ class UpdateMyProfileServiceTest {
 
         assertThatThrownBy(() -> service.update(
                 new UpdateMyProfileCommand(other, null, "x", null, null)))
-                .isInstanceOf(UserNotFoundException.class);
+                .isInstanceOf(AuthenticatedUserNotFoundException.class);
     }
 
     @Test
