@@ -86,7 +86,7 @@ profile 도메인 (Phase 6-a) 진입 시점에 3 PRD (`getMyProfile` / `getProfi
 
 | 필드 | 타입 | 변경 가능? | 소유 AR | 빈도 제한 | 검증 |
 |---|---|---|---|---|---|
-| `displayName` | String (1-30자, trim) | ✅ | **User** (rename) | **7일 1회** (Redis `user:displayName_changed:{userId}` TTL 7d) | 비어있으면 400, 30자 초과 400 |
+| `displayName` | String (1-32자, trim) | ✅ | **User** (rename) | **7일 1회** (Redis `user:displayName_changed:{userId}` TTL 7d) | 비어있으면 400, 32자 초과 400 (existing `DisplayName` VO MAX_LENGTH=32, ADR-0006 결정 3 truncate 정합) |
 | `bio` | String (0-200자) | ✅ | Profile (update) | 무제한 | 200자 초과 400 |
 | `avatarUrl` | URL String (nullable) | ✅ | Profile (update) | 무제한 | URL 형식 검증 (http/https), 길이 ≤ 500 |
 | `locale` | String (ISO 639-1 — `ko` / `en` 등) | ✅ | Profile (update) | 무제한 | enum 화이트리스트 (`ko` / `en` 우선, 추후 확장) |
@@ -180,7 +180,8 @@ profile 도메인 (Phase 6-a) 진입 시점에 3 PRD (`getMyProfile` / `getProfi
 #### Domain
 - `Profile` aggregate root — **shared identifier 패턴** (IDDD Ch.10): 식별자는 `UserId` 와 **같은 값** (별도 `ProfileId` VO 신설 X). 1:1 매핑이 도메인 invariant 로 보장되며, 코드는 `Profile.id == User.id` 로 표현.
 - `Profile` 필드: `bio` (Bio VO) + `avatarUrl` (AvatarUrl VO) + `locale` (Locale VO). **displayName 미보유** (§결정 #3.0 — User SoT). `displayName` 은 응답 합성 시 `User` 에서 조회.
-- VO: `Bio` (0-200) / `AvatarUrl` (URL 검증, ≤500) / `Locale` (enum-like 화이트리스트). `DisplayName` VO 는 User aggregate 측 신규 (existing User.displayName 을 String → VO 격상 — Phase 6-b 첫 슬라이스에서 함께).
+- VO: `Bio` (0-200) / `AvatarUrl` (URL 검증, ≤500) / `Locale` (enum-like 화이트리스트) — Phase 6-b 슬라이스 신규.
+- **`DisplayName` VO 와 `User.rename(name, now)` 메서드는 existing** (User aggregate 가 이미 record 로 보유 — `domain/model/user/DisplayName.java` MAX_LENGTH=32, `User.java:93` rename). Phase 6-b 슬라이스에서 *재격상 / 신규 작성 X*. `User.rename` 시그니처 `(DisplayName newName, Instant now)` 가 본 결정 박제와 일치.
 - Domain Service: 없음 (단순 update 라 aggregate 메서드로 충분)
 - Port: `DisplayNameChangeRateLimiter` (Redis flag store) — User aggregate 측 port (profile 디렉토리 X). 위치는 `domain/repository/` 또는 `domain/port/`.
 - **이벤트 발행 미채택**: 본 PR 시점 platform-service 가 placeholder 라 Read Model 부재. 표시명 cross-service 조회는 **gRPC `UserSummaryService` 동기 호출만** 사용 (PR #35). `DisplayNameChanged` Kafka 이벤트는 본 PR 결정 범위 밖 — Phase 6-b 또는 platform-service 가 Read Model 도입 시점에 별도 결정 (Outbox + Kafka 추가 비용 정당화 필요). 본 PR 박제: User/Profile 어느 aggregate 도 도메인 이벤트 미수집.
@@ -194,7 +195,7 @@ profile 도메인 (Phase 6-a) 진입 시점에 3 PRD (`getMyProfile` / `getProfi
 - `ProfileJpaEntity` + Flyway V4 — `profiles` 테이블 (`user_id` PK 겸 FK 인덱스, `bio` / `avatar_url` / `locale`). **`display_name` 컬럼 미생성** (User SoT). User SoT 정합으로 1:1 매핑.
 - `ProfileMapper` (Domain ↔ Jpa)
 - `RedisDisplayNameChangeRateLimiterAdapter` (Redis SETEX, key **`user:displayName_changed:{userId}`** TTL 7d) — User SoT 정합으로 prefix 는 `user:`. 어댑터 위치는 `infrastructure/redis/` 또는 동등.
-- (참고) `User.displayName` 컬럼은 PR6 `users` 테이블에 이미 존재. Phase 6-b 슬라이스에서 `User.rename` 메서드 + DisplayName VO 격상.
+- (참고) `User.displayName` 컬럼 + `DisplayName` VO + `User.rename(DisplayName, Instant)` 메서드 모두 PR3/#11 OAuth 시리즈에서 **이미 도입됨**. Phase 6-b 슬라이스는 *호출만* (재작성 X).
 
 #### Presentation
 - `ProfileController` — 3 endpoint (`GET /me` / `GET /{userId}` / `PATCH /me`)
