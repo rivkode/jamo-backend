@@ -71,7 +71,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 ## 진행 속도 / 페이스 (참고)
 
 > **운영 규약**: 모든 PR 머지 후 본 절을 즉시 갱신한다. 단계 행 추가 + 누적 시간 계산 + 남은 작업 추정 갱신.
-> 마지막 갱신: PR #27 머지 (2026-04-28 08:39 KST) — user 도메인 두 번째 시리즈 (LOCAL 회원가입) 완성 — PR6-a/b/c.
+> 마지막 갱신: PR #29 머지 (2026-04-28 09:29 KST) — 로컬 dev 인프라 (docker compose + identity-service Dockerfile + swagger) — 트랙 외 (인프라 / 도구).
 
 ### 단계별 누적 시간 (2026-04-26 18:22 시작)
 
@@ -96,6 +96,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | Phase 5-e — user 코드: createUser 도메인+port | AccountType + HashedPassword VO + PasswordEncoder port + User.registerLocal + invariant 4 + 도메인 예외 2 + 결정 문서 (LOCAL 자격증명 모델링) | #25 | 40m | 27h 57m |
 | Phase 5-e — user 코드: createUser app+infra | RegisterUser Command/Result/Service (TransactionTemplate, BCrypt 트랜잭션 외부) + BCryptPasswordEncoderAdapter + Flyway V3 (CHECK + idx 통합) + UserMapper 정합 + 결정 문서 (운영 배포 체크리스트) | #26 | 35m (security 1차 NEEDS CHANGES → 재작성 포함) | 28h 32m |
 | Phase 5-e — user 코드: createUser presentation+E2E | UserRegistrationController + Request/Response DTO (WRITE_ONLY + toString 마스킹) + UserErrorCode 2종 + UserExceptionHandler 매핑 + WebMvcTest 13 + E2E 4 | #27 | 20m (test 1차 NEEDS CHANGES → 재작성 포함) | **28h 52m** |
+| (별도) 로컬 dev 인프라 + identity swagger | docker-compose (mysql/redis/identity), identity-service/Dockerfile (멀티스테이지), MySQL init 5 스키마, generate-dev-keys.sh, .env.example/.dockerignore + springdoc-openapi 2.7.0 + OpenApiConfig (BearerJwt) + prod profile multi-doc 비활성 + CLAUDE.md 의무 규칙 (Dockerfile/compose/swagger 누락 금지) | #29 | 50m | (트랙 외) |
 
 - 누적 24 PR (본 트랙) + 4 PR (#15·#18·#20·#24 docs 페이스) / **28h 52m 실측**, 잠·식사·limit wait 약 ~17h 제외 시 **실작업 약 12h**
 - **평균 1.2h/PR** (AI 협업 페이스 — PR3 시리즈 1.5h/PR → PR4 시리즈 1.4h/PR → PR5 시리즈 슬라이스 평균 27m/PR → PR6 시리즈 슬라이스 평균 32m/PR). PR6 슬라이스 (#25~#27) 만 보면 1h 35m / 3 PR = **32m/PR** — security 1차 NEEDS CHANGES 재작업 비용 포함, sanitize 정책이 결정 문서 5건과 PR4-c security trail 에 의해 표준화된 결과 PR5 페이스 유지
@@ -141,6 +142,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 - **PR6-b** Security M2 (LOCAL 가입자 enumeration 시도 모니터링 alarm — 동일 IP 의 register 4xx 응답률)
 - **PR6-c** Testcontainers reuse mode — E2E 컨테이너 시동 비용 절감 (현재 클래스 단위 격리)
 - **PR6-c** ArchitectureTest — user controller 추가 시 UserExceptionHandler.assignableTypes 등록 강제 검증
+- **(infra)** E2E 4종 (`AuthRefreshLogoutE2ETest` / `OAuthFlowE2ETest` / `UserRegistrationE2ETest` / `UserValidationE2ETest`) Redis SET TTL `ERR invalid expire time` 환경 이슈 — Redis 7 + Lettuce + 사용자 검증 코드 cooldown 경로의 0/음수 TTL 가능성. PR #29 검증 중 dev 베이스에서도 동일 재현 확인. 별도 PR 로 root cause 분석 필요
 
 추정의 한계:
 - AI 의존 chat API (generateChat, createAnswer 등 6-7개) 는 ai-service 진척도에 종속.
