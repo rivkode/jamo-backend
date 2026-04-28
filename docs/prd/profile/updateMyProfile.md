@@ -16,7 +16,7 @@ status: mined
 
 ```json
 {
-  "displayName": "string?",  // null = 변경 없음. 1-30자, trim
+  "displayName": "string?",  // null = 변경 없음. 1-32자, trim (DisplayName VO MAX_LENGTH 정합, ADR-0006 결정 3 truncate 32자)
   "bio": "string?",          // null = 변경 없음. 0-200자
   "avatarUrl": "string?",    // null = 변경 없음. URL ≤500
   "locale": "string?"        // null = 변경 없음. ISO 639-1 화이트리스트 (ko/en 등)
@@ -27,7 +27,7 @@ status: mined
 
 | 필드 | 변경 가능? | 소유 AR | 빈도 제한 | 검증 / 빈 문자열 의미 |
 |---|---|---|---|---|
-| `displayName` | ✅ | **User** (`User.rename`) | **7일 1회** | 1-30자, trim. 빈 문자열 → 400 |
+| `displayName` | ✅ | **User** (`User.rename`) | **7일 1회** | 1-32자, trim (existing `DisplayName` VO MAX_LENGTH=32). 빈 문자열 → 400 |
 | `bio` | ✅ | Profile | 무제한 | 0-200자. 빈 문자열 → null 정규화 |
 | `avatarUrl` | ✅ | Profile | 무제한 | URL (http/https), ≤500자. 빈 문자열 → null 정규화 (아바타 제거) |
 | `locale` | ✅ | Profile | 무제한 | enum 화이트리스트 (`ko`/`en` 우선). 빈 문자열 → 400 |
@@ -125,10 +125,10 @@ PRD 의 핵심 흐름 (`@LoginUser` + Body → `updateMyProfile(userId, command)
 | §6 PATCH 의미 → **null = 변경 없음, 빈 문자열은 displayName 한정 400** | 명시적 정의 |
 
 **후속 작업 (Phase 6-b 이후 코드 슬라이스, 본 PR 범위 외)**:
-- VO 신설: `Bio` (0-200) / `AvatarUrl` (URL ≤500) / `Locale` (enum-like). `DisplayName` VO 는 User aggregate 측 (existing `User.displayName` String → VO 격상)
+- VO 신설: `Bio` (0-200) / `AvatarUrl` (URL ≤500) / `Locale` (enum-like). `DisplayName` VO 는 **existing** (User aggregate 가 이미 record 로 보유, MAX_LENGTH=32 — 재작성 X)
 - Port: `DisplayNameChangeRateLimiter` (User aggregate 측, Redis SETEX adapter, key `user:displayName_changed:{userId}`)
 - Application: `UpdateMyProfileCommand` / `UpdateMyProfileService` (`@Transactional` cross-aggregate — `User.rename` + `Profile.update` 동시, commit 후 retrieve 재호출로 응답 합성)
-- Domain (User): `User.rename(newName, now)` 메서드 신규 (existing setter X)
+- Domain (User): **`User.rename(DisplayName, Instant)` 메서드 existing** (`User.java:93`, 재작성 X). 본 슬라이스는 호출만.
 - Domain (Profile): `Profile` aggregate 신규 (shared identifier = UserId, displayName 미보유, `update(bio, avatarUrl, locale, now)` 메서드)
 - Infrastructure: `RedisDisplayNameChangeRateLimiterAdapter` + `ProfileJpaEntity` + `ProfileMapper` + Flyway V4 (`profiles` 테이블, `display_name` 컬럼 미생성)
 - Presentation: `ProfileController.updateMyProfile` + `UpdateMyProfileRequest` (`@Valid` + 화이트리스트 4 필드) + `ProfileErrorCode` 4종 + `ProfileExceptionHandler` 매핑 + `@SecurityRequirement(name = "BearerJwt")`
