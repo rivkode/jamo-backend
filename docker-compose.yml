@@ -94,6 +94,35 @@ services:
       - jamo-network
     restart: unless-stopped
 
+  # diary-service — 본 entry 는 D-a-5-impl-domain (PR #62) 에 형식적으로 추가됨.
+  # Domain layer 만 보유한 시점이라 Spring Boot starter web/data 가 미연결 → bootJar 자체는 빌드되나
+  # 부팅 시 비즈니스 동작 X. 후속 슬라이스 (D-a-5-impl-app + impl-infra) 에서 starter / config 추가 후
+  # 본 entry 로 docker compose up -d diary-service 로 기동 검증 예정.
+  diary-service:
+    build:
+      context: .
+      dockerfile: diary-service/Dockerfile
+    container_name: jamo-diary-service
+    ports:
+      - "${DIARY_SERVER_PORT:-8082}:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      DIARY_DB_URL: jdbc:mysql://mysql:3306/diary?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+      DIARY_DB_USERNAME: ${DIARY_DB_USERNAME:-diary}
+      DIARY_DB_PASSWORD: ${DIARY_DB_PASSWORD:-diary-dev}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-jamo-redis-dev}
+      TZ: Asia/Seoul
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - jamo-network
+    restart: unless-stopped
+
 volumes:
   mysql-data:
   redis-data:
