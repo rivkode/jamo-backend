@@ -1,6 +1,6 @@
 # Legacy API PRD 인덱스
 
-> 출처: `~/dev/project/kotlin/language` (Kotlin/Spring) — 25개 컨트롤러 / **59개 endpoint** (mined)
+> 출처: `~/dev/project/kotlin/language` (Kotlin/Spring) — 25개 컨트롤러 / **58개 endpoint** (mined)
 > 각 endpoint = 1 PRD. 위치: `docs/prd/{domain}/{handler}.md`
 > 상태: `status: mined`(현재) → `verified`(Phase 0.5 KEEP/DROP/FIX 완료) → `frozen`(read-only)
 > 그린필드 신규 PRD (`proposed`) 는 본 인덱스에 포함하지 않음 — `_status.md` 참조.
@@ -16,13 +16,13 @@
 | diarychat | 9 |
 | event | 1 |
 | feedback | 1 |
-| profile | 4 |
+| profile | 3 |
 | sentence | 4 |
 | shorts | 1 |
 | user | 4 |
 | validation | 2 |
 | word | 4 |
-| **합계** | **59** |
+| **합계** | **58** |
 
 ## 전체 PRD 목록
 
@@ -80,10 +80,9 @@
 ### feedback (1)
 - [POST /api/v1/feedbacks](feedback/createFeedback.md)
 
-### profile (4)
+### profile (3)
 - [GET /api/v1/profiles/me](profile/getMyProfile.md)
 - [GET /api/v1/profiles/{userId}](profile/getProfile.md)
-- [GET /api/v1/profiles/{userId}/saved-clips](profile/listSavedClips.md)
 - [PATCH /api/v1/profiles/me](profile/updateMyProfile.md)
 
 ### sentence (4)
