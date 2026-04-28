@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package app.backend.jamo.contracts.proto.identity;
+
+option java_multiple_files = true;
+option java_package = "app.backend.jamo.contracts.proto.identity";
+option java_outer_classname = "IdentityProto";
+
+// UserSummaryService — identity-service (Java) 가 노출하는 사용자 표시용 요약 조회.
+//
+// 제공자: identity-service (Java, Spring Boot)
+// 호출자: platform-service (랭킹 ZSET top N 표시명 / 프로필 사진).
+//        다른 서비스도 사용자 표시명을 실시간으로 정확한 최신값으로 조회해야 할 때 호출 가능.
+// 언어: Java / Java
+//
+// 책임 (ADR-0002 §결정 — `랭킹 조회는 ZSET 직접 read … 사용자 표시명은
+// identity-service UserSummaryService gRPC 호출 또는 Redis 캐시 Read Model`):
+//   ranking ZSET 조회 후 top N 의 userId 를 화면에 닉네임/사진으로 표시할 때
+//   본 서비스 호출. 결과 stale 허용 — 호출자 측 Redis cache 권장.
+//
+// 정책 일관성 (PR-A `ai.proto`, PR-B `chat.proto` 와 동일):
+//   - 모든 요청에 optional `request_id` (호출 측 cache 키 / 분산 trace).
+//     비우면 identity-service 가 생성하여 응답 echo.
+//   - status / user_status 등 enum 가능 필드는 string (proto3 enum 미사용,
+//     공급사·도메인 변경 시 contracts breaking change 회피).
+//
+// 비고:
+//   - identity-service 의 user / profile 도메인 read 단일 진입점은 HTTP
+//     `GET /api/v1/profiles/me` (decisions/identity/user-profile-domain-boundary.md).
+//     본 gRPC 는 서비스간 표시용 요약에 한정 — public-safe 필드만 노출
+//     (email / providers / createdAt 등 private 필드 의도적 제외).
+//   - 회원 탈퇴 Saga (ADR-0002 §결과 영향 — 후속 결정 항목) 도입 시 lifecycle
+//     상태 (`WITHDRAWING` / `DELETED`) 가 도메인에 추가될 예정. 호출 측이 표시
+//     정책 결정 (예: "탈퇴한 사용자" 라벨).
+service UserSummaryService {
+  // 단건 조회. 호출자 Deadline: 2초 (단순 조회).
+  rpc GetUserSummary (GetUserSummaryRequest) returns (GetUserSummaryResponse);
+
+  // 일괄 조회 — platform-service 의 랭킹 top N (예: 100) 일괄 표시용.
+  // N+1 회피. 호출자 Deadline: 5초.
+  rpc BatchGetUserSummaries (BatchGetUserSummariesRequest) returns (BatchGetUserSummariesResponse);
+}
+
+// ============================================================
+// 공통 메시지
+// ============================================================
+
+// 사용자 표시용 요약. public-safe 필드만 노출.
+// (private 필드 — email / providers / createdAt 등은 본 메시지 미포함;
+//  본인 조회는 identity-service 의 HTTP `/profiles/me` 사용.)
+message UserSummary {
+  // 사용자 ID (UUID 문자열).
+  string user_id = 1;
+
+  // 표시명 (닉네임). 미설정 시 빈 문자열 — 호출 측이 fallback 정책 결정.
+  string display_name = 2;
+
+  // 프로필 사진 URL. 미설정 시 빈 문자열.
+  string avatar_url = 3;
+
+  // 사용자 lifecycle 상태. "ACTIVE" / "WITHDRAWING" / "DELETED" 등 (string —
+  // `finish_reason` 과 동일 이유로 후속 상태 추가에 호환).
+  // 응답 메시지의 RPC 결과 `status` (`OK` / `NOT_FOUND` 등) 와 의미 분리를 위해
+  // 필드명을 `user_status` 로 둠.
+  // 회원 탈퇴 Saga (ADR-0002 §결과 영향 후속 결정) 도입 시 User Aggregate 의 상태
+  // enum 과 정합 시점 박제 예정 — 현재 User Aggregate 에 status 필드 미존재.
+  string user_status = 4;
+
+  // field 5 ~ 9: locale / 뱃지 / 가입 연차 등 표시 보강 필드 후속 예약.
+  reserved 5 to 9;
+}
+
+// ============================================================
+// GetUserSummary (단건)
+// ============================================================
+
+message GetUserSummaryRequest {
+  // 조회 대상 사용자 ID.
+  string user_id = 1;
+
+  // 호출자가 부여하는 추적 ID (호출 측 cache 키 / 분산 trace).
+  // 비우면 identity-service 가 생성하여 응답에 echo.
+  string request_id = 2;
+
+  // field 3 ~ 9: 호출자 컨텍스트 (요청자 user_id 등) / 권한 hint 후속 예약.
+  reserved 3 to 9;
+}
+
+message GetUserSummaryResponse {
+  // RPC 결과 status. user_id 가 존재하지 않으면 status="NOT_FOUND" +
+  // summary 의 user_id 만 echo, 나머지 필드 빈 문자열.
+  // gRPC `Status.NOT_FOUND` 와 별개 — 호출 측 UX 단순화 위해 200 응답 + status.
+  // 값 카탈로그: "OK" / "NOT_FOUND" / "FAILED" (string).
+  // (UserSummary 의 lifecycle `user_status` 와 의미 분리.)
+  string status = 1;
+
+  UserSummary summary = 2;
+
+  // 추적 ID echo.
+  string request_id = 3;
+
+  reserved 4 to 9;
+}
+
+// ============================================================
+// BatchGetUserSummaries (일괄)
+// ============================================================
+
+message BatchGetUserSummariesRequest {
+  // 조회 대상 사용자 ID 목록. 호출 측이 중복 제거 책임. 상한은 identity-service
+  // 가 검증하여 초과 시 `INVALID_ARGUMENT` 반환.
+  // 상한 200 — ADR-0002 §결정 의 ranking ZSET top 100 + 안전 마진 기반.
+  // (identity-service 의 페이징 기능 도입은 후속 결정 트리거.)
+  repeated string user_ids = 1;
+
+  string request_id = 2;
+
+  reserved 3 to 9;
+}
+
+message BatchGetUserSummariesResponse {
+  // 입력 user_ids 와 동일 순서. 존재하지 않는 user_id 는 status=NOT_FOUND
+  // 항목으로 응답 (응답 길이 = 요청 길이 보장 — 호출 측 매핑 단순화).
+  repeated GetUserSummaryResponse summaries = 1;
+
+  string request_id = 2;
+
+  reserved 3 to 9;
+}

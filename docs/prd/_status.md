@@ -71,7 +71,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 ## 진행 속도 / 페이스 (참고)
 
 > **운영 규약**: 모든 PR 머지 후 본 절을 즉시 갱신한다. 단계 행 추가 + 누적 시간 계산 + 남은 작업 추정 갱신.
-> 마지막 갱신: PR #32 머지 (2026-04-28) — contracts ai.proto + Makefile + 결정 로그 2종 — 트랙 외 (Phase 6 contracts-first 선행, ADR-0007).
+> 마지막 갱신: PR #34 머지 (2026-04-28) — contracts chat.proto (AiAssistantService 3 메서드) — 트랙 외 (Phase 6 contracts-first 선행, ADR-0007).
 
 ### 단계별 누적 시간 (2026-04-26 18:22 시작)
 
@@ -98,6 +98,8 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | Phase 5-e — user 코드: createUser presentation+E2E | UserRegistrationController + Request/Response DTO (WRITE_ONLY + toString 마스킹) + UserErrorCode 2종 + UserExceptionHandler 매핑 + WebMvcTest 13 + E2E 4 | #27 | 20m (test 1차 NEEDS CHANGES → 재작성 포함) | **28h 52m** |
 | (별도) 로컬 dev 인프라 + identity swagger | docker-compose (mysql/redis/identity), identity-service/Dockerfile (멀티스테이지), MySQL init 5 스키마, generate-dev-keys.sh, .env.example/.dockerignore + springdoc-openapi 2.7.0 + OpenApiConfig (BearerJwt) + prod profile multi-doc 비활성 + CLAUDE.md 의무 규칙 (Dockerfile/compose/swagger 누락 금지) | #29 | 50m | (트랙 외) |
 | (별도) contracts ai.proto + Makefile | `ai.proto` 정의 (AiService.Complete/SpeechToText/TextToSpeech, 모든 메서드 request_id, finish_reason string, 4MB unary, reserved 5-9), 루트 Makefile (`make proto` Java/Python 동기화), 결정 문서 2종 (proto-build-sync-makefile / ai-service-method-signatures), contracts-catalog 갱신 (✅ 등재). Java 측 `:contracts:build` 성공, Python 측 검증은 uv 미설치로 ai-service 구현 PR 로 이연 — ADR-0003 Open Item 4건 + ADR-0004 §7 후속 결정 해소 | #32 | 50m (code-reviewer Medium 3 + Low 3 재작업 포함) | (트랙 외 — Phase 6 contracts-first 선행, ADR-0007) |
+| (별도) contracts chat.proto | `chat.proto` 정의 (AiAssistantService.RequestSentenceFeedback / ValidateDiaryContent / GenerateChatResponse, 9 message — 7 도메인 + SentenceSuggestion / ValidationIssue / ChatMessage 정형, 모든 message reserved 슬롯, 모든 요청 request_id, status string, *_epoch_ms), 결정 문서 (ai-assistant-service-method-catalog — 비즈니스 의미별 분리 + status 카탈로그 박제). chat 도메인 자체 흐름은 본 서비스 미경유. ADR-0003 Open Item 1건 해소 | #34 | 1h (code-reviewer Medium 3 (M1 reserved / M2 ChatMessage struct / M3 status 카탈로그) + L3 재작업 포함, 머지 시 #33 와 _status.md 충돌 사용자 수동 해결) | (트랙 외 — Phase 6 contracts-first 선행, ADR-0007) |
+| (별도) contracts identity.proto | `identity.proto` 정의 (UserSummaryService.GetUserSummary 단건 Deadline 2s + BatchGetUserSummaries 일괄 최대 200 Deadline 5s, 5 message, 모든 message reserved 슬롯, 모든 요청 request_id, public-safe 필드만 — email/providers/createdAt 제외, `user_status` 와 RPC `status` 의미 분리) | (예정) | (진행 중) — 부수: PR #34 머지 충돌 시 누락된 chat.proto 행 복구 + 마지막 갱신 노트 #32 → #34 보정 | (트랙 외 — Phase 6 contracts-first 선행, ADR-0007) |
 
 - 누적 24 PR (본 트랙) + 4 PR (#15·#18·#20·#24 docs 페이스) / **28h 52m 실측**, 잠·식사·limit wait 약 ~17h 제외 시 **실작업 약 12h**
 - **평균 1.2h/PR** (AI 협업 페이스 — PR3 시리즈 1.5h/PR → PR4 시리즈 1.4h/PR → PR5 시리즈 슬라이스 평균 27m/PR → PR6 시리즈 슬라이스 평균 32m/PR). PR6 슬라이스 (#25~#27) 만 보면 1h 35m / 3 PR = **32m/PR** — security 1차 NEEDS CHANGES 재작업 비용 포함, sanitize 정책이 결정 문서 5건과 PR4-c security trail 에 의해 표준화된 결과 PR5 페이스 유지
