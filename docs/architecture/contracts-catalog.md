@@ -23,7 +23,7 @@
 |---|---|---|---|---|---|---|
 | `AiAssistantService` | `chat.proto` | chat-service | diary-service (sentence-feedback / validation / diarychat AI), learning-service(활성화 시) | Java / Java | **AI 비즈니스 게이트웨이** — 초기 3 메서드: `RequestSentenceFeedback` / `ValidateDiaryContent` / `GenerateChatResponse`. chat-service 가 프롬프트 템플릿/사용량/rate limit 처리 후 ai-service 호출. chat 도메인 자체 흐름 (transcribe / speechAudio) 은 본 서비스 미경유. (ADR-0003, [decisions/contracts/ai-assistant-service-method-catalog.md](../decisions/contracts/ai-assistant-service-method-catalog.md)) | ✅ 등재 (`chat.proto`) |
 | `AiService` ⭐ | `ai.proto` | ai-service (Python) | chat-service (Java) | **Python / Java** | **순수 AI 추론** — `Complete` (LLM) / `SpeechToText` (STT) / `TextToSpeech` (TTS) unary. 모든 메서드에 `request_id` (사용량/trace). 무상태. (ADR-0003, [decisions/contracts/ai-service-method-signatures.md](../decisions/contracts/ai-service-method-signatures.md)) | ✅ 등재 (`ai.proto`) |
-| `UserSummaryService` | `identity.proto` | identity-service | platform-service(랭킹 표시명) | Java / Java | userId → 닉네임/프로필 사진 등 표시용 요약 조회 | 📝 미작성 |
+| `UserSummaryService` | `identity.proto` | identity-service | platform-service (랭킹 ZSET top N 표시명, [ADR-0002 §결정](../adr/0002-service-decomposition.md)), 사용자 표시명/사진을 실시간으로 조회해야 하는 서비스 | Java / Java | `GetUserSummary` (단건, Deadline 2s) + `BatchGetUserSummaries` (일괄 최대 200, N+1 회피, Deadline 5s). public-safe 필드만 — email / providers / createdAt 제외 ([decisions/identity/user-profile-domain-boundary.md](../decisions/identity/user-profile-domain-boundary.md) `/profiles/me` 본인 조회와 분리). `user_status` 와 RPC `status` 의미 분리 | ✅ 등재 (`identity.proto`) |
 
 ### Java↔Python proto 빌드 동기화 (ADR-0003 Open Item)
 
