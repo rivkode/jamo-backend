@@ -93,7 +93,29 @@ REQUESTED ─(AI 호출 실패)─▶ FAILED (final, fallback 메시지 반환)
 - [ ] SentenceFeedback 보존 기간 (개인정보 정책)
 
 ## 9. KEEP/DROP/FIX 분류
-- 신규 PRD (proposed)
+
+**KEEP+FIX** — [`decisions/diary/sentence-feedback-domain-policy.md`](../../decisions/diary/sentence-feedback-domain-policy.md) 박제 적용.
+
+| 항목 | 결정 | 박제 § |
+|---|---|---|
+| ID 타입 | `feedbackId / userId / suggestionId` UUID 일관 (PRD `String` → UUID) | §1 |
+| 라이프사이클 | REQUESTED → SUGGESTED → ACCEPTED/REJECTED + REQUESTED → FAILED + SUGGESTED → EXPIRED. final 전이 금지 | §2 |
+| TTL | 24h KEEP (운영 모니터링 후 조정) | §3 |
+| AI 호출 | chat-service `AiAssistantService.RequestSentenceFeedback` Deadline 35s ([catalog §28](../../decisions/contracts/ai-assistant-service-method-catalog.md)) | §6 |
+| AI status 매핑 | `SUGGESTED / FAILED` (catalog 정합). FAILED → **200 + fallback 1건** (5xx X — validation 정합) — PRD §8 Open Item 해소 | §7 |
+| 입력 검증 | `sentence` 1..50 **code points** (PRD §8 산정 기준 Open Item 해소) + 금칙어 도메인 invariant (LLM 강제 X) | §9 |
+| `priorSentences` 상한 | **max 5**, 각 50 code points (PRD §8 Open Item 해소) | §9 |
+| `tone` 옵션 | enum `casual / formal / neutral`, default null = `neutral` (catalog §147 후속 항목 해소) | §10 |
+| Rate limit | 사용자별 일일 50회 / 분당 10회. 초과 → 429 (PRD §8 Open Item 해소) | §11 |
+| 응답 schema | `SentenceFeedbackResponse` 7 필드 + `SentenceSuggestion` 4 필드 | §8 |
+| diaryId | NULL 허용 (작성 전 미리보기 흐름) — PRD §6 정합 | §5 |
+| 보존 기간 / GDPR | **90일** + `UserDataPurged` 즉시 삭제 (PRD §8 개인정보 정책 Open Item 해소) | §14 |
+| `SentenceFeedbackRequested` 이벤트 | Outbox 발행 (구독자 = platform-service 활동 점수) | §12 |
+| DiaryDeleted Saga cascade | diary-service 자체 cascade (`diary_id` = 삭제된 일기인 row hard-delete). NULL row 무관 | §13 |
+| 선행 필요 contracts | `DiaryDeleted` + `SentenceFeedbackRequested/Accepted/Rejected` 4종 — D-b-1 PR | §16 |
+
+후속 (Open Questions §8 해소): 50자 산정 / TTL / fallback / 일일 한도 / tone / priorSentences 상한 / 보존 기간 = §1~§14 박제로 모두 해소. streaming RPC 만 후속 (ADR-0003).
+
 
 ## 10. 후속 endpoint
 - `POST /api/v1/diaries/sentence-feedback/{feedbackId}/accept` — `acceptSentenceFeedback.md`

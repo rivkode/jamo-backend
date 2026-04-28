@@ -23,14 +23,14 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | comment | diary-service | 4 | 4 | 0 | 0 | 4 | 0 | ✅ |
 | validation | diary-service | 2 | 2 | 0 | 0 | 2 | 0 | ✅ |
 | diarychat | diary-service | 10 | 9 | 1 | 0 | 8 | 1 | ✅ |
-| sentence-feedback (diary 흡수) | diary-service | 3 | 0 | 3 | - | - | - | ⏳ |
+| sentence-feedback (diary 흡수) | diary-service | 3 | 0 | 3 | 0 | 3 | 0 | ✅ |
 | chat | chat-service | 14 | 14 | 0 | - | - | - | ⏳ |
 | sentence | learning-service | 4 | 4 | 0 | - | - | - | ⏳ |
 | word | learning-service | 4 | 4 | 0 | - | - | - | ⏳ |
 | shorts | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | event | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | feedback | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
-| **합계** | | **62** | **58** | **4** | 0 | 31 | 2 | |
+| **합계** | | **62** | **58** | **4** | 0 | 34 | 2 | |
 
 ## 평가 절차
 

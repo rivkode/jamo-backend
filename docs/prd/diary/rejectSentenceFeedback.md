@@ -50,4 +50,22 @@ status: proposed
 - [ ] REJECTED 이벤트 발행 여부 (학습 분석 가치 vs 트래픽 비용)
 
 ## 9. KEEP/DROP/FIX 분류
-- 신규 PRD (proposed)
+
+**KEEP+FIX** — [`decisions/diary/sentence-feedback-domain-policy.md`](../../decisions/diary/sentence-feedback-domain-policy.md) 박제 적용.
+
+| 항목 | 결정 | 박제 § |
+|---|---|---|
+| Path `feedbackId` 타입 | UUID (KEEP) | §1 |
+| 상태 전이 | SUGGESTED → REJECTED 만 (다른 final → 409) | §2 |
+| **권한 가드 — 다른 사용자 소유** | **403 → 404 통일 (FIX)** | §4 |
+| 없는 `feedbackId` | 404 | §4 |
+| 이미 final 상태 (본인 소유) | **409** (`SENTENCE_FEEDBACK_INVALID_TRANSITION`) | §4 |
+| 응답 | 204 No Content (KEEP) | §8 |
+| `reason` 형식 | 자유 텍스트 (PRD §8 enum vs free text Open Item — 자유 텍스트 채택, 서버 길이 검증만 — 코드 슬라이스 시점) | §15 |
+| **`SentenceFeedbackRejected` 이벤트 발행** | **발행 채택** (PRD §8 Open Item 해소). 학습 신호 / 분석 가치 + 라이프사이클 final 전이 3종 통일 | §12 |
+| 선행 필요 contracts | `SentenceFeedbackRejected` Kafka record — D-b-1 PR | §16 |
+
+후속 (Open Questions §8 해소):
+- `reason` enum vs 자유 텍스트 → 자유 텍스트 (서버 길이 검증만).
+- Rejected 이벤트 발행 → 발행 채택 박제.
+
