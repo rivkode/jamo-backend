@@ -21,7 +21,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | profile | identity-service | 3 | 3 | 0 | 0 | 3 | 0 | ✅ |
 | diary | diary-service | 6 | 6 | 0 | - | - | - | ⏳ |
 | comment | diary-service | 4 | 4 | 0 | - | - | - | ⏳ |
-| validation | diary-service | 2 | 2 | 0 | - | - | - | ⏳ |
+| validation | diary-service | 2 | 2 | 0 | 0 | 2 | 0 | ✅ |
 | diarychat | diary-service | 9 | 9 | 0 | - | - | - | ⏳ |
 | sentence-feedback (diary 흡수) | diary-service | 3 | 0 | 3 | - | - | - | ⏳ |
 | chat | chat-service | 14 | 14 | 0 | - | - | - | ⏳ |
@@ -30,7 +30,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | shorts | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | event | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | feedback | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
-| **합계** | | **61** | **58** | **3** | 0 | 11 | 1 | |
+| **합계** | | **61** | **58** | **3** | 0 | 13 | 1 | |
 
 ## 평가 절차
 
@@ -71,7 +71,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 ## 진행 속도 / 페이스 (참고)
 
 > **운영 규약**: 모든 PR 머지 후 본 절을 즉시 갱신한다. 단계 행 추가 + 누적 시간 계산 + 남은 작업 추정 갱신.
-> 마지막 갱신: PR #46 머지 (2026-04-28) — Phase 6-b-c profile Presentation 슬라이스. **Phase 6 전체 완료** (identity-service profile 도메인 3 API 전부 ✅ — 평가 #39, Domain #42, App+Infra #44, Presentation #46). 3 reviewer (code/test/security) APPROVE WITH COMMENTS + H 항목 모두 반영. 다음 진입: **diary-service** (24 API).
+> 마지막 갱신: PR #48 머지 (2026-04-28) — **Phase D-a-1 validation PRD 평가** (diary-service 도메인 진입 첫 단계). validate / validateLine 모두 KEEP+FIX, AI fallback 정책 박제 (`docs/decisions/diary/validation-ai-fallback-policy.md` 신규 — diary 디렉토리 첫 결정). 7항목 박제: 동일 RPC 재사용 / status 카탈로그 / FAILED 우회 / mode 룰→LLM / quota+debounce / Deadline 분리 / userId propagation. 다음: **PR D-a-2 comment** (4 PRD).
 
 ### 단계별 누적 시간 (2026-04-26 18:22 시작)
 
@@ -107,9 +107,10 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | Phase 6-b-a — profile Domain + Port | Profile aggregate (shared identifier=UserId, displayName 미보유 / changeBio · unsetBio · changeAvatarUrl · unsetAvatarUrl · changeLocale 부분 변경) + VO 3종 (Bio canonical trim / AvatarUrl http/https + userInfo 차단 / Locale 화이트리스트 ko·en + DEFAULT) + Port 2종 (ProfileRepository / DisplayNameChangeRateLimiter, key prefix `user:`) + 도메인 예외 2종. 단위 테스트 4 파일 / 30+ 케이스 (Spring 없이). code-reviewer 1차 KEEP (Bio/AvatarUrl 보강) + test-reviewer 1차 NEEDS CHANGES (H1 trim 정규화 / H2 경계 / M1 길이 정확 / L1 isSameAs) → 2차 APPROVE. application/infrastructure/presentation 은 b-b/b-c 후속 | #42 | 13m (amend 시 timestamp 보존, 실 작업은 review 2 라운드 + 수정 + 보안 강화 포함) | **29h 35m** |
 | Phase 6-b-b — profile App + Infra | 결정 박제 신규 (`profile-app-infra-decisions.md`): markChanged = AFTER_COMMIT 메모리 이벤트 / Profile 생성 시점 = Lazy + Read 기본값 / 응답 합성 = 단일 트랜잭션 / 락 순서 = User → Profile / Flyway V4. **Application**: DTO 5종 + Service 3종 (`UpdateMyProfileService` cross-aggregate 트랜잭션, IDDD Ch.10 예외) + `DisplayNameChangeRateLimiterListener` (`@TransactionalEventListener(AFTER_COMMIT)`). **Domain Event**: `DisplayNameChanged` (Spring `ApplicationEvent` record, Kafka 미경유). **Infrastructure**: `ProfileJpaEntity` (`@Version` optimistic locking) + `ProfileRepositoryImpl` + `ProfileMapper` (mergeInto) + `DisplayNameChangeRateLimiterRedisStore` (key `user:displayName_changed:{userId}`). **Migration**: `V4__create_profile.sql` (PK `user_id BINARY(16)`, `display_name` 미생성, FK 미사용, `version` 컬럼). 6 테스트 파일 / 30+ 케이스. 3 reviewer 통과: ddd-architect KEEP / code reviewer APPROVE (H1 `@Version` + M2/M3/M4 반영) / test reviewer APPROVE (H1 Aggregate Mocking 제거 + M1/M2/M3 반영) | #44 | 약 1h 24m (24 파일 1588 lines, 결정 박제 + 3 reviewer 라운드 + H1 2건 반영 포함) | **30h 59m** |
 | Phase 6-b-c — profile Presentation | **Phase 6 마지막 슬라이스** — 외부 노출 endpoint 3종 (`GET /me`, `GET /{userId}`, `PATCH /me`) + `@LoginUser` 인증 + `@SecurityRequirement(BearerJwt)`. 후속 박제 2건 적용: (a) `AuthenticatedUserNotFoundException` 신규 — `/me` 5xx (시스템 invariant) vs `/{userId}` 404 분리, (b) `RetrieveProfileQuery.loginUserId` 제거 (미사용). DTO 6종 (`ProfileErrorCode/Response` + `UpdateMyProfileRequest` + `MyProfileResponse` 8 필드 + `PublicProfileResponse` 4 필드 public-safe). `ProfileExceptionHandler` (`assignableTypes + HIGHEST_PRECEDENCE` 격리, `UnauthorizedException` 직접 401 + `AuthErrorResponse` 매핑). WebMvcTest 16 케이스. 3 reviewer 병렬 통과: code-reviewer (H1 try-catch 제거) + test-reviewer (H1 401 body code + M2 ArgumentCaptor IDOR + M3 PATCH null no-op + M4 displayName blank) + security-reviewer (M1 AvatarUrl CRLF 차단 + M3 LoginUserArgumentResolver IAE→401). 후속 박제: enumeration rate limit / userId log 제거 / Spring Security 표준 매핑 / Cache-Control / E2E 4종 (환경 이슈) | #46 | 약 26m (18 파일 758 lines, 3 reviewer 병렬 + H 항목 모두 반영, amend 시 timestamp 보존) | **31h 25m** |
+| Phase D-a-1 — validation PRD 평가 | **diary-service 도메인 진입 첫 단계** — validation sub-도메인 2 API (`validate` / `validateLine`) KEEP+FIX 평가 + AI 게이트웨이 호출 정책 7항목 박제. `decisions/diary/validation-ai-fallback-policy.md` 신규 (diary decisions 디렉토리 첫 결정). 박제: (1) 동일 RPC 재사용 (`AiAssistantService.ValidateDiaryContent`, `lines=[text]` 단일 원소로 validateLine 처리, 별 RPC 신설 X) / (2) status 카탈로그 (VALID/INVALID/FAILED) 응답 schema 명시 / (3) FAILED 시 검증 우회 (validate=안내 토스트 / validateLine=silent) / (4) mode 운영 정책 (룰 1차→LLM 2차, chat-service 책임) / (5) Rate limit + debounce (클라 500ms, quota 분당 10·60회) / (6) Deadline 분리 (chat 측 20s 통일, 클라 측 15s·5s) / (7) userId propagation. validateLine DROP 검토 후 KEEP 결정 근거 (별 endpoint 유지 = 클라 분기 단순화 / quota·모니터링 분리). `ai-assistant-service-method-catalog.md` §148 mined PRD ↔ status/mode 카탈로그 정합 후속 검토 항목 해소. contracts / proto 변경 0. 코드 변경 0 — docs(prd) 4 파일 / +228 / −2 단일 commit | #48 | 약 20m (이전 세션 병렬 트랙 stash 보존본 폐기 후 본 세션에서 재작성 — 단일 commit, 코드 0, 4 파일) | **31h 45m** |
 
-- 누적 28 PR (본 트랙, ~PR #27 + #39 + #42 + #44 + #46) + 4 PR (#15·#18·#20·#24 docs 페이스) / **31h 25m 실측**, 잠·식사·limit wait 약 ~17h 제외 시 **실작업 약 14.5h** (트랙 외 PR #28~#45 의 contracts/docker/ADR/_status/박제 정정 시리즈는 별도)
-- **평균 1.1h/PR** (AI 협업 페이스 — PR3 1.5h/PR → PR4 1.4h/PR → PR5 27m/PR → PR6 32m/PR → Phase 6 평가+슬라이스 (#39 17m / #42 13m / #44 1h 24m / #46 26m). Phase 6 합계: 4 PR / 2h 20m. user 시리즈 (#19~#27, 7 PR / 4h 14m) 대비 *2× 빠름* — frame 정합 + existing 재사용 효과. **identity-service 전체 완료** (auth 5/5 + user 3 KEEP+1 DROP + profile 3/3 = 14 endpoint, 13 ✅ / 1 DROP)
+- 누적 29 PR (본 트랙, ~PR #27 + #39 + #42 + #44 + #46 + #48) + 4 PR (#15·#18·#20·#24 docs 페이스) / **31h 45m 실측**, 잠·식사·limit wait 약 ~17h 제외 시 **실작업 약 14.7h** (트랙 외 PR #28~#47 의 contracts/docker/ADR/_status/박제 정정 시리즈는 별도)
+- **평균 1.1h/PR** (AI 협업 페이스 — PR3 1.5h/PR → PR4 1.4h/PR → PR5 27m/PR → PR6 32m/PR → Phase 6 평가+슬라이스 (#39 17m / #42 13m / #44 1h 24m / #46 26m, 합계 2h 20m) → Phase D-a (#48 20m, 1 PR / 24 PRD 중 2 ✅). identity-service 전체 완료 (auth 5/5 + user 3 KEEP+1 DROP + profile 3/3 = 14 endpoint, 13 ✅ / 1 DROP). **diary-service 진입** (#48, validation 2/2 ✅, 잔여 22 PRD: comment 4 / diary 6 / diarychat 9 / sentence-feedback 3)
 
 ### 일반 개발 페이스 대비 배수
 
@@ -125,6 +126,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | 도메인 첫 코드 시리즈 (3 슬라이스 a/b/c, port 4종 + VO + 4 예외 + WebMvc/E2E + 결정 문서 2종) | 2-4일 | 1h 22m (#21~#23) | **14-35×** |
 | 도메인 두 번째 코드 시리즈 (3 슬라이스, BCrypt + Flyway V3 CHECK + 트랜잭션 분리 + 결정 문서 2종 + security 재작업) | 2-4일 | 1h 35m (#25~#27) | **12-30×** |
 | 도메인 첫 코드 슬라이스 — Domain only (frame 정합, existing 재사용 활용) | 0.5-1일 | 13m (#42, profile b-a) | **40-90×** |
+| sub-도메인 PRD 평가 (mined 2 + 게이트웨이 호출 정책 7항목 박제) | 0.5-1일 | 20m (#48, validation, AI fallback) | **24-48×** |
 
 - 품질 신호 양호: 모든 PR 에 의사결정 박제(ADR/Decision Log), ArchUnit 룰 통과, multi-agent 리뷰(code/test/security/ddd-architect) 트레일 일관 유지.
 - 속도-품질 trade-off 가 발생했다는 지표(테스트 커버리지 누락, `@Disabled`, ArchUnit 우회 등) 는 현재까지 발견되지 않음.
@@ -141,7 +143,9 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | profile 코드 — Domain (Phase 6-b-a) | — | 1 | 13m | ✅ 완료 (#42) — Profile aggregate (shared identifier) + VO 3종 + Port 2종 + 도메인 예외 2종 + 30+ 단위 테스트. code-reviewer KEEP / test-reviewer 1차 NEEDS CHANGES → 2차 APPROVE |
 | profile 코드 — App+Infra (Phase 6-b-b) | — | 1 | 1h 24m | ✅ 완료 (#44) — Application 5 DTO + 3 Service (cross-aggregate 트랜잭션) + Domain Event + AFTER_COMMIT Listener + ProfileJpaEntity (`@Version`) + ProfileRepositoryImpl + ProfileMapper + Redis adapter + Flyway V4. 후속 결정 2건 박제 (`profile-app-infra-decisions.md`) |
 | profile 코드 — Presentation (Phase 6-b-c) | 3 | 1 | 26m | ✅ 완료 (#46) — ProfileController 3 endpoint + DTO 6종 (Request/Response/ErrorCode/ErrorResponse) + ProfileExceptionHandler (assignableTypes 격리 + UnauthorizedException 직접 401 매핑) + WebMvcTest 16 케이스 + 후속 박제 2건 (AuthenticatedUserNotFoundException / loginUserId 제거) + AvatarUrl CRLF 차단 (security M1) + LoginUserArgumentResolver IAE→401 (security M3) |
-| diary 계열 (diary+comment+validation+diarychat+sentence-feedback) | 24 | 24-30 | ~36-45h | profile 후 |
+| diary 평가 (Phase D-a-1) | — | 1 | 20m | ✅ 완료 (#48) — validation 2 KEEP+FIX, AI fallback 정책 7항목 박제 (validation-ai-fallback-policy.md, diary decisions 디렉토리 첫 결정) |
+| diary 평가 잔여 (Phase D-a-2 ~ D-a-5) | — | 4 | ~3-4h | comment 4 → diary 6 → diarychat 9 → sentence-feedback 3 (proposed) |
+| diary 코드 (diary+comment+validation+diarychat+sentence-feedback) | 24 | 24-30 | ~36-45h | 평가 5건 후 |
 | chat | 14 | 14-18 | ~21-27h | diary 후 |
 | learning (sentence + word) | 8 | 8-10 | ~12-15h | — |
 | platform (shorts + event + feedback) | 3 | 3 | ~5h | — |
