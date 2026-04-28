@@ -153,6 +153,19 @@ ai-service/
 python-services/ai-service/     # Gradle 빌드 외부, uv/poetry
 ```
 
+### 로컬 docker 인프라
+
+```
+docker-compose.yml              # mysql + redis + (실 코드 보유) Java 서비스
+.env.example                    # 환경변수 템플릿 (.env 는 gitignore)
+.dockerignore                   # 빌드 컨텍스트 슬림화
+docker/
+├── README.md                   # 실행 / 새 서비스 추가 절차
+├── mysql/init/                 # 5개 스키마 + 서비스별 user 자동 생성
+└── scripts/generate-dev-keys.sh # RSA(PKCS#8) + pepper 생성 → .env 붙여넣기
+<service>/Dockerfile            # 서비스별 멀티스테이지 빌드 (identity-service 가 레퍼런스)
+```
+
 ---
 
 ## 금지 사항
@@ -196,6 +209,7 @@ python-services/ai-service/     # Gradle 빌드 외부, uv/poetry
 - ❌ 리뷰의 Critical/High 지적 임의 무시
 - ❌ **main 브랜치로 직접 PR** (반드시 dev 베이스)
 - ❌ `build.gradle.kts` 의존성 임의 추가 (사용자 제안 후 승인)
+- ❌ **새 Java 서비스가 placeholder 를 벗어나는 PR 에서 `<service>/Dockerfile` / `docker-compose.yml` service entry / `.env.example` 변수 누락** — 같은 PR 에 함께 포함 (아래 "작업 규칙 — 새 서비스 컨테이너화" 참고)
 
 ---
 
@@ -210,6 +224,22 @@ python-services/ai-service/     # Gradle 빌드 외부, uv/poetry
   - ai-service 변경 시: `cd python-services/ai-service && uv run pytest` (예정)
 - 추측 금지 — 불명확한 부분은 질문한다.
 
+### 새 서비스 컨테이너화 (의무)
+
+Java 서비스가 placeholder (Application.java + .gitkeep) 를 벗어나 **실제 비즈니스 코드** (controller / repository / domain model 등) 를 처음 갖게 되는 PR 에서는 **같은 PR 에** 다음을 포함한다. 누락 시 NEVER 위반.
+
+1. **`<service>/Dockerfile`** — `identity-service/Dockerfile` 그대로 복사 후 4곳만 치환:
+   - `:identity-service:bootJar` → `:<service>:bootJar`
+   - `identity-service-*.jar` → `<service>-*.jar`
+   - `EXPOSE 8081` → 해당 서비스 포트 (8082 / 8083 / 8084 / 8085)
+   - `COPY identity-service ...` → `COPY <service> ...` (의존 모듈 + 본 서비스 src 만)
+2. **`docker-compose.yml`** — `identity-service:` 블록 복사 후 `container_name` / `ports` / `environment` prefix / `dockerfile` 경로만 변경. `depends_on: mysql/redis healthy` 유지.
+3. **`docker/mysql/init/01-create-schemas.sql`** — 5개 스키마/유저는 이미 준비됨. 새 도메인이 늘 때만 갱신.
+4. **`.env.example`** — `<SERVICE>_SERVER_PORT / <SERVICE>_DB_USERNAME / <SERVICE>_DB_PASSWORD` 추가.
+5. (Python ai-service 의 경우) `python-services/ai-service/Dockerfile` 별도 — uv 기반, gRPC 9090 포트.
+
+상세 절차: [`docker/README.md`](docker/README.md) "새 서비스 추가 시" 섹션.
+
 ---
 
 ## 참고
@@ -220,6 +250,7 @@ python-services/ai-service/     # Gradle 빌드 외부, uv/poetry
 - ADR: [`docs/adr/`](docs/adr/) — 의사결정 기록
 - PRD: [`docs/prd/`](docs/prd/) — 도메인별 요구사항 명세
 - 아키텍처: [`docs/architecture/`](docs/architecture/) — service-domain mapping, contracts catalog
+- 로컬 인프라: [`docker/README.md`](docker/README.md) — docker compose 실행 / 새 서비스 컨테이너화 절차
 
 ### 외부
 - Eric Evans, *Domain-Driven Design*
@@ -229,4 +260,4 @@ python-services/ai-service/     # Gradle 빌드 외부, uv/poetry
 
 ---
 
-**마지막 업데이트**: 2026-04-26 (PR #2b)
+**마지막 업데이트**: 2026-04-28 (로컬 docker compose 도입 + 새 서비스 컨테이너화 의무 추가)
