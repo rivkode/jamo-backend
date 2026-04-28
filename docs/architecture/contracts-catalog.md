@@ -22,7 +22,7 @@
 | 서비스 | proto 파일 | 제공자 | 호출자 | 언어 (제공자/호출자) | 용도 | 상태 |
 |---|---|---|---|---|---|---|
 | `AiAssistantService` | `chat.proto` | chat-service | diary-service, learning-service(활성화 시), diarychat, validation | Java / Java | **AI 비즈니스 게이트웨이** — 비즈니스 의미가 있는 메서드(`requestSentenceFeedback`, `validateDiaryContent`, `generateChatResponse`, `paraphrase` 등). chat-service 가 프롬프트 템플릿/사용량/rate limit 처리 후 ai-service 호출. (ADR-0003) | 📝 미작성 |
-| `AiService` ⭐ | `ai.proto` | ai-service (Python) | chat-service (Java) | **Python / Java** | **순수 LLM 추론** — 일반화된 메서드(`complete`, 향후 `completeStream`). prompt + temperature + maxTokens → completion + usage. 무상태. (ADR-0003) | 📝 미작성 |
+| `AiService` ⭐ | `ai.proto` | ai-service (Python) | chat-service (Java) | **Python / Java** | **순수 AI 추론** — `Complete` (LLM) / `SpeechToText` (STT) / `TextToSpeech` (TTS) unary. 모든 메서드에 `request_id` (사용량/trace). 무상태. (ADR-0003, [decisions/contracts/ai-service-method-signatures.md](../decisions/contracts/ai-service-method-signatures.md)) | ✅ 등재 (`ai.proto`) |
 | `UserSummaryService` | `identity.proto` | identity-service | platform-service(랭킹 표시명) | Java / Java | userId → 닉네임/프로필 사진 등 표시용 요약 조회 | 📝 미작성 |
 
 ### Java↔Python proto 빌드 동기화 (ADR-0003 Open Item)
@@ -34,14 +34,20 @@
 | Java | `grpc-spring-boot-starter` (Gradle 자동) | `contracts/build/generated/source/proto/main/java/` |
 | Python | `python -m grpc_tools.protoc` (수동 또는 Makefile/uv script) | `python-services/ai-service/proto/*_pb2.py`, `*_pb2_grpc.py` |
 
-자동화 방식은 ADR-0003 Open Item 으로 결정 예정 (후보: Gradle task 가 Python 빌드 trigger / `make proto` / pre-commit hook).
+자동화 방식은 [decisions/contracts/proto-build-sync-makefile.md](../decisions/contracts/proto-build-sync-makefile.md) 에서 **Makefile (`make proto`)** 채택으로 박제 (ADR-0004 §7 권고 일치). CI step (option d) 은 후속 ADR.
 
-### 결정 대기 항목 (ADR-0005 예정)
-- `AiAssistantService` 의 메서드 카탈로그 — 비즈니스 의미별 분리 vs 단일 `chatCompletion(type, payload)` 일반화
-- `AiService.complete` 의 정확한 시그니처 (input fields, output fields, error codes)
-- 응답 RPC 종류: unary 시작 (ADR-0003), server-streaming 도입 시점
-- Python 빌드 자동화 방식
-- gRPC Deadline 표준값 (서비스별 / 메서드별)
+### 결정 대기 항목
+
+| 항목 | 상태 | 위치 |
+|---|---|---|
+| Python 빌드 자동화 방식 | ✅ 결정 (Makefile) | [decisions/contracts/proto-build-sync-makefile.md](../decisions/contracts/proto-build-sync-makefile.md) |
+| `AiService.Complete` / `SpeechToText` / `TextToSpeech` 시그니처 | ✅ 결정 | [decisions/contracts/ai-service-method-signatures.md](../decisions/contracts/ai-service-method-signatures.md) |
+| gRPC Deadline 표준값 (메서드별) | ✅ 결정 | [ADR-0003 §gRPC 운영 정책](../adr/0003-ai-call-architecture.md) + 위 시그니처 결정 |
+| `AiAssistantService` 메서드 카탈로그 (비즈니스 의미별 분리 vs `chatCompletion(type, payload)`) | 📝 PR-B 결정 예정 | (`chat.proto` 작성 PR) |
+| 응답 RPC 종류: server-streaming (LLM) / client-streaming (긴 음성 STT) 도입 시점 | 📝 후속 ADR | unary 첫 단계 (ADR-0003) |
+| 음성 4MB 초과 처리 (client-streaming chunk) | 📝 후속 ADR | (사용 사례 등장 시) |
+| 모델 카탈로그 (`gpt-4o-mini` 등 운영 허용값) / quota | 📝 후속 ADR | ADR-0003 후속 |
+| ai-service 의 service-to-service 인증 (mTLS / shared secret) | 📝 후속 ADR | ADR-0003 후속 |
 
 ---
 
@@ -108,6 +114,7 @@
 
 - [ADR-0002 서비스 분할](../adr/0002-service-decomposition.md)
 - [ADR-0003 AI 호출 분리](../adr/0003-ai-call-architecture.md)
+- [ADR-0004 contracts 명명/버전 표준](../adr/0004-contracts-naming-and-versioning.md)
+- [ADR-0007 contracts-first 병렬 개발](../adr/0007-contracts-first-parallel-development.md)
 - [Service ↔ Domain Mapping](service-domain-mapping.md)
-- (예정) ADR-0004 contracts 명명/버전 표준
-- (예정) ADR-0005 AI gateway / LLM 인터페이스 설계
+- 결정 로그: [contracts/proto-build-sync-makefile.md](../decisions/contracts/proto-build-sync-makefile.md), [contracts/ai-service-method-signatures.md](../decisions/contracts/ai-service-method-signatures.md)
