@@ -7,10 +7,10 @@ import app.backend.jamo.identity.domain.model.profile.Profile;
 import app.backend.jamo.identity.domain.model.user.User;
 import app.backend.jamo.identity.domain.repository.ProfileRepository;
 import app.backend.jamo.identity.domain.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -24,20 +24,14 @@ import java.util.Optional;
  * 추가 + viewer-context 합성 (Phase 6-b-c, code-reviewer M1 후속 박제).
  */
 @Service
+@RequiredArgsConstructor
 public class RetrieveProfileService {
 
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
 
-    public RetrieveProfileService(UserRepository userRepository, ProfileRepository profileRepository) {
-        this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
-        this.profileRepository = Objects.requireNonNull(profileRepository, "profileRepository");
-    }
-
     @Transactional(readOnly = true)
     public PublicProfileResult retrieve(RetrieveProfileQuery query) {
-        Objects.requireNonNull(query, "query");
-
         User user = userRepository.findById(query.userId())
                 .orElseThrow(() -> new UserNotFoundException("user not found: " + query.userId().value()));
 

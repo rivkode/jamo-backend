@@ -16,6 +16,7 @@ import app.backend.jamo.identity.domain.model.user.UserId;
 import app.backend.jamo.identity.domain.repository.DisplayNameChangeRateLimiter;
 import app.backend.jamo.identity.domain.repository.ProfileRepository;
 import app.backend.jamo.identity.domain.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +25,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * 본인 프로필 부분 수정 use case (PRD profile/updateMyProfile.md §3,
@@ -48,6 +48,7 @@ import java.util.Objects;
  * 으로 자연스럽게 lazy 등록 — 첫 PATCH 가 곧 첫 등록 시점.
  */
 @Service
+@RequiredArgsConstructor
 public class UpdateMyProfileService {
 
     public static final Duration DISPLAY_NAME_CHANGE_TTL = Duration.ofDays(7);
@@ -58,21 +59,8 @@ public class UpdateMyProfileService {
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
-    public UpdateMyProfileService(UserRepository userRepository,
-                                  ProfileRepository profileRepository,
-                                  DisplayNameChangeRateLimiter rateLimiter,
-                                  ApplicationEventPublisher eventPublisher,
-                                  Clock clock) {
-        this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
-        this.profileRepository = Objects.requireNonNull(profileRepository, "profileRepository");
-        this.rateLimiter = Objects.requireNonNull(rateLimiter, "rateLimiter");
-        this.eventPublisher = Objects.requireNonNull(eventPublisher, "eventPublisher");
-        this.clock = Objects.requireNonNull(clock, "clock");
-    }
-
     @Transactional
     public MyProfileResult update(UpdateMyProfileCommand command) {
-        Objects.requireNonNull(command, "command");
         UserId userId = command.userId();
         Instant now = Instant.now(clock);
 

@@ -4,6 +4,7 @@ import app.backend.jamo.identity.application.dto.AuthLogoutCommand;
 import app.backend.jamo.identity.domain.repository.RefreshTokenStore;
 import app.backend.jamo.identity.domain.repository.SessionBlacklist;
 import app.backend.jamo.identity.infrastructure.config.JwtProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
@@ -24,19 +25,12 @@ import org.springframework.stereotype.Service;
  * controller 외 직접 호출자 추가 시 권한 검증을 반드시 controller 에 둘 것.
  */
 @Service
+@RequiredArgsConstructor
 public class AuthLogoutService {
 
     private final SessionBlacklist sessionBlacklist;
     private final RefreshTokenStore refreshTokenStore;
     private final JwtProperties jwtProperties;
-
-    public AuthLogoutService(SessionBlacklist sessionBlacklist,
-                             RefreshTokenStore refreshTokenStore,
-                             JwtProperties jwtProperties) {
-        this.sessionBlacklist = sessionBlacklist;
-        this.refreshTokenStore = refreshTokenStore;
-        this.jwtProperties = jwtProperties;
-    }
 
     public void logout(AuthLogoutCommand command) {
         sessionBlacklist.blacklist(command.sessionId(), jwtProperties.blacklistTtl());

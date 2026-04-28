@@ -8,11 +8,13 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import lombok.Getter;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
+@Getter
 @Table(name = "users")
 public class UserJpaEntity {
 
@@ -58,14 +60,7 @@ public class UserJpaEntity {
         this.updatedAt = updatedAt;
     }
 
-    public UUID getId() { return id; }
-    public String getDisplayName() { return displayName; }
-    public String getEmail() { return email; }
-    public AccountType getAccountType() { return accountType; }
-    public String getPasswordHash() { return passwordHash; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
-
+    // setter 는 명시 유지 — Mapper 에서 mergeInto 패턴으로 호출. 클래스 레벨 @Setter 는 ADR-0008 §B 블랙리스트.
     public void setDisplayName(String displayName) { this.displayName = displayName; }
     public void setEmail(String email) { this.email = email; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }

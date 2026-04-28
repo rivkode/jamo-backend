@@ -11,12 +11,12 @@ import app.backend.jamo.identity.domain.model.user.User;
 import app.backend.jamo.identity.domain.repository.EmailValidatedFlag;
 import app.backend.jamo.identity.domain.repository.PasswordEncoder;
 import app.backend.jamo.identity.domain.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Objects;
 
 /**
  * LOCAL 회원가입 use case (PRD user/createUser.md §9).
@@ -39,6 +39,7 @@ import java.util.Objects;
  * Bean Validation (PR6-c) 에서 1차 차단으로 완화 가능.
  */
 @Service
+@RequiredArgsConstructor
 public class RegisterUserService {
 
     private final EmailValidatedFlag emailValidatedFlag;
@@ -47,21 +48,7 @@ public class RegisterUserService {
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
-    public RegisterUserService(EmailValidatedFlag emailValidatedFlag,
-                               UserRepository userRepository,
-                               PasswordEncoder passwordEncoder,
-                               TransactionTemplate transactionTemplate,
-                               Clock clock) {
-        this.emailValidatedFlag = Objects.requireNonNull(emailValidatedFlag, "emailValidatedFlag");
-        this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
-        this.passwordEncoder = Objects.requireNonNull(passwordEncoder, "passwordEncoder");
-        this.transactionTemplate = Objects.requireNonNull(transactionTemplate, "transactionTemplate");
-        this.clock = Objects.requireNonNull(clock, "clock");
-    }
-
     public RegisterUserResult register(RegisterUserCommand command) {
-        Objects.requireNonNull(command, "command");
-
         Email email = new Email(command.email());
         DisplayName displayName = new DisplayName(command.displayName());
 

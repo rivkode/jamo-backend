@@ -56,4 +56,22 @@ public class ArchitectureTest {
             .should().dependOnClassesThat()
             .resideInAPackage("app.backend.jamo.contracts.proto.ai..")
             .as("ai-service 의 AiService gRPC 는 chat-service 만 호출한다 (ADR-0003)");
+
+    /** R12 — domain 계층은 Lombok annotation 을 사용하지 않는다 (ADR-0008 §C — 순수 Java / Invariant 명시 / 캡슐화). */
+    @ArchTest
+    static final ArchRule domain_should_not_depend_on_lombok =
+        noClasses()
+            .that().resideInAPackage("app.backend.jamo.diary.domain..")
+            .should().dependOnClassesThat()
+            .resideInAPackage("lombok..")
+            .as("domain 계층은 Lombok annotation 을 사용하지 않는다 (ADR-0008 §C)");
+
+    /** R13 — @Data / @Setter / @AllArgsConstructor 전 layer 금지 (ADR-0008 §B 블랙리스트). */
+    @ArchTest
+    static final ArchRule no_lombok_data_or_setter_or_all_args =
+        noClasses()
+            .should().beAnnotatedWith("lombok.Data")
+            .orShould().beAnnotatedWith("lombok.Setter")
+            .orShould().beAnnotatedWith("lombok.AllArgsConstructor")
+            .as("@Data/@Setter/@AllArgsConstructor 는 캡슐화/invariant 우회 위험으로 전 layer 금지 (ADR-0008 §B)");
 }

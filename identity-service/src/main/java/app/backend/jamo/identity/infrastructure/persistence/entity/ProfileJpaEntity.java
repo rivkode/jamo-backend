@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import lombok.Getter;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -20,6 +21,7 @@ import java.util.UUID;
  * 회피. {@code UserJpaEntity} 와 정합 (code review H1).
  */
 @Entity
+@Getter
 @Table(name = "profiles")
 public class ProfileJpaEntity {
 
@@ -59,13 +61,7 @@ public class ProfileJpaEntity {
         this.updatedAt = updatedAt;
     }
 
-    public UUID getUserId() { return userId; }
-    public String getBio() { return bio; }
-    public String getAvatarUrl() { return avatarUrl; }
-    public String getLocale() { return locale; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
-
+    // setter 는 명시 유지 — Mapper 의 mergeInto 패턴에서 호출.
     public void setBio(String bio) { this.bio = bio; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     public void setLocale(String locale) { this.locale = locale; }

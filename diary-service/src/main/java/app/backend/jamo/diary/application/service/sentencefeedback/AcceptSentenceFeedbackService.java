@@ -9,12 +9,12 @@ import app.backend.jamo.diary.domain.model.sentencefeedback.SentenceFeedbackId;
 import app.backend.jamo.diary.domain.model.sentencefeedback.SuggestionId;
 import app.backend.jamo.diary.domain.repository.OutboxEventPublisher;
 import app.backend.jamo.diary.domain.repository.SentenceFeedbackRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -34,6 +34,7 @@ import java.util.UUID;
  * </ol>
  */
 @Service
+@RequiredArgsConstructor
 public class AcceptSentenceFeedbackService {
 
     private final SentenceFeedbackRepository repository;
@@ -41,20 +42,7 @@ public class AcceptSentenceFeedbackService {
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
-    public AcceptSentenceFeedbackService(
-        SentenceFeedbackRepository repository,
-        OutboxEventPublisher outboxEventPublisher,
-        TransactionTemplate transactionTemplate,
-        Clock clock
-    ) {
-        this.repository = Objects.requireNonNull(repository, "repository");
-        this.outboxEventPublisher = Objects.requireNonNull(outboxEventPublisher, "outboxEventPublisher");
-        this.transactionTemplate = Objects.requireNonNull(transactionTemplate, "transactionTemplate");
-        this.clock = Objects.requireNonNull(clock, "clock");
-    }
-
     public SentenceFeedbackResult accept(AcceptSentenceFeedbackCommand command) {
-        Objects.requireNonNull(command, "command");
 
         SentenceFeedbackId feedbackId = SentenceFeedbackId.of(command.feedbackId());
         SuggestionId suggestionId = SuggestionId.of(command.suggestionId());
