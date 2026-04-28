@@ -18,7 +18,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 |---|---|---:|---:|---:|---:|---:|---:|:---:|
 | auth | identity-service | 5 | 5 | 0 | 0 | 5 | 0 | ✅ |
 | user | identity-service | 4 | 4 | 0 | 0 | 3 | 1 | ✅ |
-| profile | identity-service | 4 | 4 | 0 | - | - | - | ⏳ |
+| profile | identity-service | 3 | 3 | 0 | - | - | - | ⏳ |
 | diary | diary-service | 6 | 6 | 0 | - | - | - | ⏳ |
 | comment | diary-service | 4 | 4 | 0 | - | - | - | ⏳ |
 | validation | diary-service | 2 | 2 | 0 | - | - | - | ⏳ |
@@ -30,7 +30,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | shorts | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | event | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | feedback | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
-| **합계** | | **62** | **59** | **3** | 0 | 8 | 1 | |
+| **합계** | | **61** | **58** | **3** | 0 | 8 | 1 | |
 
 ## 평가 절차
 
@@ -44,7 +44,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 ### identity-service
 - [`auth/start.md`](auth/start.md), [`auth/callback.md`](auth/callback.md), [`auth/exchange.md`](auth/exchange.md), [`auth/refresh.md`](auth/refresh.md), [`auth/logout.md`](auth/logout.md)
 - [`user/createUser.md`](user/createUser.md), [`user/sendValidationNumber.md`](user/sendValidationNumber.md), [`user/validateEmail.md`](user/validateEmail.md), [`user/getMyInfo.md`](user/getMyInfo.md)
-- [`profile/getMyProfile.md`](profile/getMyProfile.md), [`profile/getProfile.md`](profile/getProfile.md), [`profile/updateMyProfile.md`](profile/updateMyProfile.md), [`profile/listSavedClips.md`](profile/listSavedClips.md)
+- [`profile/getMyProfile.md`](profile/getMyProfile.md), [`profile/getProfile.md`](profile/getProfile.md), [`profile/updateMyProfile.md`](profile/updateMyProfile.md)
 
 ### diary-service
 - diary: [`diary/create.md`](diary/create.md), [`diary/get.md`](diary/get.md), [`diary/listFeed.md`](diary/listFeed.md), [`diary/listMyFeed.md`](diary/listMyFeed.md), [`diary/delete.md`](diary/delete.md), [`diary/toggleLike.md`](diary/toggleLike.md)
@@ -71,7 +71,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 ## 진행 속도 / 페이스 (참고)
 
 > **운영 규약**: 모든 PR 머지 후 본 절을 즉시 갱신한다. 단계 행 추가 + 누적 시간 계산 + 남은 작업 추정 갱신.
-> 마지막 갱신: PR #35 머지 (2026-04-28) — contracts identity.proto (UserSummaryService 단건 + 일괄) — 트랙 외 (Phase 6 contracts-first 선행, ADR-0007).
+> 마지막 갱신: PR #37 머지 (2026-04-28) — clip 도메인 미사용 폐기 (listSavedClips PRD 삭제 + ADR-0007 Track A 4 API → 3 API 갱신). PR #36 (Kafka 이벤트 7종) 행 측정값 보강 포함. 본 갱신 시점에 **병렬 트랙 운영 포기 → 단일 트랙 회귀** (profile 선행, diary 순차).
 
 ### 단계별 누적 시간 (2026-04-26 18:22 시작)
 
@@ -100,7 +100,8 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | (별도) contracts ai.proto + Makefile | `ai.proto` 정의 (AiService.Complete/SpeechToText/TextToSpeech, 모든 메서드 request_id, finish_reason string, 4MB unary, reserved 5-9), 루트 Makefile (`make proto` Java/Python 동기화), 결정 문서 2종 (proto-build-sync-makefile / ai-service-method-signatures), contracts-catalog 갱신 (✅ 등재). Java 측 `:contracts:build` 성공, Python 측 검증은 uv 미설치로 ai-service 구현 PR 로 이연 — ADR-0003 Open Item 4건 + ADR-0004 §7 후속 결정 해소 | #32 | 50m (code-reviewer Medium 3 + Low 3 재작업 포함) | (트랙 외 — Phase 6 contracts-first 선행, ADR-0007) |
 | (별도) contracts chat.proto | `chat.proto` 정의 (AiAssistantService.RequestSentenceFeedback / ValidateDiaryContent / GenerateChatResponse, 9 message — 7 도메인 + SentenceSuggestion / ValidationIssue / ChatMessage 정형, 모든 message reserved 슬롯, 모든 요청 request_id, status string, *_epoch_ms), 결정 문서 (ai-assistant-service-method-catalog — 비즈니스 의미별 분리 + status 카탈로그 박제). chat 도메인 자체 흐름은 본 서비스 미경유. ADR-0003 Open Item 1건 해소 | #34 | 1h (code-reviewer Medium 3 (M1 reserved / M2 ChatMessage struct / M3 status 카탈로그) + L3 재작업 포함, 머지 시 #33 와 _status.md 충돌 사용자 수동 해결) | (트랙 외 — Phase 6 contracts-first 선행, ADR-0007) |
 | (별도) contracts identity.proto | `identity.proto` 정의 (UserSummaryService.GetUserSummary 단건 Deadline 2s + BatchGetUserSummaries 일괄 최대 200 Deadline 5s, 5 message, 모든 message reserved 슬롯, 모든 요청 request_id, public-safe 필드만 — email/providers/createdAt 제외, `user_status` 와 RPC `status` 의미 분리) | #35 | 35m (code-reviewer Medium 4 + Low 3 재작업 포함, 부수로 PR #34 머지 충돌 시 누락된 chat.proto _status 행 복구 + 마지막 갱신 노트 보정 포함) | (트랙 외 — Phase 6 contracts-first 선행, ADR-0007) |
-| (별도) contracts Kafka 이벤트 7종 | event/{activity,identity,diary,chat}/ 하위 7 record (ActivityHappened / UserWithdrawalRequested / UserDataPurged / DiaryCreated / CommentCreated / ChatGenerated / VoiceInputProcessed) + EventFields 검증 헬퍼 (requireNonBlank/NonNull/NonNegative). 각 record JavaDoc (발행자/구독자/토픽/용도). 7 *Test (ParameterizedTest @NullSource @ValueSource 로 압축, 총 82 케이스) 통과 + ContractsArchitectureTest R2 (Spring/Jackson 차단) 통과 + archunit.properties failOnEmptyShould=false → true 전환. DiaryDeleted / SentenceFeedback* 4종은 도메인 PR 시점 별도 | (예정) | (진행 중) | (트랙 외 — Phase 6 contracts-first 선행 마무리, ADR-0007) |
+| (별도) contracts Kafka 이벤트 7종 | event/{activity,identity,diary,chat}/ 하위 7 record (ActivityHappened / UserWithdrawalRequested / UserDataPurged / DiaryCreated / CommentCreated / ChatGenerated / VoiceInputProcessed) + EventFields 검증 헬퍼 (requireNonBlank/NonNull/NonNegative). 각 record JavaDoc (발행자/구독자/토픽/용도). 7 *Test (ParameterizedTest @NullSource @ValueSource 로 압축, 총 82 케이스) 통과 + ContractsArchitectureTest R2 (Spring/Jackson 차단) 통과 + archunit.properties failOnEmptyShould=false → true 전환. DiaryDeleted / SentenceFeedback* 4종은 도메인 PR 시점 별도 | #36 | 약 2h (식사 포함, 7 record + JavaDoc + 82 케이스 + ArchUnit failOnEmptyShould 전환) | (트랙 외 — Phase 6 contracts-first 선행 마무리, ADR-0007) |
+| (별도) clip 도메인 미사용 폐기 | `listSavedClips.md` PRD 삭제 + `_index.md` 갱신 (59→58 endpoint, profile 4→3) + ADR-0007 Track A 정의 갱신 (4 API → 3 API + cross-reference) + `decisions/identity/clip-domain-removal.md` 박제 (검토 옵션 / 선택 근거 / `user-profile-domain-boundary.md` 보존 사유 / Non-Goals). 본 PR 시점에 병렬 트랙 운영 포기 결정 → profile 선행, diary 순차로 회귀 | #37 | 26m (단일 commit, 코드 변경 0, 4 파일) | (Track A — profile 평가 선행 정리) |
 
 - 누적 24 PR (본 트랙) + 4 PR (#15·#18·#20·#24 docs 페이스) / **28h 52m 실측**, 잠·식사·limit wait 약 ~17h 제외 시 **실작업 약 12h**
 - **평균 1.2h/PR** (AI 협업 페이스 — PR3 시리즈 1.5h/PR → PR4 시리즈 1.4h/PR → PR5 시리즈 슬라이스 평균 27m/PR → PR6 시리즈 슬라이스 평균 32m/PR). PR6 슬라이스 (#25~#27) 만 보면 1h 35m / 3 PR = **32m/PR** — security 1차 NEEDS CHANGES 재작업 비용 포함, sanitize 정책이 결정 문서 5건과 PR4-c security trail 에 의해 표준화된 결과 PR5 페이스 유지
@@ -129,12 +130,12 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | user 평가 (Phase 5-a) | — | 1 | 2h 39m | ✅ 완료 (#19) — getMyInfo DROP, 3 FIX |
 | user 코드 — 이메일 검증 (Phase 5-b/c/d) | 2 | 3 | 1h 22m | ✅ 완료 (#21·#22·#23) — sendValidationNumber + validateEmail |
 | user 코드 — createUser (Phase 5-e) | 1 | 3 | 1h 35m | ✅ 완료 (#25·#26·#27) — LOCAL 가입 + BCrypt + EmailValidatedFlag.consume 사전조건 |
-| profile 평가 + 코드 | 4 | 4-6 | ~6-9h | 다음 진입 (응답 스키마에 identity 필드 흡수 필수 — decisions/identity/user-profile-domain-boundary.md 정합) |
+| profile 평가 + 코드 | 3 | 3-5 | ~5-8h | 다음 진입 (clip 폐기로 4→3 축소, listSavedClips 제외 — decisions/identity/clip-domain-removal.md). 응답 스키마에 identity 필드 흡수 필수 — decisions/identity/user-profile-domain-boundary.md 정합 |
 | diary 계열 (diary+comment+validation+diarychat+sentence-feedback) | 24 | 24-30 | ~36-45h | profile 후 |
 | chat | 14 | 14-18 | ~21-27h | diary 후 |
 | learning (sentence + word) | 8 | 8-10 | ~12-15h | — |
 | platform (shorts + event + feedback) | 3 | 3 | ~5h | — |
-| **남은 합계** | **53** | **~52-68** | **~78-101h ≈ 영업일 10-13일** | |
+| **남은 합계** | **52** | **~51-66** | **~77-100h ≈ 영업일 10-13일** | |
 
 후속 별도 PR (PR4-c, PR5-b, PR5-c security/test 리뷰 deferral):
 - **PR4-c** Security H1 (Spring Security default-deny), H2 (rate limiting), M1 (refresh transport 결정), M2 (ArchUnit 호출자 룰), M3 (cause class logging), M5 (deviceId binding)
