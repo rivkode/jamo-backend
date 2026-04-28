@@ -53,4 +53,26 @@ status: proposed
 - [ ] 다중 suggestion 동시 채택 가능성 (현재는 단일)
 
 ## 9. KEEP/DROP/FIX 분류
-- 신규 PRD (proposed)
+
+**KEEP+FIX** — [`decisions/diary/sentence-feedback-domain-policy.md`](../../decisions/diary/sentence-feedback-domain-policy.md) 박제 적용.
+
+| 항목 | 결정 | 박제 § |
+|---|---|---|
+| Path `feedbackId` 타입 | UUID (KEEP) | §1 |
+| Body `suggestionId` 타입 | `String` → **UUID** (FIX) | §1 |
+| 상태 전이 | SUGGESTED → ACCEPTED 만 (다른 final 상태에서 호출 → 409) | §2 |
+| **권한 가드 — 다른 사용자 소유** | **403 → 404 통일 (FIX)** — comment / diary / diarychat 정합 (IDOR 보호) | §4 |
+| 없는 `feedbackId` | 404 | §4 |
+| 이미 final 상태 (본인 소유) | **409** (`SENTENCE_FEEDBACK_INVALID_TRANSITION`) — IDOR 위험 없음, 정상 권한 + 비정상 상태 | §4 |
+| 알 수 없는 `suggestionId` | 400 (`SENTENCE_FEEDBACK_UNKNOWN_SUGGESTION`) | §4 |
+| 응답 | 200 + `SentenceFeedbackResponse` (status=ACCEPTED, `decisionSuggestionId` / `decidedAt` 포함) | §8 |
+| 다중 suggestion 동시 채택 | **미지원** (단일만, Non-Goals) | §15 |
+| 일기 본문 자동 반영 | **클라 책임** (서버 미반영) — PRD §8 Open Item 해소 | §15 |
+| `SentenceFeedbackAccepted` 이벤트 | Outbox 발행 (구독자 = platform-service 수락 가중 점수) | §12 |
+| 선행 필요 contracts | `SentenceFeedbackAccepted` Kafka record — D-b-1 PR | §16 |
+
+후속 (Open Questions §8 해소):
+- 일기 본문 자동 반영 → 클라 책임 박제.
+- 다중 suggestion 채택 → Non-Goals.
+- 점수 가중치 → platform-service 구현 PR 시점.
+
