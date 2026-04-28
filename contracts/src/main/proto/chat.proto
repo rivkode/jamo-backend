@@ -1,0 +1,248 @@
+syntax = "proto3";
+
+package app.backend.jamo.contracts.proto.chat;
+
+option java_multiple_files = true;
+option java_package = "app.backend.jamo.contracts.proto.chat";
+option java_outer_classname = "ChatProto";
+
+// AiAssistantService — chat-service (Java) 가 노출하는 AI 비즈니스 게이트웨이.
+//
+// 제공자: chat-service (Java, Spring Boot)
+// 호출자: diary-service (sentence-feedback / validation / diarychat AI 응답).
+//        learning-service 활성화 시 sentence 학습 평가 등 추가.
+// 언어: Java / Java
+//
+// 책임 (ADR-0003):
+//   chat-service 가 프롬프트 템플릿 / 사용자 컨텍스트 / 사용량 / rate limit /
+//   fallback 정책을 처리한 후, 내부적으로 ai-service (Python) 의 AiService
+//   (LLM/STT/TTS) gRPC 를 호출. 다른 Java 서비스가 ai-service 를 직접 호출하는
+//   경로는 금지.
+//
+// 메서드 카탈로그 결정: decisions/contracts/ai-assistant-service-method-catalog.md
+//   - 비즈니스 의미별 분리 채택 (`call(type, payload)` 일반화 거부)
+//   - 메서드 단위 Deadline / Circuit Breaker / metrics / 사용량 카운터 자연 격리
+//   - chat 도메인 자체 흐름 (transcribe / speechAudio) 은 본 서비스 미경유 —
+//     chat-service 자기 application service 에서 ai-service 직접 호출
+service AiAssistantService {
+  // 일기 한 문장 (1~50자) 에 대한 AI 대안 제안.
+  // PRD: prd/diary/requestSentenceFeedback.md
+  // 호출자 Deadline: 35초 (chat 자체 + ai 30s 마진, ADR-0003 §gRPC 운영 정책).
+  rpc RequestSentenceFeedback (SentenceFeedbackRequest) returns (SentenceFeedbackResponse);
+
+  // 일기 다중 라인 검증 — 룰 + LLM 혼합 (chat-service 가 정책 결정).
+  // PRD: prd/validation/validate.md, prd/validation/validateLine.md
+  // 호출자 Deadline: 20초.
+  rpc ValidateDiaryContent (ValidateDiaryRequest) returns (ValidateDiaryResponse);
+
+  // diarychat 의 AI 어시스턴트 자동 응답 (`aiAssistantEnabled=ON` 시).
+  // PRD: prd/diarychat/send.md
+  // 호출자 Deadline: 35초.
+  rpc GenerateChatResponse (ChatResponseRequest) returns (ChatResponseReply);
+}
+
+// ============================================================
+// 공통 메시지
+// ============================================================
+
+// 호출자가 부여하는 추적 ID — chat-service 의 사용량 카운터 / 분산 trace /
+// rate limit 키 매칭에 사용. 비우면 chat-service 가 생성하여 응답에 echo.
+// 모든 요청 메시지에 동일 의도로 포함 (decisions/contracts/ai-service-method-signatures.md
+// §"왜 request_id 를 모든 메서드에" 와 동일 정책).
+
+// ============================================================
+// RequestSentenceFeedback — diary sentence-feedback
+// ============================================================
+
+message SentenceFeedbackRequest {
+  // 호출자 사용자 ID (chat-service 의 rate limit 키 / 사용량 카운터).
+  string user_id = 1;
+
+  // 피드백 대상 문장 (1~50자, PRD diary/requestSentenceFeedback.md §1).
+  // chat-service 가 1차 검증 (길이/금칙어) — 위반 시 INVALID_ARGUMENT.
+  string sentence = 2;
+
+  // 같은 일기의 앞 문장들 (선택). 각 50자 이하 + 최대 N개 (운영 PRD Open Item).
+  // 컨텍스트 보강용.
+  repeated string prior_sentences = 3;
+
+  // 어조 힌트 (선택). 예: "casual" / "formal" (운영 enum 후보 PRD Open Item).
+  string tone = 4;
+
+  // 추적 ID.
+  string request_id = 5;
+
+  // field 6 ~ 9: locale / 50자 산정 mode / tone enum 채택 시 새 필드
+  // (PRD Open Items 해소 시) 후속 예약. 추가 시 결정 로그 박제 + 카탈로그 갱신.
+  reserved 6 to 9;
+}
+
+message SentenceSuggestion {
+  // 사용자 수락 시 후속 endpoint (acceptSentenceFeedback) 의 식별자.
+  string suggestion_id = 1;
+
+  // 제안 문장 본문.
+  string text = 2;
+
+  // 제안 사유 (UI 노출 텍스트).
+  string reason = 3;
+
+  // 0.0 ~ 1.0. 모델 미제공 시 0.
+  double confidence = 4;
+
+  // field 5 ~ 9: i18n 분석용 reason_code / 제안 카테고리 후속 예약.
+  reserved 5 to 9;
+}
+
+message SentenceFeedbackResponse {
+  // 후속 accept/reject 호출의 식별자 (UUID, diary-service 의 SentenceFeedback Aggregate ID).
+  // chat-service 가 생성, diary-service 가 영속.
+  string feedback_id = 1;
+
+  // "SUGGESTED" / "FAILED" — `finish_reason` 과 동일 이유로 string.
+  // FAILED 시 fallback suggestion 1개를 반환할 수 있음 (chat-service 정책).
+  // 값 카탈로그: decisions/contracts/ai-assistant-service-method-catalog.md §"각 메서드 status 카탈로그".
+  string status = 2;
+
+  // 입력 문장 echo (UI 비교 표시용).
+  string original_sentence = 3;
+
+  // 0~3개의 대안 제안. status=FAILED 시 fallback 1개 또는 0개.
+  repeated SentenceSuggestion suggestions = 4;
+
+  // AI 가 발견한 이슈 (예: 표현 문제, 맞춤법). UI 에 부가 정보로 노출 가능.
+  repeated string issues = 5;
+
+  // 24h 후 EXPIRED 전이 시점 (PRD §0.1 라이프사이클).
+  int64 expires_at_epoch_ms = 6;
+
+  // 응답 생성 시점.
+  int64 processed_at_epoch_ms = 7;
+
+  // 추적 ID echo.
+  string request_id = 8;
+
+  // field 9 ~ 12: 모델 메타데이터 (model_id / prompt_tokens 등) / server-streaming
+  // chunk_index / sequence 후속 예약.
+  reserved 9 to 12;
+}
+
+// ============================================================
+// ValidateDiaryContent — diary validation
+// ============================================================
+
+message ValidateDiaryRequest {
+  // 호출자 사용자 ID.
+  string user_id = 1;
+
+  // 검증 대상 라인들 (PRD validation/validate.md). chat-service 가 길이 / 개수 1차 검증.
+  repeated string lines = 2;
+
+  // 검증 모드 힌트 — "rule" (룰 기반만) / "llm" (LLM 포함) / "hybrid" (기본).
+  // chat-service 가 기본값 / 정책 결정. `finish_reason` 과 동일 이유로 string.
+  string mode = 3;
+
+  // 추적 ID.
+  string request_id = 4;
+
+  // field 5 ~ 9: locale / strict mode / 사용자별 ruleset id 후속 예약.
+  reserved 5 to 9;
+}
+
+message ValidationIssue {
+  // 0-based line index.
+  int32 line_index = 1;
+
+  // 이슈 코드 (예: "spelling" / "grammar" / "content_policy"). string 으로 둔다.
+  string code = 2;
+
+  // UI 노출용 이슈 설명.
+  string message = 3;
+
+  // 0.0 ~ 1.0. 모델 미제공 시 0.
+  double confidence = 4;
+
+  // field 5 ~ 9: 라인 내 위치 (start/end offset) / 제안 fix 후속 예약.
+  reserved 5 to 9;
+}
+
+message ValidateDiaryResponse {
+  // "VALID" / "INVALID" / "FAILED" (string).
+  // 값 카탈로그: decisions/contracts/ai-assistant-service-method-catalog.md §"각 메서드 status 카탈로그".
+  string status = 1;
+
+  // 라인별 이슈 목록. status=VALID 면 비어있음.
+  repeated ValidationIssue issues = 2;
+
+  // 응답 생성 시점.
+  int64 processed_at_epoch_ms = 3;
+
+  // 추적 ID echo.
+  string request_id = 4;
+
+  // field 5 ~ 9: 룰 적용 결과 메타 / 모델 메타 후속 예약.
+  reserved 5 to 9;
+}
+
+// ============================================================
+// GenerateChatResponse — diarychat AI 어시스턴트
+// ============================================================
+
+// 컨텍스트 윈도우 보강용 메시지 단위. role-tagged history 가 LLM API 표준 (OpenAI
+// chat completions, Anthropic messages 등) 이라 string 자유 텍스트 대신 정형화.
+message ChatMessage {
+  // "user" / "assistant" / "system" 표준 role. `finish_reason` 과 동일 이유로 string —
+  // 후속 새 role (예: "tool", "function") 추가에 contracts breaking change 없이 호환.
+  string author_role = 1;
+
+  // 사용자 ID. role=assistant / system 이면 빈 문자열.
+  string author_id = 2;
+
+  // 메시지 본문.
+  string text = 3;
+
+  // 메시지 생성 시점.
+  int64 created_at_epoch_ms = 4;
+
+  // field 5 ~ 9: tool_calls / function_call / attachments 후속 예약.
+  reserved 5 to 9;
+}
+
+message ChatResponseRequest {
+  // 호출자 사용자 ID (chat-service 의 rate limit 키).
+  string user_id = 1;
+
+  // diarychat 방 ID (chat-service 가 컨텍스트 보강 시 활용 가능).
+  string room_id = 2;
+
+  // 사용자가 방에 보낸 직전 메시지.
+  string user_message = 3;
+
+  // 같은 방의 최근 메시지들 (선택, 시간 오래된 순). 컨텍스트 윈도우 보강용.
+  // chat-service 가 prompt 합성 시 role 태깅 그대로 LLM 에 전달 가능.
+  repeated ChatMessage recent_messages = 4;
+
+  // 추적 ID.
+  string request_id = 5;
+
+  // field 6 ~ 9: locale / 톤 / 길이 힌트 후속 예약.
+  reserved 6 to 9;
+}
+
+message ChatResponseReply {
+  // AI 어시스턴트 응답 텍스트.
+  string assistant_message = 1;
+
+  // "OK" / "FAILED" / "RATE_LIMITED" 등 (string).
+  // 값 카탈로그: decisions/contracts/ai-assistant-service-method-catalog.md §"각 메서드 status 카탈로그".
+  string status = 2;
+
+  // 응답 생성 시점.
+  int64 generated_at_epoch_ms = 3;
+
+  // 추적 ID echo.
+  string request_id = 4;
+
+  // field 5 ~ 9: 모델 메타데이터 / server-streaming chunk_index 후속 예약.
+  reserved 5 to 9;
+}

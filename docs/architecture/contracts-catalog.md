@@ -21,7 +21,7 @@
 
 | 서비스 | proto 파일 | 제공자 | 호출자 | 언어 (제공자/호출자) | 용도 | 상태 |
 |---|---|---|---|---|---|---|
-| `AiAssistantService` | `chat.proto` | chat-service | diary-service, learning-service(활성화 시), diarychat, validation | Java / Java | **AI 비즈니스 게이트웨이** — 비즈니스 의미가 있는 메서드(`requestSentenceFeedback`, `validateDiaryContent`, `generateChatResponse`, `paraphrase` 등). chat-service 가 프롬프트 템플릿/사용량/rate limit 처리 후 ai-service 호출. (ADR-0003) | 📝 미작성 |
+| `AiAssistantService` | `chat.proto` | chat-service | diary-service (sentence-feedback / validation / diarychat AI), learning-service(활성화 시) | Java / Java | **AI 비즈니스 게이트웨이** — 초기 3 메서드: `RequestSentenceFeedback` / `ValidateDiaryContent` / `GenerateChatResponse`. chat-service 가 프롬프트 템플릿/사용량/rate limit 처리 후 ai-service 호출. chat 도메인 자체 흐름 (transcribe / speechAudio) 은 본 서비스 미경유. (ADR-0003, [decisions/contracts/ai-assistant-service-method-catalog.md](../decisions/contracts/ai-assistant-service-method-catalog.md)) | ✅ 등재 (`chat.proto`) |
 | `AiService` ⭐ | `ai.proto` | ai-service (Python) | chat-service (Java) | **Python / Java** | **순수 AI 추론** — `Complete` (LLM) / `SpeechToText` (STT) / `TextToSpeech` (TTS) unary. 모든 메서드에 `request_id` (사용량/trace). 무상태. (ADR-0003, [decisions/contracts/ai-service-method-signatures.md](../decisions/contracts/ai-service-method-signatures.md)) | ✅ 등재 (`ai.proto`) |
 | `UserSummaryService` | `identity.proto` | identity-service | platform-service(랭킹 표시명) | Java / Java | userId → 닉네임/프로필 사진 등 표시용 요약 조회 | 📝 미작성 |
 
@@ -43,7 +43,7 @@
 | Python 빌드 자동화 방식 | ✅ 결정 (Makefile) | [decisions/contracts/proto-build-sync-makefile.md](../decisions/contracts/proto-build-sync-makefile.md) |
 | `AiService.Complete` / `SpeechToText` / `TextToSpeech` 시그니처 | ✅ 결정 | [decisions/contracts/ai-service-method-signatures.md](../decisions/contracts/ai-service-method-signatures.md) |
 | gRPC Deadline 표준값 (메서드별) | ✅ 결정 | [ADR-0003 §gRPC 운영 정책](../adr/0003-ai-call-architecture.md) + 위 시그니처 결정 |
-| `AiAssistantService` 메서드 카탈로그 (비즈니스 의미별 분리 vs `chatCompletion(type, payload)`) | 📝 PR-B 결정 예정 | (`chat.proto` 작성 PR) |
+| `AiAssistantService` 메서드 카탈로그 (비즈니스 의미별 분리 vs `chatCompletion(type, payload)`) | ✅ 결정 (비즈니스 의미별 분리) | [decisions/contracts/ai-assistant-service-method-catalog.md](../decisions/contracts/ai-assistant-service-method-catalog.md) |
 | 응답 RPC 종류: server-streaming (LLM) / client-streaming (긴 음성 STT) 도입 시점 | 📝 후속 ADR | unary 첫 단계 (ADR-0003) |
 | 음성 4MB 초과 처리 (client-streaming chunk) | 📝 후속 ADR | (사용 사례 등장 시) |
 | 모델 카탈로그 (`gpt-4o-mini` 등 운영 허용값) / quota | 📝 후속 ADR | ADR-0003 후속 |
@@ -117,4 +117,4 @@
 - [ADR-0004 contracts 명명/버전 표준](../adr/0004-contracts-naming-and-versioning.md)
 - [ADR-0007 contracts-first 병렬 개발](../adr/0007-contracts-first-parallel-development.md)
 - [Service ↔ Domain Mapping](service-domain-mapping.md)
-- 결정 로그: [contracts/proto-build-sync-makefile.md](../decisions/contracts/proto-build-sync-makefile.md), [contracts/ai-service-method-signatures.md](../decisions/contracts/ai-service-method-signatures.md)
+- 결정 로그: [contracts/proto-build-sync-makefile.md](../decisions/contracts/proto-build-sync-makefile.md), [contracts/ai-service-method-signatures.md](../decisions/contracts/ai-service-method-signatures.md), [contracts/ai-assistant-service-method-catalog.md](../decisions/contracts/ai-assistant-service-method-catalog.md)
