@@ -14,6 +14,8 @@ dependencies {
     implementation("org.springframework.security:spring-security-crypto")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-mysql")
+    // springdoc-openapi (Swagger UI). prod profile 에서는 application.yaml 로 비활성.
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
 
     runtimeOnly("com.mysql:mysql-connector-j")
 

@@ -1,0 +1,103 @@
+# jamo 로컬 개발 docker compose.
+# 실행:  docker compose up -d        (모두 기동)
+#        docker compose up -d mysql redis   (인프라만 — IDE 에서 :identity-service:bootRun 으로 띄울 때)
+#
+# 새 Java 서비스가 실 코드를 갖게 되면:
+#   1) <service>/Dockerfile 추가 (identity-service 패턴 복사, EXPOSE 만 변경)
+#   2) 본 파일에 service 블록 추가 (depends_on: mysql/redis healthy)
+#   3) docker/mysql/init/01-create-schemas.sql 의 user/grant 활성화 확인
+#   4) .env.example 에 service-specific 변수 추가
+# CLAUDE.md "작업 규칙" 의 의무 사항.
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: jamo-mysql
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - jamo-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: jamo-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-jamo-redis-dev}
+      --appendonly yes
+      --save 900 1
+      --save 300 10
+    volumes:
+      - redis-data:/data
+    networks:
+      - jamo-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-jamo-redis-dev}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: identity-service/Dockerfile
+    container_name: jamo-identity-service
+    ports:
+      - "${IDENTITY_SERVER_PORT:-8081}:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      IDENTITY_DB_URL: jdbc:mysql://mysql:3306/identity?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+      IDENTITY_DB_USERNAME: ${IDENTITY_DB_USERNAME:-identity}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:-identity-dev}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-jamo-redis-dev}
+      JWT_ISSUER: ${JWT_ISSUER:-https://identity.local.jamoai.app}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-jamo-services}
+      JWT_KEY_ID: ${JWT_KEY_ID:-identity-local-k1}
+      JWT_PRIVATE_KEY_PEM: ${JWT_PRIVATE_KEY_PEM}
+      JWT_PUBLIC_KEY_PEM: ${JWT_PUBLIC_KEY_PEM}
+      JWT_REFRESH_HASH_PEPPER: ${JWT_REFRESH_HASH_PEPPER}
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-}
+      NAVER_CLIENT_ID: ${NAVER_CLIENT_ID:-}
+      NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      TZ: Asia/Seoul
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - jamo-network
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  redis-data:
+
+networks:
+  jamo-network:
+    driver: bridge
