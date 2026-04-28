@@ -74,7 +74,12 @@ public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver 
             // 500 (handleGeneric) 으로 빠지지 않도록 401 로 매핑 (security L1).
             throw new UnauthorizedException("subject claim is not a valid user id", e);
         }
-        return new AuthenticatedUser(userId, claims.sessionId(), claims.deviceId());
+        try {
+            return new AuthenticatedUser(userId, claims.sessionId(), claims.deviceId());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            // sessionId / deviceId 부재한 토큰은 토큰 발급 측 결함 — 401 일관 매핑 (security review M3).
+            throw new UnauthorizedException("authenticated user context invalid", e);
+        }
     }
 
     private static String extractBearerToken(String headerValue) {

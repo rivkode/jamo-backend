@@ -3,7 +3,7 @@ package app.backend.jamo.identity.application.service;
 import app.backend.jamo.identity.application.dto.MyProfileResult;
 import app.backend.jamo.identity.application.dto.UpdateMyProfileCommand;
 import app.backend.jamo.identity.domain.event.DisplayNameChanged;
-import app.backend.jamo.identity.domain.exception.UserNotFoundException;
+import app.backend.jamo.identity.domain.exception.AuthenticatedUserNotFoundException;
 import app.backend.jamo.identity.domain.model.oauth.OAuthIdentity;
 import app.backend.jamo.identity.domain.model.oauth.OAuthProvider;
 import app.backend.jamo.identity.domain.model.profile.AvatarUrl;
@@ -78,7 +78,8 @@ public class UpdateMyProfileService {
 
         // 1. User aggregate (displayName SoT)
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("user not found: " + userId.value()));
+                .orElseThrow(() -> new AuthenticatedUserNotFoundException(
+                        "authenticated user not found: " + userId.value()));
 
         if (command.displayName() != null) {
             rateLimiter.check(userId);  // flag 있으면 throws — 트랜잭션 진입 후 즉시 거부
