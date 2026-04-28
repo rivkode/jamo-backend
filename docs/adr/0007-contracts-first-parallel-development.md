@@ -39,7 +39,7 @@ PR6 시리즈 (user LOCAL 가입) + PR #29 (로컬 dev 인프라 + swagger) + PR
 
 | Track | 범위 | 우선순위 |
 |---|---|---|
-| **A — identity profile** | Phase 6, 4 API (getMyProfile / getProfile / updateMyProfile / listSavedClips) | 그대로 진행 |
+| **A — identity profile** | Phase 6, 3 API (getMyProfile / getProfile / updateMyProfile) — `listSavedClips` 는 clip 도메인 폐기로 제외 ([decisions/identity/clip-domain-removal.md](../decisions/identity/clip-domain-removal.md)) | 그대로 진행 |
 | **B — diary-service** | PRD 일괄 평가 (KEEP/FIX/DROP) → domain skeleton (Aggregate / VO / 도메인 예외) → diary/create.md 부터 슬라이스 | 동시 출발. diary 가 가장 큰 도메인 (24 API) 이라 평탄화 효과 큼 |
 
 다른 서비스 (chat / learning / platform) 는 두 트랙 진행 중 PRD 평가 / domain skeleton 까지 인터리빙 가능. 단 chat 의 AI 게이트웨이 본격 구현은 ai-service 와 묶어 진행 (contracts 검증 효과).
