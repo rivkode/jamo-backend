@@ -83,11 +83,11 @@
 | 이벤트 | 패키지 | 발행자 | 구독자 | 토픽 | 용도 | 상태 |
 |---|---|---|---|---|---|---|
 | `DiaryCreated` | `event/diary/` | diary | platform(랭킹) | `diary-events` | 일기 작성 활동 점수 가산 | ✅ 등재 |
-| `DiaryDeleted` | `event/diary/` | diary | platform(랭킹 정정) | `diary-events` | 활동 점수 차감 | 📝 미작성 (diary 도메인 PR) |
+| `DiaryDeleted` | `event/diary/` | diary | diary 자체 (comments / diary_likes / sentence_feedback hard-delete cascade — [diary-domain-policy §10](../decisions/diary/diary-domain-policy.md) / [sentence-feedback-domain-policy §13](../decisions/diary/sentence-feedback-domain-policy.md)), chat-service / diary 의 diarychat 영역 (chatrooms **soft-delete** [diarychat-domain-policy §16](../decisions/diary/diarychat-domain-policy.md)), platform(랭킹 정정 / 보상 ActivityHappened) | `diary-events` | 일기 hard-delete cascade 트리거 (Saga 보상) — diary §9 / §11 후속 의무 해소 | ✅ 등재 |
 | `CommentCreated` | `event/diary/` | diary | platform(랭킹) | `diary-events` | 댓글 작성 활동 점수 | ✅ 등재 |
-| `SentenceFeedbackRequested` | `event/diary/` | diary | platform(랭킹), 학습 분석 | `diary-events` | 문장 피드백 요청 활동 | 📝 미작성 (sentence-feedback PR) |
-| `SentenceFeedbackAccepted` | `event/diary/` | diary | platform(랭킹 가중치), 학습 분석 | `diary-events` | 제안 수락 — 추가 점수 | 📝 미작성 (sentence-feedback PR) |
-| `SentenceFeedbackRejected` | `event/diary/` | diary | (선택) 학습 분석 | `diary-events` | 제안 거부 — 학습 신호 | 📝 미작성 (sentence-feedback PR) |
+| `SentenceFeedbackRequested` | `event/diary/` | diary | platform(랭킹) | `diary-events` | 문장 피드백 요청 활동 ([sentence-feedback-domain-policy §12](../decisions/diary/sentence-feedback-domain-policy.md)) | ✅ 등재 |
+| `SentenceFeedbackAccepted` | `event/diary/` | diary | platform(수락 가중 점수), 학습 분석 (후속) | `diary-events` | 제안 수락 — 라이프사이클 SUGGESTED → ACCEPTED + `suggestionId` 학습 신호 | ✅ 등재 |
+| `SentenceFeedbackRejected` | `event/diary/` | diary | 학습 분석 (후속) | `diary-events` | 제안 거부 — 학습 신호 (PRD `reject §8` Open Item 해소: 발행 채택, 라이프사이클 final 전이 통일) | ✅ 등재 |
 
 #### 도메인 이벤트 (chat)
 
