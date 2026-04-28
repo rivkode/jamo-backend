@@ -39,6 +39,22 @@ service AiAssistantService {
   // PRD: prd/diarychat/send.md
   // 호출자 Deadline: 35초.
   rpc GenerateChatResponse (ChatResponseRequest) returns (ChatResponseReply);
+
+  // STT 게이트웨이 — diarychat send 의 audio-only / text+audio 입력을 텍스트로 변환.
+  // PRD: prd/diarychat/send.md (audioUrl-only 시 chat-service 게이트웨이 호출)
+  // 결정: decisions/diary/diarychat-domain-policy.md §9 (STT 흐름).
+  // Audio 흐름: Option A (URL 일관) — diary-service 가 audio_url 첨부, chat-service 가 다운로드 후
+  //            ai-service.SpeechToText (bytes) 호출. diary-service 는 audio storage 무관.
+  // 호출자 Deadline: 65초 (ai-service.SpeechToText 60s + chat 자체 다운로드/마진 5s).
+  rpc TranscribeUserAudio (TranscribeUserAudioRequest) returns (TranscribeUserAudioResponse);
+
+  // TTS 게이트웨이 — 메시지 음성 합성 (lazy GET 시점).
+  // PRD: prd/diarychat/getMessageAudio.md (사용자 재생 시점 lazy 호출, DB 캐시)
+  // 결정: decisions/diary/diarychat-domain-policy.md §11 (TTS lazy GET).
+  // Audio 흐름: Option A (URL 일관) — chat-service 가 ai-service.TextToSpeech 호출 후 audio bytes 를
+  //            storage 업로드 + presigned URL 반환. 호출자는 metadata (audio_url / expires_at) 만 영속.
+  // 호출자 Deadline: 35초 (ai-service.TextToSpeech 30s + chat 자체 storage 업로드/마진 5s).
+  rpc SynthesizeAudio (SynthesizeAudioRequest) returns (SynthesizeAudioResponse);
 }
 
 // ============================================================
@@ -245,4 +261,116 @@ message ChatResponseReply {
 
   // field 5 ~ 9: 모델 메타데이터 / server-streaming chunk_index 후속 예약.
   reserved 5 to 9;
+}
+
+// ============================================================
+// TranscribeUserAudio — diarychat send STT 게이트웨이 (Option A: URL 일관)
+// ============================================================
+
+message TranscribeUserAudioRequest {
+  // 호출자 사용자 ID (chat-service 의 rate limit 키 / 사용량 카운터).
+  string user_id = 1;
+
+  // 사용자가 첨부한 음성의 URL (http/https). chat-service 가 다운로드 후 bytes 변환해
+  // ai-service.SpeechToText 호출. PRD diarychat/send §8 의 "이미 업로드된 audioUrl 받음" 모델.
+  // 4MB 초과 케이스는 후속 client-streaming RPC 도입 (ADR-0003 후속).
+  string audio_url = 2;
+
+  // BCP-47 언어 코드 (선택). "ko" / "en". 비우면 ai-service 자동 감지.
+  string language = 3;
+
+  // 추적 ID.
+  string request_id = 4;
+
+  // field 5 ~ 9: format 힌트 / 화자 분리(diarization) / 단어별 timestamp 후속 예약.
+  reserved 5 to 9;
+}
+
+message TranscribeUserAudioResponse {
+  // 전사 결과 텍스트. status=FAILED 시 빈 문자열.
+  string text = 1;
+
+  // "OK" / "FAILED" / "RATE_LIMITED" (string).
+  // - OK: 정상 전사
+  // - FAILED: audio 다운로드 실패 / STT 모델 오류 / format 미지원
+  // - RATE_LIMITED: 사용자별 호출 한도 초과
+  // 값 카탈로그: decisions/contracts/ai-assistant-service-method-catalog.md §"각 메서드 status 카탈로그".
+  string status = 2;
+
+  // 0.0 ~ 1.0. 모델/공급사가 미제공 시 0.
+  double confidence = 3;
+
+  // 실제 감지된 언어 (자동 감지 결과 또는 입력 echo).
+  string language = 4;
+
+  // 응답 생성 시점.
+  int64 processed_at_epoch_ms = 5;
+
+  // 추적 ID echo.
+  string request_id = 6;
+
+  // field 7 ~ 12: SpeechSegment / 화자 / 단어 timestamps / 모델 메타 후속 예약.
+  reserved 7 to 12;
+}
+
+// ============================================================
+// SynthesizeAudio — diarychat getMessageAudio TTS 게이트웨이 (Option A: URL 일관)
+// ============================================================
+
+message SynthesizeAudioRequest {
+  // 호출자 사용자 ID (rate limit / 사용량 카운터).
+  string user_id = 1;
+
+  // 합성 입력 텍스트.
+  string text = 2;
+
+  // voice ID (선택, 공급사별 — 예: OpenAI "alloy" / "nova" / "shimmer"). 비우면 chat-service 기본.
+  string voice = 3;
+
+  // 속도 (선택, 0.25 ~ 4.0, OpenAI TTS 기준). 0 또는 미설정이면 1.0 적용.
+  double speed = 4;
+
+  // BCP-47 언어 코드 (선택). 일부 voice 는 다국어 지원.
+  string language = 5;
+
+  // 추적 ID.
+  string request_id = 6;
+
+  // field 7 ~ 9: TTS 음성 톤 (voice modulation) / 감정 / SSML 후속 예약.
+  // SentenceFeedbackRequest.tone (sentence-feedback 의 표현 어조 — casual/formal/neutral) 과는
+  // 의미가 다름 — 본 슬롯은 합성 음성의 voice modulation (예: 부드러운 / 단호한) 용.
+  reserved 7 to 9;
+}
+
+message SynthesizeAudioResponse {
+  // 합성된 음성의 URL. chat-service 가 storage 업로드 후 발행 (presigned URL 가능).
+  // status=FAILED 시 빈 문자열.
+  string audio_url = 1;
+
+  // 음성 포맷. "mp3" / "wav" / "opus" 등 (chat-service 또는 ai-service 가 결정).
+  // ai.proto 의 SpeechToText/TextToSpeech format 정책 정합 (string — 공급사 호환).
+  string format = 2;
+
+  // "OK" / "FAILED" / "RATE_LIMITED" (string).
+  // - OK: 정상 합성 + storage 업로드
+  // - FAILED: TTS 모델 오류 / storage 업로드 실패
+  // - RATE_LIMITED: 사용자별 호출 한도 초과
+  // 값 카탈로그: decisions/contracts/ai-assistant-service-method-catalog.md §"각 메서드 status 카탈로그".
+  string status = 3;
+
+  // presigned URL 만료 시각 (epoch ms). 0 이면 영구 URL (운영 정책).
+  // 호출자 (diary-service) 는 만료 시 본 메서드 재호출로 갱신 (자동 갱신 정책 = D-a-4-impl-infra).
+  int64 expires_at_epoch_ms = 4;
+
+  // 음성 길이 (밀리초). UI 의 player progress / 사용자 노출 메타.
+  int64 duration_ms = 5;
+
+  // 응답 생성 시점.
+  int64 processed_at_epoch_ms = 6;
+
+  // 추적 ID echo.
+  string request_id = 7;
+
+  // field 8 ~ 12: voice 메타 / model_id / 비용 메타 후속 예약.
+  reserved 8 to 12;
 }
