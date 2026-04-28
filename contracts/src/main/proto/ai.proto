@@ -1,0 +1,158 @@
+syntax = "proto3";
+
+package app.backend.jamo.contracts.proto.ai;
+
+option java_multiple_files = true;
+option java_package = "app.backend.jamo.contracts.proto.ai";
+option java_outer_classname = "AiProto";
+
+// AiService — ai-service (Python) 가 노출하는 순수 AI 추론 게이트웨이.
+//
+// 제공자: ai-service (Python, FastAPI + grpcio)
+// 호출자: chat-service (Java) 만. 다른 Java 서비스 / 외부 클라이언트의 직접 호출 금지 (ADR-0003).
+// 언어: Python (서버) / Java (클라이언트) — 두 언어 빌드 모두 본 .proto 를 입력으로 사용.
+//       Java 측은 protobuf-gradle-plugin 자동 생성, Python 측은 `make proto-python`
+//       (decisions/contracts/proto-build-sync-makefile.md).
+//
+// 책임 범위 (ADR-0003): LLM 텍스트 생성 + STT (음성→텍스트) + TTS (텍스트→음성).
+// 무상태. chat-service 가 프롬프트 템플릿 / 사용량 / rate limit 모두 처리한 후 본 서비스 호출.
+//
+// 시그니처 결정 근거: decisions/contracts/ai-service-method-signatures.md
+//   - 단일 일반화 메서드 대신 3개 메서드 분리 (deadline / circuit breaker 단위 격리)
+//   - 모든 메서드에 optional request_id (chat-service 의 사용량 카운터 / 분산 trace 매칭)
+//   - 첫 단계는 unary. server-streaming (LLM) / client-streaming (긴 음성) 은 후속 ADR
+service AiService {
+  // LLM 텍스트 생성 — 입력 프롬프트는 chat-service 에서 이미 템플릿 적용 완료.
+  // Deadline (chat-service 측): 30초 (ADR-0003 §gRPC 운영 정책).
+  rpc Complete (CompleteRequest) returns (CompleteResponse);
+
+  // STT (음성→텍스트) — 첫 단계 unary, audio bytes 는 gRPC 기본 4MB 제한 가정.
+  // Deadline (chat-service 측): 60초 (음성 길이 비례).
+  rpc SpeechToText (SpeechToTextRequest) returns (SpeechToTextResponse);
+
+  // TTS (텍스트→음성) — voice / speed 는 ai-service 에 위임 가능 (optional).
+  // Deadline (chat-service 측): 30초.
+  rpc TextToSpeech (TextToSpeechRequest) returns (TextToSpeechResponse);
+}
+
+// ============================================================
+// Complete (LLM)
+// ============================================================
+
+message CompleteRequest {
+  // 프롬프트. chat-service 가 사용자 컨텍스트 / 템플릿 반영을 마친 최종 입력.
+  string prompt = 1;
+
+  // 0.0 ~ 2.0. proto3 default 0 도 의미 있는 값(deterministic) 이므로
+  // 호출 측이 항상 명시적으로 보낸다고 가정. 범위 위반 시 ai-service 가
+  // INVALID_ARGUMENT 로 reject (decisions/contracts/ai-service-method-signatures.md §4).
+  double temperature = 2;
+
+  // 응답 토큰 상한. 0 이면 ai-service 의 기본값 적용.
+  int32 max_tokens = 3;
+
+  // 모델 ID — 비우면 ai-service 의 기본 모델. 후속 모델 라우팅 시 채워짐.
+  // 예: "gpt-4o-mini", "gpt-4-turbo" (운영 카탈로그는 후속 ADR).
+  string model = 4;
+
+  // chat-service 가 부여하는 추적 ID (사용량 카운터 / 분산 trace 매칭).
+  // 비우면 ai-service 가 생성하여 응답에 echo.
+  string request_id = 5;
+}
+
+message CompleteResponse {
+  // LLM 응답 텍스트.
+  string completion = 1;
+
+  // 입력 토큰 수 (chat-service 의 사용량 카운터 / 비용 추적용).
+  int32 prompt_tokens = 2;
+
+  // 출력 토큰 수.
+  int32 completion_tokens = 3;
+
+  // 종료 사유. "stop" / "length" / "content_filter" / "tool_calls" / "error" 등
+  // 외부 공급사 (OpenAI / vLLM / Anthropic) 의 다양성을 흡수하기 위해 string 으로 둠.
+  // (proto3 enum 으로 고정하면 새 reason 추가 시 contracts breaking change 위험)
+  string finish_reason = 4;
+
+  // 실제 사용한 모델 ID. 요청 model 과 다를 수 있음 (fallback 라우팅 등).
+  string model = 5;
+
+  // 요청의 request_id echo (요청에 없었으면 ai-service 생성값).
+  string request_id = 6;
+}
+
+// ============================================================
+// SpeechToText (STT)
+// ============================================================
+
+message SpeechToTextRequest {
+  // 음성 바이너리. 첫 단계 unary 4MB 제한 가정 (1분 wav / 3분 mp3 수준).
+  // 4MB 초과 케이스는 후속 client-streaming RPC 도입 (ADR 박제 후).
+  bytes audio = 1;
+
+  // 음성 포맷. "wav" / "mp3" / "m4a" / "webm" 등. `finish_reason` 과 동일 이유로
+  // string (공급사별 신규 포맷 추가에 contracts breaking change 없이 호환).
+  string format = 2;
+
+  // BCP-47 언어 코드. "ko" / "en" / "ja". 비우면 ai-service 자동 감지.
+  string language = 3;
+
+  // 추적 ID (Complete 와 동일).
+  string request_id = 4;
+
+  // field 5 ~ 9: 화자 분리 (diarization) / 단어별 timestamp 후속 도입을 위해 예약.
+  // 추가 시 별도 결정 박제 후 메서드 (또는 새 message) 분리 검토.
+  reserved 5 to 9;
+}
+
+message SpeechToTextResponse {
+  // 전사 결과 텍스트.
+  string text = 1;
+
+  // 0.0 ~ 1.0. 모델/공급사가 미제공 시 0.
+  double confidence = 2;
+
+  // 실제 감지된 언어 (자동 감지 결과 또는 입력 echo).
+  string language = 3;
+
+  // 추적 ID echo.
+  string request_id = 4;
+
+  // field 5 ~ 9: SpeechSegment (화자/시간) 후속 도입 예약.
+  reserved 5 to 9;
+}
+
+// ============================================================
+// TextToSpeech (TTS)
+// ============================================================
+
+message TextToSpeechRequest {
+  // 음성 합성 입력 텍스트.
+  string text = 1;
+
+  // voice ID — 공급사별 (예: OpenAI "alloy" / "nova" / "shimmer").
+  // 비우면 ai-service 기본 voice.
+  string voice = 2;
+
+  // 속도 (0.25 ~ 4.0, OpenAI TTS 기준). 0 또는 미설정이면 1.0 적용.
+  double speed = 3;
+
+  // 일부 voice 는 다국어 지원. BCP-47.
+  string language = 4;
+
+  // 추적 ID.
+  string request_id = 5;
+}
+
+message TextToSpeechResponse {
+  // 합성 결과 음성 바이너리.
+  bytes audio = 1;
+
+  // 음성 포맷. "mp3" / "wav" / "opus" 등 (ai-service 가 결정).
+  // `SpeechToTextRequest.format` 과 동일 이유로 string.
+  string format = 2;
+
+  // 추적 ID echo.
+  string request_id = 3;
+}
