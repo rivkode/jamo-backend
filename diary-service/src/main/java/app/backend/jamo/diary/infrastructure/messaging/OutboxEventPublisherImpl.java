@@ -1,5 +1,7 @@
 package app.backend.jamo.diary.infrastructure.messaging;
 
+import app.backend.jamo.contracts.event.diary.DiaryCreated;
+import app.backend.jamo.contracts.event.diary.DiaryDeleted;
 import app.backend.jamo.contracts.event.diary.SentenceFeedbackAccepted;
 import app.backend.jamo.contracts.event.diary.SentenceFeedbackRejected;
 import app.backend.jamo.contracts.event.diary.SentenceFeedbackRequested;
@@ -18,8 +20,10 @@ import java.time.Instant;
 /**
  * OutboxEventPublisher port 구현. domain 트랜잭션 안에서 row insert (Kafka 발행은 {@link OutboxPoller}).
  *
- * <p>지원 record 4종 (현 PR 시점):
+ * <p>지원 record 6종 (현 PR 시점):
  * <ul>
+ *   <li>{@link DiaryCreated}              → topic {@code diary-events} (aggregate=diary)</li>
+ *   <li>{@link DiaryDeleted}              → topic {@code diary-events} (aggregate=diary)</li>
  *   <li>{@link SentenceFeedbackRequested} → topic {@code diary-events} (aggregate=sentence_feedback)</li>
  *   <li>{@link SentenceFeedbackAccepted}  → topic {@code diary-events}</li>
  *   <li>{@link SentenceFeedbackRejected}  → topic {@code diary-events}</li>
@@ -48,6 +52,18 @@ public class OutboxEventPublisherImpl implements OutboxEventPublisher {
         Instant now = Instant.now(clock);
         String payload = serialize(event);
 
+        if (event instanceof DiaryCreated e) {
+            return new OutboxEventJpaEntity(
+                e.eventId(), "diary", e.diaryId(),
+                DiaryCreated.class.getName(), KafkaTopics.DIARY_EVENTS, payload, now
+            );
+        }
+        if (event instanceof DiaryDeleted e) {
+            return new OutboxEventJpaEntity(
+                e.eventId(), "diary", e.diaryId(),
+                DiaryDeleted.class.getName(), KafkaTopics.DIARY_EVENTS, payload, now
+            );
+        }
         if (event instanceof SentenceFeedbackRequested e) {
             return new OutboxEventJpaEntity(
                 e.eventId(), "sentence_feedback", e.feedbackId(),
