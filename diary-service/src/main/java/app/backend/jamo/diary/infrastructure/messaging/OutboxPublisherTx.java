@@ -4,10 +4,12 @@ import app.backend.jamo.diary.infrastructure.persistence.entity.OutboxEventJpaEn
 import app.backend.jamo.diary.infrastructure.persistence.repository.SpringDataOutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -32,6 +34,11 @@ public class OutboxPublisherTx {
     private static final int BATCH_SIZE = 100;
     /** Kafka send 단건 timeout — broker 무응답으로 poller 영구 정지 회피 (code-reviewer L3). */
     private static final long SEND_TIMEOUT_SECONDS = 10;
+    /**
+     * Kafka 헤더 키 — wire format 의 record type discriminator. listener 가 이 헤더로 type filter
+     * (DiaryCreated/DiaryDeleted 가 같은 topic + 같은 wire 필드라 payload 만으로는 구분 불가 — code-reviewer C1).
+     */
+    static final String EVENT_TYPE_HEADER = "event-type";
 
     private final SpringDataOutboxEventRepository repository;
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -52,8 +59,11 @@ public class OutboxPublisherTx {
             return;
         }
         try {
-            kafkaTemplate.send(row.getTopic(), row.getAggregateId(), row.getPayload())
-                .get(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            ProducerRecord<String, String> record = new ProducerRecord<>(
+                row.getTopic(), null, row.getAggregateId(), row.getPayload());
+            record.headers().add(EVENT_TYPE_HEADER,
+                row.getType().getBytes(StandardCharsets.UTF_8));
+            kafkaTemplate.send(record).get(SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             repository.markPublished(id, Instant.now(clock));
         } catch (Exception ex) {
             // markPublished 미호출 → published_at 미갱신 → 다음 polling 사이클 재시도. 트랜잭션 commit 자체는
