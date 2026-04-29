@@ -3,6 +3,8 @@ package app.backend.jamo.diary.domain.repository;
 import app.backend.jamo.diary.domain.model.sentencefeedback.SentenceFeedback;
 import app.backend.jamo.diary.domain.model.sentencefeedback.SentenceFeedbackId;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,14 +13,8 @@ import java.util.UUID;
  *
  * <p>박제: decisions/diary/sentence-feedback-domain-policy.md §1 / §4 / §13 / §14.
  *
- * <p>구현체는 Infrastructure layer (D-a-5-impl-infra) 의 {@code SentenceFeedbackRepositoryImpl} —
+ * <p>구현체는 Infrastructure layer 의 {@code SentenceFeedbackRepositoryImpl} —
  * JpaEntity ↔ Domain Mapper 경유.
- *
- * <p>후속 슬라이스에서 추가될 메서드:
- * <ul>
- *   <li>{@code findExpirableSuggestedBefore(Instant cutoff, int limit)} — 배치 EXPIRED 전이
- *       (D-a-5-impl-batch)</li>
- * </ul>
  */
 public interface SentenceFeedbackRepository {
 
@@ -53,4 +49,31 @@ public interface SentenceFeedbackRepository {
      * @return 삭제된 row 수 (멱등 호출 시 0 가능)
      */
     int deleteAllByUserId(UUID userId);
+
+    /**
+     * EXPIRED 전이 배치용 (D-a-5-impl-batch §3) — SUGGESTED 상태이면서 {@code expiresAt < cutoff} 인 row id
+     * 목록을 chunk 단위로 조회. 호출자가 단건 트랜잭션으로 load + Aggregate.expire(clock) + save 진행.
+     *
+     * <p>구현체는 다중 인스턴스 안전을 위해 {@code FOR UPDATE SKIP LOCKED} 적용 (OutboxPoller 정합).
+     *
+     * @param cutoff 기준 시각 — {@code expiresAt < cutoff} 인 row 만
+     * @param limit  chunk 크기 (default 100)
+     * @return 후보 Aggregate ID 목록 (size <= limit)
+     */
+    List<SentenceFeedbackId> findExpirableSuggestedBefore(Instant cutoff, int limit);
+
+    /**
+     * 90일 보존 cleanup 용 (§14) — final 상태 (ACCEPTED/REJECTED/EXPIRED/FAILED) 이면서
+     * {@code decidedAt < cutoff} 인 row id 목록 chunk 조회.
+     *
+     * @return 후보 Aggregate ID 목록 (size <= limit)
+     */
+    List<SentenceFeedbackId> findFinalOlderThan(Instant cutoff, int limit);
+
+    /**
+     * Cleanup batch hard-delete — 위 두 조회 메서드 중 final cleanup 에서 사용.
+     *
+     * @return 실제 삭제된 row 수
+     */
+    int deleteByIds(List<SentenceFeedbackId> ids);
 }

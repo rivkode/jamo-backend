@@ -29,7 +29,11 @@ import java.time.Clock;
 @Configuration
 @EnableScheduling
 @EnableKafka
-@EnableConfigurationProperties({SentenceFeedbackRateLimitProperties.class, JwtVerifierProperties.class})
+@EnableConfigurationProperties({
+    SentenceFeedbackRateLimitProperties.class,
+    SentenceFeedbackBatchProperties.class,
+    JwtVerifierProperties.class
+})
 public class DiaryServiceConfig {
 
     @Bean

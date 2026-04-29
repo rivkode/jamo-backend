@@ -107,6 +107,18 @@ jamo:
       cooldown: ${SENTENCE_FEEDBACK_COOLDOWN:PT60S}
       minute-limit: ${SENTENCE_FEEDBACK_MINUTE_LIMIT:10}
       daily-limit: ${SENTENCE_FEEDBACK_DAILY_LIMIT:50}
+    batch:
+      # decisions/diary/sentence-feedback-batch-decisions.md
+      # EXPIRED 전이 주기 (default 5분 — 24h TTL 정확성 vs DB 부하 trade-off)
+      expire-interval: ${SENTENCE_FEEDBACK_EXPIRE_INTERVAL:PT5M}
+      # 단일 사이클 chunk size (OutboxPoller 정합)
+      chunk-size: ${SENTENCE_FEEDBACK_BATCH_CHUNK_SIZE:100}
+      # final 상태 hard-delete 보존 (§14)
+      retention-days: ${SENTENCE_FEEDBACK_RETENTION_DAYS:90}
+      # ProcessedEvent retention (Kafka 재 delivery 가능성 무관 — 운영 안전 마진)
+      processed-event-retention-days: ${PROCESSED_EVENT_RETENTION_DAYS:30}
+      # published outbox_event retention (운영 추적 윈도우)
+      outbox-retention-days: ${OUTBOX_RETENTION_DAYS:7}
 
 management:
   endpoints:
