@@ -41,6 +41,12 @@ spring:
     listener:
       ack-mode: manual_immediate
       missing-topics-fatal: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
 
 server:
   port: ${DIARY_SERVER_PORT:8082}
@@ -84,10 +90,23 @@ resilience4j:
           - io.grpc.StatusRuntimeException
 
 jamo:
+  jwt:
+    # diary-service 는 access token 검증만 — publicKeyPem / issuer / audience / keyId / clockSkew.
+    # identity-service 가 발급 측 (privateKeyPem / accessTtl / refreshTtl) 보유.
+    issuer: ${JWT_ISSUER:https://identity.jamoai.app}
+    audience: ${JWT_AUDIENCE:jamo-services}
+    key-id: ${JWT_KEY_ID:identity-k1}
+    public-key-pem: ${JWT_PUBLIC_KEY_PEM:}
+    clock-skew: PT30S
   sentence-feedback:
-    # decisions/diary/sentence-feedback-domain-policy.md §3 (TTL 24h) / §6 (Deadline 35s)
+    # decisions/diary/sentence-feedback-domain-policy.md §3 (TTL 24h) / §6 (Deadline 35s) / §11 (quota)
     ttl: PT24H
     chat-service-deadline: PT35S
+    rate-limit:
+      # 사용자별 분당 / 일일 호출 한도. 운영 모니터링 후 envvar 로 조정.
+      cooldown: ${SENTENCE_FEEDBACK_COOLDOWN:PT60S}
+      minute-limit: ${SENTENCE_FEEDBACK_MINUTE_LIMIT:10}
+      daily-limit: ${SENTENCE_FEEDBACK_DAILY_LIMIT:50}
 
 management:
   endpoints:
@@ -98,6 +117,16 @@ management:
     health:
       show-details: never
       show-components: never
+
+# springdoc-openapi (Swagger UI) — diary-service 첫 controller 도입 PR (D-a-5-impl-presentation).
+# 운영(prod) profile 에서는 비활성 — multi-document 섹션 참조 (CLAUDE.md "새 서비스 OpenAPI 의무").
+springdoc:
+  swagger-ui:
+    path: /swagger
+    operations-sorter: alpha
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
 
 ---
 # local / dev / test profile — Kafka cluster 미가동 환경 안전 기본값 (code-reviewer M4).
@@ -112,7 +141,7 @@ spring:
       auto-startup: false
 
 ---
-# prod profile — Kafka listener 활성. bootstrap-servers / topic 권한은 운영 시크릿.
+# prod profile — Kafka listener 활성 + Swagger UI / api-docs 비활성 (CLAUDE.md OpenAPI 의무 prod 차단).
 spring:
   config:
     activate:
@@ -120,3 +149,8 @@ spring:
   kafka:
     listener:
       auto-startup: true
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false

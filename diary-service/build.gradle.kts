@@ -7,10 +7,17 @@ description = "Diary service — diary, comment, validation, diarychat, sentence
 
 dependencies {
     // ===== Spring Boot starters =====
-    // web: 부팅 + actuator health (controller 는 D-a-5-impl-presentation 슬라이스). starter-web 흡수로
-    // jackson-datatype-jsr310 / spring-tx 도 transitive 확보 → PR #64 의 명시 spring-tx 라인 정리.
+    // web: 부팅 + actuator health + sentence-feedback HTTP API (D-a-5-impl-presentation). starter-web
+    // 흡수로 jackson-datatype-jsr310 / spring-tx 도 transitive 확보 → PR #64 의 명시 spring-tx 라인 정리.
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    // Bean Validation (Jakarta Validation API) — Controller request DTO @Valid (D-a-5-impl-presentation).
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    // Redis — sentence-feedback rate limit (분 10 / 일 50, identity ValidationRateLimiter 패턴 정합).
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    // springdoc-openapi (Swagger UI) — CLAUDE.md "새 서비스 OpenAPI 의무" (controller 첫 도입 PR).
+    // prod profile 에서 application.yaml 로 비활성.
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
 
     // Flyway (CLAUDE.md V1~Vn 마이그레이션 의무) — flyway-mysql 필수 (MySQL 8 + Flyway 10).
     implementation("org.flywaydb:flyway-core")

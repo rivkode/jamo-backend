@@ -1,5 +1,11 @@
 package app.backend.jamo.diary.infrastructure.config;
 
+import app.backend.jamo.common.auth.BlacklistChecker;
+import app.backend.jamo.common.auth.JwtVerifier;
+import app.backend.jamo.common.auth.KeyProvider;
+import app.backend.jamo.common.auth.RsaJwtVerifier;
+import app.backend.jamo.common.auth.RsaKeyPairKeyProvider;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -23,6 +29,7 @@ import java.time.Clock;
 @Configuration
 @EnableScheduling
 @EnableKafka
+@EnableConfigurationProperties({SentenceFeedbackRateLimitProperties.class, JwtVerifierProperties.class})
 public class DiaryServiceConfig {
 
     @Bean
@@ -33,5 +40,31 @@ public class DiaryServiceConfig {
     @Bean
     public TransactionTemplate transactionTemplate(PlatformTransactionManager transactionManager) {
         return new TransactionTemplate(transactionManager);
+    }
+
+    // ============================================================
+    // JWT verify Bean 그래프 (security-reviewer C1) — diary-service 가 access token 검증만.
+    // identity-service IdentityServiceConfig 의 verify-only 슬림 버전.
+    // BlacklistChecker 는 SessionBlacklistRedisChecker @Component 자동 주입.
+    // ============================================================
+
+    @Bean
+    public KeyProvider jwtVerifierKeyProvider(JwtVerifierProperties props) {
+        return new RsaKeyPairKeyProvider(
+            JwkPemReader.readVerificationKey(props.publicKeyPem(), props.keyId())
+        );
+    }
+
+    @Bean
+    public JwtVerifier jwtVerifier(KeyProvider keyProvider, JwtVerifierProperties props,
+                                   BlacklistChecker blacklistChecker, Clock clock) {
+        return new RsaJwtVerifier(
+            keyProvider,
+            props.issuer(),
+            props.audience(),
+            blacklistChecker,
+            clock,
+            props.clockSkew()
+        );
     }
 }

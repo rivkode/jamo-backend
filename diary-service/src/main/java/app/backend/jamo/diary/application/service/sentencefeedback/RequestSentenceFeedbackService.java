@@ -4,12 +4,14 @@ import app.backend.jamo.contracts.event.diary.SentenceFeedbackRequested;
 import app.backend.jamo.diary.application.dto.sentencefeedback.RequestSentenceFeedbackCommand;
 import app.backend.jamo.diary.application.dto.sentencefeedback.SentenceFeedbackResult;
 import app.backend.jamo.diary.domain.exception.SentenceFeedbackNotFoundException;
+import app.backend.jamo.diary.domain.exception.SentenceFeedbackRateLimitedException;
 import app.backend.jamo.diary.domain.model.sentencefeedback.SentenceFeedback;
 import app.backend.jamo.diary.domain.model.sentencefeedback.SentenceFeedbackId;
 import app.backend.jamo.diary.domain.model.sentencefeedback.SentenceText;
 import app.backend.jamo.diary.domain.model.sentencefeedback.Tone;
 import app.backend.jamo.diary.domain.repository.OutboxEventPublisher;
 import app.backend.jamo.diary.domain.repository.SentenceFeedbackAiGateway;
+import app.backend.jamo.diary.domain.repository.SentenceFeedbackRateLimiter;
 import app.backend.jamo.diary.domain.repository.SentenceFeedbackRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -53,10 +55,18 @@ public class RequestSentenceFeedbackService {
     private final SentenceFeedbackRepository repository;
     private final SentenceFeedbackAiGateway aiGateway;
     private final OutboxEventPublisher outboxEventPublisher;
+    private final SentenceFeedbackRateLimiter rateLimiter;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
 
     public SentenceFeedbackResult request(RequestSentenceFeedbackCommand command) {
+        // Rate limit gate (§11) — chat-service 호출 비용 보호. T1 이전에 거부 → DB / Outbox 트래픽 X.
+        if (!rateLimiter.canRequest(command.userId())) {
+            throw new SentenceFeedbackRateLimitedException(
+                "sentence feedback rate limit exceeded for user " + command.userId());
+        }
+        rateLimiter.recordRequest(command.userId());
+
         SentenceText sentence = new SentenceText(command.sentence());
         Tone tone = parseTone(command.toneOrNull());
 

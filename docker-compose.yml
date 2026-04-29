@@ -113,6 +113,10 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-jamo-redis-dev}
+      JWT_ISSUER: ${JWT_ISSUER:-https://identity.local.jamoai.app}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-jamo-services}
+      JWT_KEY_ID: ${JWT_KEY_ID:-identity-local-k1}
+      JWT_PUBLIC_KEY_PEM: ${JWT_PUBLIC_KEY_PEM:-}
       TZ: Asia/Seoul
     depends_on:
       mysql:
