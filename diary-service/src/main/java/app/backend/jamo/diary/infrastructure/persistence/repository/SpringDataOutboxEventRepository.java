@@ -24,7 +24,16 @@ public interface SpringDataOutboxEventRepository extends JpaRepository<OutboxEve
      * {@code published_at} 명시 UPDATE — JPA dirty checking 의존 회피 (code-reviewer C3). 단건 트랜잭션
      * 안에서 호출하여 send 성공 시 즉시 마킹.
      */
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update OutboxEventJpaEntity o set o.publishedAt = :publishedAt where o.id = :id")
     int markPublished(@Param("id") Long id, @Param("publishedAt") Instant publishedAt);
+
+    /**
+     * Outbox retention cleanup (D-a-5-impl-batch — code-reviewer L3 "장기 운영 시 disk pressure"). 발행
+     * 완료 ({@code published_at IS NOT NULL}) 이고 {@code published_at < cutoff} 인 row hard-delete.
+     * 발행 실패 / 미발행 row 는 영향 X (영구 stuck row 모니터링 별 영역).
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from OutboxEventJpaEntity o where o.publishedAt is not null and o.publishedAt < :cutoff")
+    int deletePublishedBefore(@Param("cutoff") Instant cutoff);
 }
