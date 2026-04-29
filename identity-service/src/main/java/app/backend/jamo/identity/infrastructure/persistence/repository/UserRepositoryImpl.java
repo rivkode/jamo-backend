@@ -8,6 +8,7 @@ import app.backend.jamo.identity.domain.repository.UserRepository;
 import app.backend.jamo.identity.infrastructure.persistence.entity.OAuthIdentityJpaEntity;
 import app.backend.jamo.identity.infrastructure.persistence.entity.UserJpaEntity;
 import app.backend.jamo.identity.infrastructure.persistence.mapper.UserMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -18,16 +19,11 @@ import java.util.Set;
 import java.util.UUID;
 
 @Repository
+@RequiredArgsConstructor
 public class UserRepositoryImpl implements UserRepository {
 
     private final SpringDataUserRepository userRepo;
     private final SpringDataOAuthIdentityRepository oauthRepo;
-
-    public UserRepositoryImpl(SpringDataUserRepository userRepo,
-                              SpringDataOAuthIdentityRepository oauthRepo) {
-        this.userRepo = userRepo;
-        this.oauthRepo = oauthRepo;
-    }
 
     @Override
     public User save(User user) {

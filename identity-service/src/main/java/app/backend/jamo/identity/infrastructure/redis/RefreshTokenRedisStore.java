@@ -5,6 +5,7 @@ import app.backend.jamo.identity.domain.model.user.UserId;
 import app.backend.jamo.identity.domain.repository.RefreshTokenStore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -41,6 +42,7 @@ import java.util.Set;
  * 가 될 수 없어 {@link #KEY_PREFIX} 와 {@link #USER_INDEX_PREFIX} 의 어휘적 분리 보장.
  */
 @Component
+@RequiredArgsConstructor
 public class RefreshTokenRedisStore implements RefreshTokenStore {
 
     private static final String KEY_PREFIX = "refresh:";
@@ -49,14 +51,6 @@ public class RefreshTokenRedisStore implements RefreshTokenStore {
     private final StringRedisTemplate redis;
     private final ObjectMapper objectMapper;
     private final Clock clock;
-
-    public RefreshTokenRedisStore(StringRedisTemplate redis,
-                                  ObjectMapper objectMapper,
-                                  Clock clock) {
-        this.redis = redis;
-        this.objectMapper = objectMapper;
-        this.clock = clock;
-    }
 
     @Override
     public void store(RefreshTokenRecord record) {

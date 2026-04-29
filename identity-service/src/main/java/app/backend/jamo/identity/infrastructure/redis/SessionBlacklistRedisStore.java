@@ -1,6 +1,7 @@
 package app.backend.jamo.identity.infrastructure.redis;
 
 import app.backend.jamo.identity.domain.repository.SessionBlacklist;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -15,16 +16,13 @@ import java.time.Duration;
  * <p>JWT 만료 시 Redis 에서 자동 정리되므로 별도 cleanup job 불필요.
  */
 @Component
+@RequiredArgsConstructor
 public class SessionBlacklistRedisStore implements SessionBlacklist {
 
     private static final String KEY_PREFIX = "bl:sid:";
     private static final String VALUE = "1";
 
     private final StringRedisTemplate redis;
-
-    public SessionBlacklistRedisStore(StringRedisTemplate redis) {
-        this.redis = redis;
-    }
 
     @Override
     public void blacklist(String sessionId, Duration ttl) {

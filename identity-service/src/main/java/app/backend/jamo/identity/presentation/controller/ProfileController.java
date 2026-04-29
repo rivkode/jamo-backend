@@ -16,6 +16,7 @@ import app.backend.jamo.identity.presentation.web.AuthenticatedUser;
 import app.backend.jamo.identity.presentation.web.LoginUser;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -41,19 +42,12 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/profiles")
 @SecurityRequirement(name = "BearerJwt")
+@RequiredArgsConstructor
 public class ProfileController {
 
     private final RetrieveMyProfileService retrieveMyProfileService;
     private final RetrieveProfileService retrieveProfileService;
     private final UpdateMyProfileService updateMyProfileService;
-
-    public ProfileController(RetrieveMyProfileService retrieveMyProfileService,
-                             RetrieveProfileService retrieveProfileService,
-                             UpdateMyProfileService updateMyProfileService) {
-        this.retrieveMyProfileService = retrieveMyProfileService;
-        this.retrieveProfileService = retrieveProfileService;
-        this.updateMyProfileService = updateMyProfileService;
-    }
 
     @GetMapping("/me")
     public ResponseEntity<MyProfileResponse> getMyProfile(@LoginUser AuthenticatedUser auth) {

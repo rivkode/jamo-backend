@@ -3,8 +3,7 @@ package app.backend.jamo.identity.infrastructure.external;
 import app.backend.jamo.identity.domain.model.user.Email;
 import app.backend.jamo.identity.domain.model.user.ValidationCode;
 import app.backend.jamo.identity.domain.repository.EmailSender;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -18,11 +17,10 @@ import org.springframework.stereotype.Component;
  * <p>운영 배포 전 체크리스트는
  * {@code docs/decisions/identity/email-validation-deployment-checklist.md} 참조.
  */
+@Slf4j
 @Component
 @Profile({"local", "dev", "test", "e2e"})
 public class LogEmailSender implements EmailSender {
-
-    private static final Logger log = LoggerFactory.getLogger(LogEmailSender.class);
 
     @Override
     public void sendValidationCode(Email email, ValidationCode code) {

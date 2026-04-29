@@ -6,6 +6,7 @@ import app.backend.jamo.identity.application.service.RegisterUserService;
 import app.backend.jamo.identity.presentation.dto.RegisterUserRequest;
 import app.backend.jamo.identity.presentation.dto.RegisterUserResponse;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,13 +28,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/users")
+@RequiredArgsConstructor
 public class UserRegistrationController {
 
     private final RegisterUserService registerUserService;
-
-    public UserRegistrationController(RegisterUserService registerUserService) {
-        this.registerUserService = registerUserService;
-    }
 
     @PostMapping
     public ResponseEntity<RegisterUserResponse> register(@Valid @RequestBody RegisterUserRequest request) {

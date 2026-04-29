@@ -4,6 +4,7 @@ import app.backend.jamo.identity.application.dto.AuthLogoutCommand;
 import app.backend.jamo.identity.application.service.AuthLogoutService;
 import app.backend.jamo.identity.presentation.web.AuthenticatedUser;
 import app.backend.jamo.identity.presentation.web.LoginUser;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,13 +20,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
 public class AuthLogoutController {
 
     private final AuthLogoutService authLogoutService;
-
-    public AuthLogoutController(AuthLogoutService authLogoutService) {
-        this.authLogoutService = authLogoutService;
-    }
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@LoginUser AuthenticatedUser user) {

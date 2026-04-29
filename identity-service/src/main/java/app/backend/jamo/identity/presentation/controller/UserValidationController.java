@@ -7,6 +7,7 @@ import app.backend.jamo.identity.application.service.VerifyValidationCodeService
 import app.backend.jamo.identity.presentation.dto.SendValidationCodeRequest;
 import app.backend.jamo.identity.presentation.dto.VerifyValidationCodeRequest;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,16 +32,11 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/users")
+@RequiredArgsConstructor
 public class UserValidationController {
 
     private final SendValidationCodeService sendValidationCodeService;
     private final VerifyValidationCodeService verifyValidationCodeService;
-
-    public UserValidationController(SendValidationCodeService sendValidationCodeService,
-                                    VerifyValidationCodeService verifyValidationCodeService) {
-        this.sendValidationCodeService = sendValidationCodeService;
-        this.verifyValidationCodeService = verifyValidationCodeService;
-    }
 
     @PostMapping("/validation-number")
     public ResponseEntity<Void> sendValidationNumber(@Valid @RequestBody SendValidationCodeRequest request) {

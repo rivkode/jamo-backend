@@ -8,8 +8,7 @@ import app.backend.jamo.identity.domain.service.OAuthProviderClient;
 import app.backend.jamo.identity.infrastructure.config.OAuthProviderProperties;
 import app.backend.jamo.identity.infrastructure.config.OAuthProviderProperties.ProviderConfig;
 import com.fasterxml.jackson.databind.JsonNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -29,10 +28,9 @@ import java.util.stream.Collectors;
  * RestClient 기반 OAuth provider 호출 어댑터 (ADR-0006 결정 5).
  * Token endpoint POST → access_token → userinfo endpoint GET → provider 별 extractor 위임.
  */
+@Slf4j
 @Component
 public class HttpOAuthProviderClient implements OAuthProviderClient {
-
-    private static final Logger log = LoggerFactory.getLogger(HttpOAuthProviderClient.class);
 
     private final RestClient restClient;
     private final OAuthProviderProperties properties;

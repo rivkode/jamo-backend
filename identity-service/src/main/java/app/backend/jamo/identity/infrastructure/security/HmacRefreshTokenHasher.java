@@ -25,7 +25,6 @@ public class HmacRefreshTokenHasher implements RefreshTokenHasher {
     private final SecretKeySpec key;
 
     public HmacRefreshTokenHasher(RefreshTokenHashProperties properties) {
-        Objects.requireNonNull(properties, "properties");
         this.key = new SecretKeySpec(
                 properties.pepper().getBytes(StandardCharsets.UTF_8),
                 HMAC_ALGORITHM

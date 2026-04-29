@@ -19,8 +19,7 @@ import app.backend.jamo.identity.presentation.web.DeviceIdResult;
 import app.backend.jamo.identity.presentation.web.StateCookieManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,11 +41,10 @@ import java.util.regex.Pattern;
  * <p>Callback 의 모든 OAuth 예외는 본 controller 가 try-catch 후 frontend redirect 로
  * 매핑 — ExceptionHandler 미경유 (PRD 명시). state cookie 는 finally 에서 clear.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/auth/oauth")
 public class OAuthBrowserController {
-
-    private static final Logger log = LoggerFactory.getLogger(OAuthBrowserController.class);
 
     private static final String FRONTEND_CALLBACK_PATH = "/auth/callback";
     private static final String FRONTEND_ERROR_PATH = "/auth/error";

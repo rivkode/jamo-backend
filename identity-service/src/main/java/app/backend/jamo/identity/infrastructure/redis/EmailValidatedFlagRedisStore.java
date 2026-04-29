@@ -2,6 +2,7 @@ package app.backend.jamo.identity.infrastructure.redis;
 
 import app.backend.jamo.identity.domain.model.user.Email;
 import app.backend.jamo.identity.domain.repository.EmailValidatedFlag;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -21,16 +22,13 @@ import java.time.Duration;
  * 것과 같은 패턴.
  */
 @Component
+@RequiredArgsConstructor
 public class EmailValidatedFlagRedisStore implements EmailValidatedFlag {
 
     private static final String KEY_PREFIX = "user:email_validated:";
     private static final String VALUE = "1";
 
     private final StringRedisTemplate redis;
-
-    public EmailValidatedFlagRedisStore(StringRedisTemplate redis) {
-        this.redis = redis;
-    }
 
     @Override
     public void mark(Email email, Duration ttl) {

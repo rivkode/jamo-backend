@@ -10,8 +10,7 @@ import app.backend.jamo.identity.presentation.controller.UserRegistrationControl
 import app.backend.jamo.identity.presentation.controller.UserValidationController;
 import app.backend.jamo.identity.presentation.dto.UserErrorCode;
 import app.backend.jamo.identity.presentation.dto.UserErrorResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -33,11 +32,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * 메시지 / attempts / 잔여 횟수 등 진행 정보를 응답에 포함하지 않는다 — ErrorCode 만 노출.
  * 서버 로그 (warn) 에는 진단용 정보 남김 (PII 마스킹).
  */
+@Slf4j
 @RestControllerAdvice(assignableTypes = {UserValidationController.class, UserRegistrationController.class})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class UserExceptionHandler {
-
-    private static final Logger log = LoggerFactory.getLogger(UserExceptionHandler.class);
 
     @ExceptionHandler(ValidationCodeMismatchException.class)
     public ResponseEntity<UserErrorResponse> handleMismatch(ValidationCodeMismatchException ex) {
