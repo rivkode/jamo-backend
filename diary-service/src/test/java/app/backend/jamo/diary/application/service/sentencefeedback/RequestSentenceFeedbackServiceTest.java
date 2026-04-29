@@ -5,12 +5,14 @@ import app.backend.jamo.diary.application.dto.sentencefeedback.RequestSentenceFe
 import app.backend.jamo.diary.application.dto.sentencefeedback.SentenceFeedbackResult;
 import app.backend.jamo.diary.domain.exception.InvalidSentenceTextException;
 import app.backend.jamo.diary.domain.exception.SentenceFeedbackNotFoundException;
+import app.backend.jamo.diary.domain.exception.SentenceFeedbackRateLimitedException;
 import app.backend.jamo.diary.domain.model.sentencefeedback.SentenceFeedback;
 import app.backend.jamo.diary.domain.model.sentencefeedback.Status;
 import app.backend.jamo.diary.domain.model.sentencefeedback.Suggestion;
 import app.backend.jamo.diary.domain.model.sentencefeedback.SuggestionId;
 import app.backend.jamo.diary.domain.repository.OutboxEventPublisher;
 import app.backend.jamo.diary.domain.repository.SentenceFeedbackAiGateway;
+import app.backend.jamo.diary.domain.repository.SentenceFeedbackRateLimiter;
 import app.backend.jamo.diary.domain.repository.SentenceFeedbackRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,6 +47,7 @@ class RequestSentenceFeedbackServiceTest {
     private SentenceFeedbackRepository repository;
     private SentenceFeedbackAiGateway aiGateway;
     private OutboxEventPublisher outboxEventPublisher;
+    private SentenceFeedbackRateLimiter rateLimiter;
     private TransactionTemplate transactionTemplate;
     private RequestSentenceFeedbackService service;
     /** T1 의 첫 save 가 캡처한 Aggregate — T2 의 findById 응답으로 사용. */
@@ -54,6 +58,8 @@ class RequestSentenceFeedbackServiceTest {
         repository = mock(SentenceFeedbackRepository.class);
         aiGateway = mock(SentenceFeedbackAiGateway.class);
         outboxEventPublisher = mock(OutboxEventPublisher.class);
+        rateLimiter = mock(SentenceFeedbackRateLimiter.class);
+        when(rateLimiter.canRequest(any())).thenReturn(true);
         transactionTemplate = mock(TransactionTemplate.class);
         firstSaved = new AtomicReference<>();
 
@@ -78,7 +84,7 @@ class RequestSentenceFeedbackServiceTest {
 
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         service = new RequestSentenceFeedbackService(
-            repository, aiGateway, outboxEventPublisher, transactionTemplate, clock
+            repository, aiGateway, outboxEventPublisher, rateLimiter, transactionTemplate, clock
         );
     }
 
@@ -163,6 +169,36 @@ class RequestSentenceFeedbackServiceTest {
             ArgumentCaptor.forClass(SentenceFeedbackAiGateway.Args.class);
         verify(aiGateway).request(argsCaptor.capture());
         assertThat(argsCaptor.getValue().toneOrNull()).isNull();
+    }
+
+    @Test
+    void rate_limit_exceeded_throws_before_persist_or_record() {
+        UUID userId = UUID.randomUUID();
+        when(rateLimiter.canRequest(userId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.request(new RequestSentenceFeedbackCommand(
+            userId, null, "문장", List.of(), null
+        ))).isInstanceOf(SentenceFeedbackRateLimitedException.class);
+
+        // §11 — chat-service 호출 비용 보호. T1 진입 X / Outbox 발행 X / recordRequest X.
+        verify(rateLimiter, never()).recordRequest(any());
+        verify(repository, never()).save(any());
+        verify(outboxEventPublisher, never()).publish(any());
+        verify(aiGateway, never()).request(any());
+    }
+
+    @Test
+    void rate_limit_passed_records_request_before_T1() {
+        UUID userId = UUID.randomUUID();
+        when(rateLimiter.canRequest(userId)).thenReturn(true);
+        when(aiGateway.request(any())).thenReturn(SentenceFeedbackAiGateway.Result.failed("any"));
+
+        service.request(new RequestSentenceFeedbackCommand(
+            userId, null, "문장", List.of(), null
+        ));
+
+        verify(rateLimiter).canRequest(userId);
+        verify(rateLimiter).recordRequest(userId);
     }
 
     @Test
