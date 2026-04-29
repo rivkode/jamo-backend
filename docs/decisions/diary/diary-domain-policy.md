@@ -275,6 +275,8 @@ PRD `get.md` §6 의 "저장 상태 등" 언급은 본 시점 미반영. 향후 
 - multi-tag 검색.
 - 이미지 직접 업로드 (현 시점 URL 만 받음).
 - Saga 보상 트랜잭션 자동화 (현재 best-effort).
+- **일기 수정 (편집)** — content / images / tags / visibility 는 작성 후 변경 불가. `editDiary` PRD 미존재. Diary aggregate 의 해당 필드는 `final` 로 표현 (likeCount / commentCount 카운터 제외). 향후 도입 시 별도 결정 박제 + Aggregate 메서드 추가.
+- 이미지 URL 의 SSRF / IP literal / CDN allow-list 검증 — Diary 도메인은 syntactic 검증만 (scheme http/https / host 존재 / control character 차단). 운영 보안은 Infrastructure (이미지 fetch / proxy) 책임으로 분리.
 
 ## 참고
 
