@@ -6,19 +6,55 @@ plugins {
 description = "Diary service — diary, comment, validation, diarychat, sentence-feedback (ADR-0002)"
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter")
-    // Application layer 트랜잭션 제어 (TransactionTemplate / @Transactional) — D-a-5-impl-app PR.
-    // 후속 infra 슬라이스의 spring-boot-starter-data-jpa 가 spring-tx 를 transitive 포함하므로
-    // 본 명시 의존성은 점진적 추가 패턴 (CLAUDE.md "사용자 제안 후 승인" 정합).
-    implementation("org.springframework:spring-tx")
+    // ===== Spring Boot starters =====
+    // web: 부팅 + actuator health (controller 는 D-a-5-impl-presentation 슬라이스). starter-web 흡수로
+    // jackson-datatype-jsr310 / spring-tx 도 transitive 확보 → PR #64 의 명시 spring-tx 라인 정리.
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+
+    // Flyway (CLAUDE.md V1~Vn 마이그레이션 의무) — flyway-mysql 필수 (MySQL 8 + Flyway 10).
+    implementation("org.flywaydb:flyway-core")
+    implementation("org.flywaydb:flyway-mysql")
+
+    runtimeOnly("com.mysql:mysql-connector-j")
+
+    // ===== Kafka (Outbox publisher + Saga consumer) =====
+    implementation("org.springframework.kafka:spring-kafka")
+
+    // ===== gRPC client (chat-service AiAssistantService 호출) =====
+    // contracts 모듈이 grpc-stub / grpc-protobuf 를 api 로 노출. 본 모듈은 Spring 통합 + transport 만 추가.
+    implementation("net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE")
+    implementation("io.grpc:grpc-netty-shaded:1.66.0")
+
+    // ===== Resilience4j (CLAUDE.md NEVER: Circuit Breaker/Retry/Fallback 미설정) =====
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
+    implementation("io.github.resilience4j:resilience4j-circuitbreaker:2.2.0")
+    implementation("io.github.resilience4j:resilience4j-retry:2.2.0")
+
+    // ===== 모듈 의존성 =====
     implementation(project(":contracts"))
     implementation(project(":common-auth-jwt"))
     implementation(project(":common-infrastructure"))
 
+    // ===== 테스트 =====
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.springframework.kafka:spring-kafka-test")  // EmbeddedKafkaBroker
+    testImplementation(platform("org.testcontainers:testcontainers-bom:1.20.4"))
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:mysql")
+    // gRPC InProcess transport — adapter 단위 테스트 (server stub mock impl 패턴).
+    // grpc-netty-shaded 는 netty transport 만, InProcessServerBuilder 는 별 artifact.
+    testImplementation("io.grpc:grpc-inprocess:1.66.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
     archiveBaseName.set("diary-service")
+}
+
+tasks.named<Test>("test") {
+    // Testcontainers Ryuk (컨테이너 누수 cleanup) 는 docker.sock bind mount 가 필요. Colima / Rancher 등
+    // 일부 macOS docker 환경에서 mount 실패. GenericContainer.stop() 이 자체 cleanup 하므로 비활성 안전.
+    environment("TESTCONTAINERS_RYUK_DISABLED", "true")
 }

@@ -48,6 +48,15 @@ public class ArchitectureTest {
             )
             .as("domain 계층은 프레임워크에 의존하지 않는다");
 
+    /** R6 — application 계층은 infrastructure 구현 클래스에 직접 의존하지 않는다 (port 인터페이스만). */
+    @ArchTest
+    static final ArchRule application_should_not_depend_on_infrastructure =
+        noClasses()
+            .that().resideInAPackage("app.backend.jamo.diary.application..")
+            .should().dependOnClassesThat()
+            .resideInAPackage("app.backend.jamo.diary.infrastructure..")
+            .as("application 계층은 infrastructure 구현에 직접 의존하지 않는다 (의존 방향 안쪽)");
+
     /** R8 — ai-service 의 AiService gRPC 는 chat-service 만 호출한다 (ADR-0003). */
     @ArchTest
     static final ArchRule no_direct_ai_service_import =

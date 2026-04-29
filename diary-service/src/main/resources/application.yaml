@@ -1,9 +1,122 @@
 spring:
   application:
     name: diary-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  datasource:
+    url: ${DIARY_DB_URL:jdbc:mysql://localhost:3306/diary?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8}
+    username: ${DIARY_DB_USERNAME:diary}
+    password: ${DIARY_DB_PASSWORD:diary}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+  # Kafka 클러스터는 후속 인프라 PR (별도) 로 docker-compose 추가 예정. dev/local 기본값은 미연결.
+  # Producer / Consumer 양쪽 모두 String value (raw JSON payload) — Outbox row 의 payload 가 이미 미리
+  # 직렬화된 JSON 문자열이라 producer 는 그대로 전송, consumer 는 listener 메서드에서 ObjectMapper.readValue
+  # 로 record 변환. JsonDeserializer 의 type header 의존을 회피해 단순화 (code-reviewer C1).
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: diary-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+    listener:
+      ack-mode: manual_immediate
+      missing-topics-fatal: false
 
-# server:
-#   port: 8082
-# grpc:
-#   server:
-#     port: 9092
+server:
+  port: ${DIARY_SERVER_PORT:8082}
+  error:
+    include-stacktrace: never
+    include-message: never
+
+# gRPC client (chat-service AiAssistantService) — net.devh:grpc-client-spring-boot-starter
+grpc:
+  client:
+    chat-service:
+      address: ${CHAT_SERVICE_GRPC_ADDRESS:static://localhost:9093}
+      negotiationType: ${CHAT_SERVICE_GRPC_NEGOTIATION:plaintext}
+      # Deadline / Retry 는 Resilience4j 인스턴스 측 설정 (DiaryServiceConfig 의 chatService circuit breaker)
+
+# Resilience4j — chat-service AiAssistantService 호출용 instance.
+# Circuit Breaker: 50% 실패율 / 10건 sliding / open 후 30s waitDuration. CLAUDE.md NEVER 회피.
+# Retry: 2회 (총 3회 시도), gRPC unrecoverable error 만 즉시 fail.
+resilience4j:
+  circuitbreaker:
+    instances:
+      chatService:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        # gRPC 시스템 오류만 회로 카운트 (code-reviewer H3) — 도메인 예외 (IllegalArgumentException 등)
+        # 가 잘못 OPEN 트리거하지 않도록. fallback 안에서 던져진 예외도 카운트 X.
+        recordExceptions:
+          - io.grpc.StatusRuntimeException
+  retry:
+    instances:
+      chatService:
+        maxAttempts: 3
+        waitDuration: 200ms
+        # gRPC 시스템 오류만 retry (StatusRuntimeException). business FAILED 응답은 retry 안함.
+        retryExceptions:
+          - io.grpc.StatusRuntimeException
+
+jamo:
+  sentence-feedback:
+    # decisions/diary/sentence-feedback-domain-policy.md §3 (TTL 24h) / §6 (Deadline 35s)
+    ttl: PT24H
+    chat-service-deadline: PT35S
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+
+---
+# local / dev / test profile — Kafka cluster 미가동 환경 안전 기본값 (code-reviewer M4).
+# missing-topics-fatal=false + auto-startup=false 로 listener 가 부팅 차단 X.
+# 후속 인프라 PR 에서 docker-compose 에 Kafka 추가 후 enable 처리.
+spring:
+  config:
+    activate:
+      on-profile: local | dev | test
+  kafka:
+    listener:
+      auto-startup: false
+
+---
+# prod profile — Kafka listener 활성. bootstrap-servers / topic 권한은 운영 시크릿.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  kafka:
+    listener:
+      auto-startup: true

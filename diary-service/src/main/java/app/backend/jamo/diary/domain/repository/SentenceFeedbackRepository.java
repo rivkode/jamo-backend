@@ -9,16 +9,15 @@ import java.util.UUID;
 /**
  * SentenceFeedback Aggregate Repository port.
  *
- * <p>박제: decisions/diary/sentence-feedback-domain-policy.md §1 / §4.
+ * <p>박제: decisions/diary/sentence-feedback-domain-policy.md §1 / §4 / §13 / §14.
  *
  * <p>구현체는 Infrastructure layer (D-a-5-impl-infra) 의 {@code SentenceFeedbackRepositoryImpl} —
  * JpaEntity ↔ Domain Mapper 경유.
  *
  * <p>후속 슬라이스에서 추가될 메서드:
  * <ul>
- *   <li>{@code findExpirableSuggestedBefore(Instant cutoff, int limit)} — 배치 EXPIRED 전이 (D-a-5-impl-batch)</li>
- *   <li>{@code deleteAllByUserId(UUID)} — UserDataPurged GDPR (D-a-5-impl-infra)</li>
- *   <li>{@code deleteAllByDiaryId(UUID)} — DiaryDeleted Saga cascade (D-a-5-impl-infra)</li>
+ *   <li>{@code findExpirableSuggestedBefore(Instant cutoff, int limit)} — 배치 EXPIRED 전이
+ *       (D-a-5-impl-batch)</li>
  * </ul>
  */
 public interface SentenceFeedbackRepository {
@@ -34,4 +33,24 @@ public interface SentenceFeedbackRepository {
      * <p>박제 §4: 다른 사용자 소유 → 404 통일 (403 미사용).
      */
     Optional<SentenceFeedback> findByIdAndUserId(SentenceFeedbackId id, UUID userId);
+
+    /**
+     * 일기 삭제 cascade — 박제 §13. {@code diaryId == NULL} row 는 영향 받지 않음 (작성 전 미리보기 흐름,
+     * §5). hard-delete.
+     *
+     * @return 삭제된 row 수 (관측 / 로깅 용도 — 멱등 호출 시 0 가능)
+     */
+    int deleteAllByDiaryId(UUID diaryId);
+
+    /**
+     * 회원 탈퇴 cascade — 박제 §14. 사용자 소유 모든 sentence_feedback row hard-delete (final 상태 무관).
+     *
+     * <p>호출자: {@code UserWithdrawalRequestedListener} — Saga 시작 이벤트
+     * ({@link app.backend.jamo.contracts.event.identity.UserWithdrawalRequested}) 구독 후 실행.
+     * 처리 완료 시 {@link app.backend.jamo.contracts.event.identity.UserDataPurged}
+     * (sourceService="diary") 회신 발행.
+     *
+     * @return 삭제된 row 수 (멱등 호출 시 0 가능)
+     */
+    int deleteAllByUserId(UUID userId);
 }
