@@ -4,6 +4,7 @@ import app.backend.jamo.identity.infrastructure.config.DeviceCookieProperties;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,7 @@ import java.util.regex.Pattern;
  * log injection / 비정상 길이 / 제어문자 차단 (security review M3).
  */
 @Component
+@RequiredArgsConstructor
 public class DeviceIdResolver {
 
     public static final String HEADER_NAME = "X-Device-Id";
@@ -33,10 +35,6 @@ public class DeviceIdResolver {
     static final Pattern DEVICE_ID_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{8,64}$");
 
     private final DeviceCookieProperties cookieProperties;
-
-    public DeviceIdResolver(DeviceCookieProperties cookieProperties) {
-        this.cookieProperties = cookieProperties;
-    }
 
     public DeviceIdResult resolve(HttpServletRequest request) {
         String header = request.getHeader(HEADER_NAME);

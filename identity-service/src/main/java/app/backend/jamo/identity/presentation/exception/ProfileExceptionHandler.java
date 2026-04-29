@@ -9,8 +9,7 @@ import app.backend.jamo.identity.presentation.dto.AuthErrorResponse;
 import app.backend.jamo.identity.presentation.dto.ProfileErrorCode;
 import app.backend.jamo.identity.presentation.dto.ProfileErrorResponse;
 import app.backend.jamo.identity.presentation.web.UnauthorizedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -34,11 +33,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  *   <li>{@link UserNotFoundException} → 404 — 입력 검증 실패 (`/{userId}` 대상 부재)</li>
  * </ul>
  */
+@Slf4j
 @RestControllerAdvice(assignableTypes = {ProfileController.class})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class ProfileExceptionHandler {
-
-    private static final Logger log = LoggerFactory.getLogger(ProfileExceptionHandler.class);
 
     @ExceptionHandler(DisplayNameChangeTooFrequentException.class)
     public ResponseEntity<ProfileErrorResponse> handleDisplayNameChangeTooFrequent(

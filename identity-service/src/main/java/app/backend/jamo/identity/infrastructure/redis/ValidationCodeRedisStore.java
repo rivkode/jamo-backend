@@ -4,6 +4,7 @@ import app.backend.jamo.identity.domain.model.user.Email;
 import app.backend.jamo.identity.domain.model.user.ValidationCode;
 import app.backend.jamo.identity.domain.repository.ValidationCodeStore;
 import app.backend.jamo.identity.infrastructure.config.EmailValidationProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +31,7 @@ import java.util.Optional;
  * 더 강한 정합 필요 시 Lua script 도입 검토.
  */
 @Component
+@RequiredArgsConstructor
 public class ValidationCodeRedisStore implements ValidationCodeStore {
 
     private static final String CODE_KEY_PREFIX = "user:validation:code:";
@@ -37,12 +39,6 @@ public class ValidationCodeRedisStore implements ValidationCodeStore {
 
     private final StringRedisTemplate redis;
     private final EmailValidationProperties properties;
-
-    public ValidationCodeRedisStore(StringRedisTemplate redis,
-                                    EmailValidationProperties properties) {
-        this.redis = redis;
-        this.properties = properties;
-    }
 
     @Override
     public void issue(Email email, ValidationCode code, Duration ttl) {

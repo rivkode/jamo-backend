@@ -5,19 +5,16 @@ import app.backend.jamo.identity.domain.model.user.UserId;
 import app.backend.jamo.identity.domain.repository.ProfileRepository;
 import app.backend.jamo.identity.infrastructure.persistence.entity.ProfileJpaEntity;
 import app.backend.jamo.identity.infrastructure.persistence.mapper.ProfileMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.util.Objects;
 import java.util.Optional;
 
 @Repository
+@RequiredArgsConstructor
 public class ProfileRepositoryImpl implements ProfileRepository {
 
     private final SpringDataProfileRepository jpa;
-
-    public ProfileRepositoryImpl(SpringDataProfileRepository jpa) {
-        this.jpa = Objects.requireNonNull(jpa, "jpa");
-    }
 
     @Override
     public Profile save(Profile profile) {

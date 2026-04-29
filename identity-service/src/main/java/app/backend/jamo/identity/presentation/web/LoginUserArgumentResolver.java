@@ -6,6 +6,7 @@ import app.backend.jamo.common.auth.JwtVerificationException;
 import app.backend.jamo.common.auth.JwtVerifier;
 import app.backend.jamo.identity.domain.model.user.UserId;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
@@ -29,15 +30,12 @@ import org.springframework.web.method.support.ModelAndViewContainer;
  * 클라이언트에 노출하지 않는다 (보안 표준, decisions Q3).
  */
 @Component
+@RequiredArgsConstructor
 public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtVerifier jwtVerifier;
-
-    public LoginUserArgumentResolver(JwtVerifier jwtVerifier) {
-        this.jwtVerifier = jwtVerifier;
-    }
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {

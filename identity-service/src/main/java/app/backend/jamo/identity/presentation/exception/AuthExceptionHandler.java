@@ -9,8 +9,7 @@ import app.backend.jamo.identity.domain.exception.RefreshTokenReuseDetectedExcep
 import app.backend.jamo.identity.presentation.dto.AuthErrorCode;
 import app.backend.jamo.identity.presentation.dto.AuthErrorResponse;
 import app.backend.jamo.identity.presentation.web.UnauthorizedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -29,10 +28,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * <b>도메인 예외의 raw message / cause stack 을 응답에 노출하지 않는다.</b>
  * 모든 응답은 고정 ErrorCode 와 generic message 만.
  */
+@Slf4j
 @RestControllerAdvice(basePackages = "app.backend.jamo.identity.presentation")
 public class AuthExceptionHandler {
-
-    private static final Logger log = LoggerFactory.getLogger(AuthExceptionHandler.class);
 
     @ExceptionHandler({AuthCodeNotFoundException.class, AuthCodeExpiredException.class})
     public ResponseEntity<AuthErrorResponse> handleAuthCodeInvalid(Exception ex) {

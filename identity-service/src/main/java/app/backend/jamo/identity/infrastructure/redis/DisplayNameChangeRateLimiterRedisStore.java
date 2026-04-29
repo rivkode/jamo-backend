@@ -3,6 +3,7 @@ package app.backend.jamo.identity.infrastructure.redis;
 import app.backend.jamo.identity.domain.exception.DisplayNameChangeTooFrequentException;
 import app.backend.jamo.identity.domain.model.user.UserId;
 import app.backend.jamo.identity.domain.repository.DisplayNameChangeRateLimiter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -21,16 +22,13 @@ import java.time.Duration;
  * </ul>
  */
 @Component
+@RequiredArgsConstructor
 public class DisplayNameChangeRateLimiterRedisStore implements DisplayNameChangeRateLimiter {
 
     private static final String KEY_PREFIX = "user:displayName_changed:";
     private static final String VALUE = "1";
 
     private final StringRedisTemplate redis;
-
-    public DisplayNameChangeRateLimiterRedisStore(StringRedisTemplate redis) {
-        this.redis = redis;
-    }
 
     @Override
     public void check(UserId userId) {

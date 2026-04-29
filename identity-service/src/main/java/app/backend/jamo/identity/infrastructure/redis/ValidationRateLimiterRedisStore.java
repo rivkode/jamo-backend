@@ -3,6 +3,7 @@ package app.backend.jamo.identity.infrastructure.redis;
 import app.backend.jamo.identity.domain.model.user.Email;
 import app.backend.jamo.identity.domain.repository.ValidationRateLimiter;
 import app.backend.jamo.identity.infrastructure.config.EmailValidationProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +28,7 @@ import java.time.Duration;
  * 나머지는 즉시 거부. 분산 lock / Lua 도입은 운영 영향 측정 후 결정.
  */
 @Component
+@RequiredArgsConstructor
 public class ValidationRateLimiterRedisStore implements ValidationRateLimiter {
 
     private static final String COOLDOWN_KEY_PREFIX = "user:validation:cooldown:";
@@ -36,12 +38,6 @@ public class ValidationRateLimiterRedisStore implements ValidationRateLimiter {
 
     private final StringRedisTemplate redis;
     private final EmailValidationProperties properties;
-
-    public ValidationRateLimiterRedisStore(StringRedisTemplate redis,
-                                           EmailValidationProperties properties) {
-        this.redis = redis;
-        this.properties = properties;
-    }
 
     @Override
     public boolean canSend(Email email) {

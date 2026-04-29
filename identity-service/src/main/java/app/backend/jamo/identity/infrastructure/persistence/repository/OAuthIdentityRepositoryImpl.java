@@ -6,19 +6,17 @@ import app.backend.jamo.identity.domain.model.oauth.ProviderUserId;
 import app.backend.jamo.identity.domain.model.user.UserId;
 import app.backend.jamo.identity.domain.repository.OAuthIdentityRepository;
 import app.backend.jamo.identity.infrastructure.persistence.mapper.UserMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
 @Repository
+@RequiredArgsConstructor
 public class OAuthIdentityRepositoryImpl implements OAuthIdentityRepository {
 
     private final SpringDataOAuthIdentityRepository delegate;
-
-    public OAuthIdentityRepositoryImpl(SpringDataOAuthIdentityRepository delegate) {
-        this.delegate = delegate;
-    }
 
     @Override
     public Optional<OAuthIdentity> findByProviderAndProviderUserId(OAuthProvider provider, ProviderUserId providerUserId) {

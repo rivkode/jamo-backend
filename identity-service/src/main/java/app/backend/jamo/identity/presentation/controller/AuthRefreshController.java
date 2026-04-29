@@ -6,6 +6,7 @@ import app.backend.jamo.identity.application.service.AuthRefreshService;
 import app.backend.jamo.identity.presentation.dto.AuthExchangeResponse;
 import app.backend.jamo.identity.presentation.dto.AuthRefreshRequest;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,13 +23,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
 public class AuthRefreshController {
 
     private final AuthRefreshService authRefreshService;
-
-    public AuthRefreshController(AuthRefreshService authRefreshService) {
-        this.authRefreshService = authRefreshService;
-    }
 
     @PostMapping("/refresh")
     public AuthExchangeResponse refresh(@Valid @RequestBody AuthRefreshRequest request) {

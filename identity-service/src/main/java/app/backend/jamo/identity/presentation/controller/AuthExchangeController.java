@@ -6,6 +6,7 @@ import app.backend.jamo.identity.application.service.AuthExchangeService;
 import app.backend.jamo.identity.presentation.dto.AuthExchangeRequest;
 import app.backend.jamo.identity.presentation.dto.AuthExchangeResponse;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,13 +20,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
 public class AuthExchangeController {
 
     private final AuthExchangeService authExchangeService;
-
-    public AuthExchangeController(AuthExchangeService authExchangeService) {
-        this.authExchangeService = authExchangeService;
-    }
 
     @PostMapping("/exchange")
     public AuthExchangeResponse exchange(@Valid @RequestBody AuthExchangeRequest request) {
