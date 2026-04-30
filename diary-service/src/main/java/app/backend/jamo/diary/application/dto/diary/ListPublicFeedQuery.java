@@ -1,12 +1,6 @@
 package app.backend.jamo.diary.application.dto.diary;
 
-import app.backend.jamo.diary.domain.model.diary.DiaryFeedSort;
-import app.backend.jamo.diary.domain.model.diary.Tag;
-import app.backend.jamo.diary.domain.repository.cursor.PopularFeedCursor;
-import app.backend.jamo.diary.domain.repository.cursor.RecentFeedCursor;
-
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -14,27 +8,30 @@ import java.util.UUID;
  *
  * <p>박제: decisions/diary/diary-domain-policy.md §7.
  *
- * <p><b>cursor 양립</b>: sort 별 cursor 형식이 다르므로 두 cursor 모두 nullable. sort 가 RECENT 면
- * {@code recentCursor} 만 의미, POPULAR 면 {@code popularCursor} 만 의미. Presentation 단의 cursor codec 이
- * sort-specific 분기 후 적절한 cursor 만 채움.
+ * <p><b>책임 재배치 (cleanup PR — code-reviewer M1/M5)</b>: tag/cursor/sort 는 raw String (nullable) 로
+ * 받는다. 도메인 VO ({@code Tag}) / cursor codec 호출 / {@code DiaryFeedSort} enum 변환은 Application
+ * Service 책임 — Presentation 은 단순 raw String 전달만. invariant 위반 시 {@code InvalidTagException} /
+ * {@code InvalidDiaryFeedCursorException} / {@code IllegalArgumentException} 모두 ExceptionHandler 가
+ * 400 매핑.
  *
  * <p>{@code viewerId} 는 likedByMe 일괄 조회용 — 비로그인 미지원 (CLAUDE.md `auth=Y`).
+ *
+ * @param viewerId    호출자 user id (likedByMe 일괄 조회 키)
+ * @param tagOrNull   raw tag (nullable / blank → no filter)
+ * @param sortOrNull  raw sort (nullable → default RECENT, "recent"/"popular" case-insensitive)
+ * @param cursorOrNull raw base64 cursor (nullable / blank → 첫 페이지). sort 별 형식 다름
+ * @param size        페이지 크기 (1..100, Bean Validation 1차 + invariant 2차)
  */
 public record ListPublicFeedQuery(
     UUID viewerId,
-    Optional<Tag> tag,
-    DiaryFeedSort sort,
-    Optional<RecentFeedCursor> recentCursor,
-    Optional<PopularFeedCursor> popularCursor,
+    String tagOrNull,
+    String sortOrNull,
+    String cursorOrNull,
     int size
 ) {
 
     public ListPublicFeedQuery {
         Objects.requireNonNull(viewerId, "viewerId");
-        Objects.requireNonNull(tag, "tag");
-        Objects.requireNonNull(sort, "sort");
-        Objects.requireNonNull(recentCursor, "recentCursor");
-        Objects.requireNonNull(popularCursor, "popularCursor");
         if (size < 1 || size > 100) {
             throw new IllegalArgumentException("size out of range: 1..100, got " + size);
         }

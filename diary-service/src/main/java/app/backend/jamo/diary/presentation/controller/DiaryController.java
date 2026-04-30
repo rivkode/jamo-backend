@@ -1,6 +1,5 @@
 package app.backend.jamo.diary.presentation.controller;
 
-import app.backend.jamo.diary.application.cursor.DiaryFeedCursorCodec;
 import app.backend.jamo.diary.application.dto.diary.CreateDiaryCommand;
 import app.backend.jamo.diary.application.dto.diary.DeleteDiaryCommand;
 import app.backend.jamo.diary.application.dto.diary.DiaryView;
@@ -13,11 +12,7 @@ import app.backend.jamo.diary.application.service.diary.DeleteDiaryService;
 import app.backend.jamo.diary.application.service.diary.GetDiaryService;
 import app.backend.jamo.diary.application.service.diary.ListMyFeedService;
 import app.backend.jamo.diary.application.service.diary.ListPublicFeedService;
-import app.backend.jamo.diary.domain.model.diary.DiaryFeedSort;
-import app.backend.jamo.diary.domain.model.diary.Tag;
 import app.backend.jamo.diary.domain.model.diary.Visibility;
-import app.backend.jamo.diary.domain.repository.cursor.PopularFeedCursor;
-import app.backend.jamo.diary.domain.repository.cursor.RecentFeedCursor;
 import app.backend.jamo.diary.presentation.dto.CreateDiaryRequest;
 import app.backend.jamo.diary.presentation.dto.DiaryResponse;
 import app.backend.jamo.diary.presentation.dto.FeedResponse;
@@ -40,7 +35,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -56,8 +50,12 @@ import java.util.UUID;
  * </ul>
  *
  * <p>모두 인증 필수 ({@code @LoginUser}). path UUID 는 문자열로 받아 Controller 에서 변환 — 변환 실패 (invalid
- * UUID) 시 IAE → DiaryExceptionHandler 가 400 매핑. cursor 디코딩 / Tag VO 조립 / Visibility default 변환은
- * Controller 책임 (박제 §3 / §7).
+ * UUID) 시 IAE → DiaryExceptionHandler 가 400 매핑.
+ *
+ * <p><b>책임 재배치 (cleanup PR — code-reviewer M1/M5)</b>: tag VO / DiaryFeedSort enum / cursor codec 의
+ * 직접 조립은 Application Service 책임으로 이전. Controller 는 raw String tag/sort/cursor 를 그대로 Query
+ * 에 넣어 전달만. visibility default PUBLIC 변환은 Controller 책임 유지 (박제 §3 — Application Command 는
+ * 명시 값 강제).
  *
  * <p>{@code @Validated} 는 {@code @RequestParam} 단의 {@code @Min/@Max} 활성화용 — body 는
  * {@code @Valid} 로 처리.
@@ -111,28 +109,8 @@ public class DiaryController {
         @RequestParam(name = "sort", required = false) String sort,
         @RequestParam(name = "tag", required = false) String tag
     ) {
-        DiaryFeedSort sortValue = sort == null
-            ? DiaryFeedSort.defaultSort()
-            : DiaryFeedSort.valueOf(sort.toUpperCase());
-
-        Optional<RecentFeedCursor> recentCursor = (sortValue == DiaryFeedSort.RECENT && cursor != null)
-            ? Optional.of(DiaryFeedCursorCodec.decodeRecent(cursor))
-            : Optional.empty();
-        Optional<PopularFeedCursor> popularCursor = (sortValue == DiaryFeedSort.POPULAR && cursor != null)
-            ? Optional.of(DiaryFeedCursorCodec.decodePopular(cursor))
-            : Optional.empty();
-
-        Optional<Tag> tagVo = (tag == null || tag.isBlank())
-            ? Optional.empty()
-            : Optional.of(new Tag(tag));
-
         FeedView view = listPublicFeedService.listPublicFeed(new ListPublicFeedQuery(
-            auth.userId(),
-            tagVo,
-            sortValue,
-            recentCursor,
-            popularCursor,
-            size
+            auth.userId(), tag, sort, cursor, size
         ));
         return ResponseEntity.ok(FeedResponse.from(view));
     }
@@ -143,14 +121,8 @@ public class DiaryController {
         @RequestParam(name = "cursor", required = false) String cursor,
         @RequestParam(name = "size", defaultValue = "10") @Min(1) @Max(100) int size
     ) {
-        Optional<RecentFeedCursor> recentCursor = cursor == null
-            ? Optional.empty()
-            : Optional.of(DiaryFeedCursorCodec.decodeRecent(cursor));
-
         FeedView view = listMyFeedService.listMyFeed(new ListMyFeedQuery(
-            auth.userId(),
-            recentCursor,
-            size
+            auth.userId(), cursor, size
         ));
         return ResponseEntity.ok(FeedResponse.from(view));
     }

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -23,6 +24,9 @@ import java.util.stream.Collectors;
  * 본인 피드 조회 use case.
  *
  * <p>박제: decisions/diary/diary-domain-policy.md §7 (RECENT only, public+private 둘 다).
+ *
+ * <p><b>책임 재배치 (cleanup PR — code-reviewer M1/M5)</b>: raw cursor (nullable String) 을 받아 본
+ * service 가 cursor codec 호출. invariant 위반 시 {@code InvalidDiaryFeedCursorException} → 400.
  *
  * <p>본인 일기 → visibility 무관. authorId 가 viewerId 와 동일 — UserSummary 1건만 조회.
  */
@@ -36,9 +40,11 @@ public class ListMyFeedService {
 
     @Transactional(readOnly = true)
     public FeedView listMyFeed(ListMyFeedQuery query) {
+        Optional<RecentFeedCursor> cursor = resolveCursor(query.cursorOrNull());
+
         int fetchLimit = query.size() + 1;
         List<Diary> fetched = diaryRepository.findMyFeedRecent(
-            query.authorId(), query.cursor().orElse(null), fetchLimit
+            query.authorId(), cursor.orElse(null), fetchLimit
         );
 
         boolean hasNext = fetched.size() > query.size();
@@ -66,5 +72,12 @@ public class ListMyFeedService {
         }
 
         return new FeedView(items, nextCursor, hasNext);
+    }
+
+    private static Optional<RecentFeedCursor> resolveCursor(String cursorOrNull) {
+        if (cursorOrNull == null || cursorOrNull.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(DiaryFeedCursorCodec.decodeRecent(cursorOrNull));
     }
 }

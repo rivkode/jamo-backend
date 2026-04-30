@@ -197,6 +197,146 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
         assertThat(page).extracting(Diary::id).containsExactly(mine1.id(), mine2.id());
     }
 
+    // ============================================================
+    // PR #79 retrospective M2-M6 (cleanup PR — test 보강)
+    // ============================================================
+
+    @Test
+    void public_feed_recent_keyset_tiebreak_by_diary_id_when_created_at_equal() {
+        // M2 — 같은 created_at 의 두 일기가 있을 때 keyset 인덱스의 보조 정렬 (diary_id desc) 회귀 신호.
+        // Flyway V7 의 idx_diary_visibility_created_at_id 인덱스가 created_at 동일 시 diary_id 로 결정적 순서 보장.
+        UUID author = UUID.randomUUID();
+        // 같은 createdAt 으로 두 diary 생성 — diary_id (UUID) 의 desc 순으로 정렬
+        DiaryId idA = DiaryId.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        DiaryId idB = DiaryId.of(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"));
+        repository.save(Diary.reconstitute(idA, author, new DiaryContent("a"),
+            ImageUrls.empty(), Tags.empty(), Visibility.PUBLIC, 0, 0, baseTime));
+        repository.save(Diary.reconstitute(idB, author, new DiaryContent("b"),
+            ImageUrls.empty(), Tags.empty(), Visibility.PUBLIC, 0, 0, baseTime));
+        flushAndClear();
+
+        List<Diary> page = repository.findPublicFeedRecent(Optional.empty(), null, 10);
+        assertThat(page).hasSize(2);
+        // diary_id desc — UUID 큰 순서 (idB > idA)
+        assertThat(page.get(0).id()).isEqualTo(idB);
+        assertThat(page.get(1).id()).isEqualTo(idA);
+    }
+
+    /**
+     * tag 필터 + cursor 조합 시나리오 (M3/M4).
+     *
+     * <p><b>한계 (test-reviewer Medium-1)</b>: 본 시나리오는 결과 정확성만 검증. JSON_CONTAINS 는 함수 인덱스
+     * 미생성 시 full table scan 으로 동작 — 인덱스 회귀는 별도 EXPLAIN 단언 테스트 필요 (후속 PR 박제).
+     */
+    @Test
+    void public_feed_recent_with_tag_filter_and_cursor_combined() {
+        // M3 — tag 필터 + cursor 조합. tag 매칭하면서 cursor 이후 페이지를 정확히 반환.
+        UUID author = UUID.randomUUID();
+        Diary tagged1 = Diary.create(DiaryId.newId(), author, new DiaryContent("t1"),
+            ImageUrls.empty(), Tags.ofStrings(List.of("일상")),
+            Visibility.PUBLIC, Clock.fixed(baseTime, ZoneOffset.UTC));
+        Diary tagged2 = Diary.create(DiaryId.newId(), author, new DiaryContent("t2"),
+            ImageUrls.empty(), Tags.ofStrings(List.of("일상")),
+            Visibility.PUBLIC, Clock.fixed(baseTime.minusSeconds(60), ZoneOffset.UTC));
+        Diary tagged3 = Diary.create(DiaryId.newId(), author, new DiaryContent("t3"),
+            ImageUrls.empty(), Tags.ofStrings(List.of("일상")),
+            Visibility.PUBLIC, Clock.fixed(baseTime.minusSeconds(120), ZoneOffset.UTC));
+        Diary other = Diary.create(DiaryId.newId(), author, new DiaryContent("o"),
+            ImageUrls.empty(), Tags.ofStrings(List.of("운동")),
+            Visibility.PUBLIC, Clock.fixed(baseTime.minusSeconds(30), ZoneOffset.UTC));
+        repository.save(tagged1);
+        repository.save(tagged2);
+        repository.save(tagged3);
+        repository.save(other);
+        flushAndClear();
+
+        // tag=일상 첫 페이지 (size=1) → tagged1
+        List<Diary> page1 = repository.findPublicFeedRecent(
+            Optional.of(new Tag("일상")), null, 1);
+        assertThat(page1).hasSize(1);
+        assertThat(page1.get(0).id()).isEqualTo(tagged1.id());
+
+        // tag=일상 + cursor 로 page2 → tagged2
+        RecentFeedCursor cursor = new RecentFeedCursor(tagged1.createdAt(), tagged1.id());
+        List<Diary> page2 = repository.findPublicFeedRecent(
+            Optional.of(new Tag("일상")), cursor, 1);
+        assertThat(page2).hasSize(1);
+        assertThat(page2.get(0).id()).isEqualTo(tagged2.id());
+
+        // tag=일상 + cursor (tagged2) → tagged3 (other 미포함, tag mismatch)
+        RecentFeedCursor cursor2 = new RecentFeedCursor(tagged2.createdAt(), tagged2.id());
+        List<Diary> page3 = repository.findPublicFeedRecent(
+            Optional.of(new Tag("일상")), cursor2, 10);
+        assertThat(page3).hasSize(1);
+        assertThat(page3.get(0).id()).isEqualTo(tagged3.id());
+    }
+
+    @Test
+    void public_feed_popular_with_tag_filter_and_cursor_combined() {
+        // M4 — POPULAR sort + tag + cursor 조합.
+        UUID author = UUID.randomUUID();
+        Diary high = Diary.reconstitute(DiaryId.newId(), author, new DiaryContent("h"),
+            ImageUrls.empty(), Tags.ofStrings(List.of("일상")),
+            Visibility.PUBLIC, 100, 0, baseTime);
+        Diary mid = Diary.reconstitute(DiaryId.newId(), author, new DiaryContent("m"),
+            ImageUrls.empty(), Tags.ofStrings(List.of("일상")),
+            Visibility.PUBLIC, 50, 0, baseTime.minusSeconds(60));
+        Diary other = Diary.reconstitute(DiaryId.newId(), author, new DiaryContent("o"),
+            ImageUrls.empty(), Tags.ofStrings(List.of("운동")),
+            Visibility.PUBLIC, 200, 0, baseTime);  // 점수 높지만 tag mismatch
+        repository.save(high);
+        repository.save(mid);
+        repository.save(other);
+        flushAndClear();
+
+        // tag=일상 첫 페이지 → high (100)
+        List<Diary> page1 = repository.findPublicFeedPopular(
+            Optional.of(new Tag("일상")), null, 1);
+        assertThat(page1).hasSize(1);
+        assertThat(page1.get(0).id()).isEqualTo(high.id());
+
+        // cursor (high) 이후 → mid
+        PopularFeedCursor cursor = new PopularFeedCursor(high.likeCount(), high.createdAt(), high.id());
+        List<Diary> page2 = repository.findPublicFeedPopular(
+            Optional.of(new Tag("일상")), cursor, 10);
+        assertThat(page2).hasSize(1);
+        assertThat(page2.get(0).id()).isEqualTo(mid.id());
+    }
+
+    @Test
+    void public_feed_popular_likeCount_tied_orders_by_created_at_then_diary_id() {
+        // M5 — likeCount 동률 + created_at 동률 → diary_id desc tiebreak (결정적 순서).
+        UUID author = UUID.randomUUID();
+        DiaryId idA = DiaryId.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        DiaryId idB = DiaryId.of(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"));
+        repository.save(Diary.reconstitute(idA, author, new DiaryContent("a"),
+            ImageUrls.empty(), Tags.empty(), Visibility.PUBLIC, 50, 0, baseTime));
+        repository.save(Diary.reconstitute(idB, author, new DiaryContent("b"),
+            ImageUrls.empty(), Tags.empty(), Visibility.PUBLIC, 50, 0, baseTime));
+        flushAndClear();
+
+        List<Diary> page = repository.findPublicFeedPopular(Optional.empty(), null, 10);
+        assertThat(page).hasSize(2);
+        // likeCount + createdAt 동률 → diary_id desc → idB 먼저
+        assertThat(page.get(0).id()).isEqualTo(idB);
+        assertThat(page.get(1).id()).isEqualTo(idA);
+    }
+
+    @Test
+    void public_feed_returns_empty_when_no_public_diary_exists() {
+        // M6 — 빈 페이지 (visibility=PRIVATE 만 존재) → empty list. cursor 없는 첫 페이지.
+        UUID author = UUID.randomUUID();
+        repository.save(newDiary(author, "p1", baseTime, Visibility.PRIVATE, 0));
+        repository.save(newDiary(author, "p2", baseTime.minusSeconds(60), Visibility.PRIVATE, 0));
+        flushAndClear();
+
+        List<Diary> page = repository.findPublicFeedRecent(Optional.empty(), null, 10);
+        assertThat(page).isEmpty();
+
+        List<Diary> popularPage = repository.findPublicFeedPopular(Optional.empty(), null, 10);
+        assertThat(popularPage).isEmpty();
+    }
+
     @Test
     void deleteAllByAuthorId_removes_all_rows_for_author() {
         UUID author = UUID.randomUUID();

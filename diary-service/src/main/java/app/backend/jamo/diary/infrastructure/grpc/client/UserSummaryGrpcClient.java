@@ -38,8 +38,22 @@ import java.util.stream.Collectors;
  *
  * <p><b>Resilience4j Circuit Breaker / Retry 미적용 (현 PR 시점)</b>: sentence-feedback 의
  * {@code ChatServiceSentenceFeedbackGatewayAdapter} 정합 적용은 후속. 본 어댑터는 read-only 가벼운 호출 +
- * 응답 schema 자체에 fallback 이 표현 — 일시 장애 시 사용자에게 "(unknown)" 노출이 자연스러움. Circuit Breaker
- * 도입은 운영 모니터링 후 (예: identity-service 일시 장애 빈발 시).
+ * 응답 schema 자체에 fallback 이 표현 — 일시 장애 시 사용자에게 "(unknown)" 노출이 자연스러움.
+ *
+ * <p><b>도입 트리거 박제</b> (cleanup PR — code-reviewer H2, PR #79 retrospective):
+ * <ul>
+ *   <li>identity-service 의 본 어댑터 호출 failure rate ≥ 5% (운영 모니터링 SLO)</li>
+ *   <li>p99 latency ≥ deadline 의 80% (GET 1.6s / BATCH 4s) 지속 ≥ 30분</li>
+ *   <li>cascading 장애 (UserSummary 미응답 → diary 응답 timeout 누적) 1회 이상</li>
+ * </ul>
+ * 위 트리거 발생 또는 <b>2026-Q3</b> 만료일 도달 시 둘 중 빠른 시점 — Resilience4j CircuitBreaker
+ * (sliding-window-size 100, failure-rate-threshold 50%) + Retry (3회, exponential backoff 100ms→400ms) +
+ * Bulkhead (semaphore 50) 도입. 도입 PR 에서 본 javadoc 갱신 + 본 어댑터 단위 테스트 보강.
+ *
+ * <p><b>측정 (현 PR 미적용)</b> — code-reviewer M4: 트리거 측정의 전제는 Micrometer Timer 계측. metric
+ * 이름 후보 — {@code diary.user_summary.grpc.duration{op=get|batch,outcome=ok|fail}} (Timer) +
+ * {@code diary.user_summary.grpc.failure_rate} (gauge — 5분 sliding). Resilience4j 도입 PR 에서 본 어댑터에
+ * Micrometer 통합도 함께 추가 (Resilience4j 가 자동 노출하는 metric 와 별도로 어댑터 진입/실패 카운터).
  */
 @Component
 @Slf4j
