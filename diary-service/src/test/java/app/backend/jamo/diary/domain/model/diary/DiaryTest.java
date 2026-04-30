@@ -117,6 +117,46 @@ class DiaryTest {
             Diary d = Diary.create(id, author, content, images, tags, Visibility.PUBLIC, clock);
             assertThrows(IllegalStateException.class, d::onLikeRemoved);
         }
+
+        @Test
+        void onLikeRemoved_at_zero_throws() {
+            // CommentCounter 와 패턴 통일 — 카운터가 0 인 시점에 다시 호출 시 invariant 위반
+            Diary d = Diary.create(id, author, content, images, tags, Visibility.PUBLIC, clock);
+            d.onLikeAdded();
+            d.onLikeRemoved();
+            assertEquals(0, d.likeCount());
+            assertThrows(IllegalStateException.class, d::onLikeRemoved);
+        }
+    }
+
+    @Nested
+    class CommentCounter {
+
+        @Test
+        void onCommentAdded_then_onCommentRemoved() {
+            Diary d = Diary.create(id, author, content, images, tags, Visibility.PUBLIC, clock);
+            d.onCommentAdded();
+            d.onCommentAdded();
+            d.onCommentAdded();
+            assertEquals(3, d.commentCount());
+            d.onCommentRemoved();
+            assertEquals(2, d.commentCount());
+        }
+
+        @Test
+        void onCommentRemoved_below_zero_throws() {
+            Diary d = Diary.create(id, author, content, images, tags, Visibility.PUBLIC, clock);
+            assertThrows(IllegalStateException.class, d::onCommentRemoved);
+        }
+
+        @Test
+        void onCommentRemoved_at_zero_throws() {
+            Diary d = Diary.create(id, author, content, images, tags, Visibility.PUBLIC, clock);
+            d.onCommentAdded();
+            d.onCommentRemoved();
+            assertEquals(0, d.commentCount());
+            assertThrows(IllegalStateException.class, d::onCommentRemoved);
+        }
     }
 
     @Nested

@@ -22,9 +22,10 @@ import java.util.UUID;
  * Application Service 가 두 작업을 단일 메서드로 묶어 invariant 위반 방지. 별도 Aggregate 분리 (사용자 결정) 로
  * 인한 트레이드오프: 동일 트랜잭션 안에서 두 Aggregate 모두 load + save 필요. 박제 §8.
  *
- * <p><b>댓글 카운터</b>: {@link #commentCount} 는 본 sub-domain (diary core) 에선 항상 0. comment
- * sub-domain 평가 시점에 {@code CommentCreated} / {@code CommentDeleted} cascade 로 갱신 — 본 PR 의
- * Aggregate 는 reconstitute 시 외부 값 받기만.
+ * <p><b>댓글 카운터 동기화 (필수 invariant)</b>: {@link #commentCount} 는 denormalized 카운터 — comment
+ * sub-domain (D-a-2-impl) 에서 {@code Comment} Aggregate INSERT/DELETE 와 같은 트랜잭션에서
+ * {@link #onCommentAdded} / {@link #onCommentRemoved} 호출 의무. 좋아요 카운터와 동일 패턴 (drift 방지).
+ * 답글 cascade 시 부모 댓글 + 자식 답글 N+1 회 호출 — 박제 §4 (사용자 결정).
  *
  * <p><b>가드 메서드</b>:
  * <ul>
@@ -135,6 +136,30 @@ public final class Diary {
             throw new IllegalStateException("likeCount cannot go below zero");
         }
         this.likeCount--;
+    }
+
+    /**
+     * {@code Comment} Aggregate 신규 INSERT 직후 호출 — 같은 트랜잭션 안에서만 의미 있음. 메서드명이 "외부 cause"
+     * (댓글이 추가됨) 를 나타내 임의 호출 시 코드 리뷰에서 즉시 잡힘 ({@link #onLikeAdded} 정합).
+     *
+     * <p>호출자 (Application Service / D-a-2-impl {@code CreateCommentService}) 책임: {@code Comment.create} +
+     * {@code save} 와 동일 트랜잭션. 답글도 1 회 호출 (depth 1단 제한이라 답글 = root + 1).
+     */
+    public void onCommentAdded() {
+        this.commentCount++;
+    }
+
+    /**
+     * {@code Comment} Aggregate DELETE 직후 호출 — 같은 트랜잭션 안에서만 의미 있음. 카운터 0 미만은 invariant 위반.
+     *
+     * <p>호출자 책임: DELETE 가 실제 1 row 영향을 미쳤음을 사전 확인. 답글 cascade 시 부모 + 자식 N+1 회 호출
+     * (depth 1단). DiaryDeleted Saga cascade 시에는 Diary 자체가 hard-delete 되므로 본 메서드 호출 무관 (row 자체 소멸).
+     */
+    public void onCommentRemoved() {
+        if (this.commentCount <= 0) {
+            throw new IllegalStateException("commentCount cannot go below zero");
+        }
+        this.commentCount--;
     }
 
     /**
