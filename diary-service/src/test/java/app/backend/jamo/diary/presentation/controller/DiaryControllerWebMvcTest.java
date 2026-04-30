@@ -16,13 +16,13 @@ import app.backend.jamo.diary.application.service.diary.DeleteDiaryService;
 import app.backend.jamo.diary.application.service.diary.GetDiaryService;
 import app.backend.jamo.diary.application.service.diary.ListMyFeedService;
 import app.backend.jamo.diary.application.service.diary.ListPublicFeedService;
+import app.backend.jamo.diary.application.cursor.InvalidDiaryFeedCursorException;
 import app.backend.jamo.diary.domain.exception.DiaryAccessDeniedException;
 import app.backend.jamo.diary.domain.exception.DiaryNotFoundException;
 import app.backend.jamo.diary.domain.exception.InvalidDiaryContentException;
 import app.backend.jamo.diary.domain.exception.InvalidImageUrlException;
-import app.backend.jamo.diary.domain.model.diary.DiaryFeedSort;
+import app.backend.jamo.diary.domain.exception.InvalidTagException;
 import app.backend.jamo.diary.domain.model.diary.Visibility;
-import app.backend.jamo.diary.domain.repository.cursor.PopularFeedCursor;
 import app.backend.jamo.diary.presentation.exception.DiaryExceptionHandler;
 import app.backend.jamo.diary.presentation.web.LoginUserArgumentResolver;
 import app.backend.jamo.diary.presentation.web.PresentationWebConfig;
@@ -370,25 +370,24 @@ class DiaryControllerWebMvcTest {
         verify(listPublicFeedService).listPublicFeed(captor.capture());
         ListPublicFeedQuery q = captor.getValue();
         assertThat(q.viewerId()).isEqualTo(USER_ID);
-        assertThat(q.sort()).isEqualTo(DiaryFeedSort.RECENT);
+        assertThat(q.sortOrNull()).isNull();  // 책임 재배치 — Service 가 default RECENT 결정
         assertThat(q.size()).isEqualTo(10);
-        assertThat(q.tag()).isEmpty();
-        assertThat(q.recentCursor()).isEmpty();
-        assertThat(q.popularCursor()).isEmpty();
+        assertThat(q.tagOrNull()).isNull();
+        assertThat(q.cursorOrNull()).isNull();
     }
 
     @Test
-    void feed_decodes_POPULAR_cursor_into_popularCursor_only_with_recentCursor_empty() throws Exception {
-        // test-reviewer M2 — sort 별 cursor 분기 (decodeRecent vs decodePopular) 의 정확한 슬롯 매핑
-        // 회귀 신호. 누군가 popular/recent 분기 swap 시 본 테스트가 잡음.
+    void feed_passes_raw_POPULAR_cursor_to_service_unchanged() throws Exception {
+        // 책임 재배치 (cleanup PR — code-reviewer M5) — Controller 는 cursor 를 raw String 그대로 전달.
+        // sort-specific 디코딩은 Service 책임. 본 시나리오는 Controller 가 가공 없이 raw 전달함을 검증.
+        // (cursor 슬롯 분기 검증은 ListPublicFeedServiceTest 의 popular_cursor_decoded_into_popularCursor_slot 가 담당)
         mockValidAuth();
         when(listPublicFeedService.listPublicFeed(any()))
             .thenReturn(new FeedView(List.of(), null, false));
 
-        // P|<likeCount>|<createdAtIso>|<diaryId> base64 url-safe (no padding)
-        String raw = "P|5|" + NOW + "|" + DIARY_ID;
+        String rawCursor = "P|5|" + NOW + "|" + DIARY_ID;
         String cursor = java.util.Base64.getUrlEncoder().withoutPadding()
-            .encodeToString(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            .encodeToString(rawCursor.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         mockMvc.perform(get("/api/v1/diaries/feed")
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
@@ -399,18 +398,13 @@ class DiaryControllerWebMvcTest {
         ArgumentCaptor<ListPublicFeedQuery> captor = ArgumentCaptor.forClass(ListPublicFeedQuery.class);
         verify(listPublicFeedService).listPublicFeed(captor.capture());
         ListPublicFeedQuery q = captor.getValue();
-        assertThat(q.sort()).isEqualTo(DiaryFeedSort.POPULAR);
-        assertThat(q.recentCursor()).isEmpty();
-        assertThat(q.popularCursor()).isPresent();
-        PopularFeedCursor pc = q.popularCursor().orElseThrow();
-        assertThat(pc.lastLikeCount()).isEqualTo(5);
-        assertThat(pc.lastCreatedAt()).isEqualTo(NOW);
-        assertThat(pc.lastDiaryId().value()).isEqualTo(DIARY_ID);
+        assertThat(q.sortOrNull()).isEqualTo("popular");  // raw String 그대로 (case 무가공)
+        assertThat(q.cursorOrNull()).isEqualTo(cursor);   // base64 그대로
     }
 
     @Test
-    void feed_accepts_lowercase_sort_value() throws Exception {
-        // 누락 가능성 1 — sort 가 case-insensitive (toUpperCase 적용) 인 점 회귀 신호.
+    void feed_passes_raw_lowercase_sort_to_service_unchanged() throws Exception {
+        // 책임 재배치 — Controller 는 sort 를 raw String 그대로 전달. Service 가 toUpperCase + valueOf.
         mockValidAuth();
         when(listPublicFeedService.listPublicFeed(any()))
             .thenReturn(new FeedView(List.of(), null, false));
@@ -422,12 +416,12 @@ class DiaryControllerWebMvcTest {
 
         ArgumentCaptor<ListPublicFeedQuery> captor = ArgumentCaptor.forClass(ListPublicFeedQuery.class);
         verify(listPublicFeedService).listPublicFeed(captor.capture());
-        assertThat(captor.getValue().sort()).isEqualTo(DiaryFeedSort.RECENT);
+        assertThat(captor.getValue().sortOrNull()).isEqualTo("recent");
     }
 
     @Test
-    void feed_treats_blank_tag_param_as_no_filter() throws Exception {
-        // test-reviewer L2 — tag query 가 빈 문자열 / 공백이면 Optional.empty() 로 처리되는 사양.
+    void feed_passes_raw_blank_tag_to_service_unchanged() throws Exception {
+        // 책임 재배치 — blank tag 처리 (no filter) 결정은 Service 책임. Controller 는 raw 전달.
         mockValidAuth();
         when(listPublicFeedService.listPublicFeed(any()))
             .thenReturn(new FeedView(List.of(), null, false));
@@ -439,7 +433,7 @@ class DiaryControllerWebMvcTest {
 
         ArgumentCaptor<ListPublicFeedQuery> captor = ArgumentCaptor.forClass(ListPublicFeedQuery.class);
         verify(listPublicFeedService).listPublicFeed(captor.capture());
-        assertThat(captor.getValue().tag()).isEmpty();
+        assertThat(captor.getValue().tagOrNull()).isEqualTo("   ");
     }
 
     @Test
@@ -458,10 +452,9 @@ class DiaryControllerWebMvcTest {
         ArgumentCaptor<ListPublicFeedQuery> captor = ArgumentCaptor.forClass(ListPublicFeedQuery.class);
         verify(listPublicFeedService).listPublicFeed(captor.capture());
         ListPublicFeedQuery q = captor.getValue();
-        assertThat(q.sort()).isEqualTo(DiaryFeedSort.POPULAR);
+        assertThat(q.sortOrNull()).isEqualTo("popular");
         assertThat(q.size()).isEqualTo(20);
-        assertThat(q.tag()).isPresent();
-        assertThat(q.tag().orElseThrow().value()).isEqualTo("일상");
+        assertThat(q.tagOrNull()).isEqualTo("일상");
     }
 
     @Test
@@ -477,33 +470,48 @@ class DiaryControllerWebMvcTest {
     }
 
     @Test
-    void feed_returns_400_when_sort_unknown() throws Exception {
+    void feed_returns_400_when_service_throws_IAE_for_unknown_sort() throws Exception {
+        // 책임 재배치 (cleanup PR — code-reviewer M1) — sort 검증은 Service 의 valueOf(toUpperCase) 책임.
+        // unknown sort → IllegalArgumentException → ExceptionHandler 400.
         mockValidAuth();
+        when(listPublicFeedService.listPublicFeed(any()))
+            .thenThrow(new IllegalArgumentException("No enum constant TRENDING"));
 
         mockMvc.perform(get("/api/v1/diaries/feed")
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .param("sort", "trending"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
-        verify(listPublicFeedService, never()).listPublicFeed(any());
+
+        // test-reviewer Medium-3 — Controller 가 raw "trending" 그대로 전달함을 검증 (Controller 단의
+        // valueOf 회귀 차단)
+        ArgumentCaptor<ListPublicFeedQuery> captor = ArgumentCaptor.forClass(ListPublicFeedQuery.class);
+        verify(listPublicFeedService).listPublicFeed(captor.capture());
+        assertThat(captor.getValue().sortOrNull()).isEqualTo("trending");
     }
 
     @Test
-    void feed_returns_400_when_cursor_invalid_base64() throws Exception {
+    void feed_returns_400_when_service_throws_InvalidDiaryFeedCursorException() throws Exception {
+        // 책임 재배치 — cursor 디코딩은 Service 책임. invalid base64 → InvalidDiaryFeedCursorException
+        // → ExceptionHandler 400 매핑 회귀 신호.
         mockValidAuth();
+        when(listPublicFeedService.listPublicFeed(any()))
+            .thenThrow(new InvalidDiaryFeedCursorException("invalid base64 cursor"));
 
         mockMvc.perform(get("/api/v1/diaries/feed")
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .param("cursor", "***not-base64***"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
-        verify(listPublicFeedService, never()).listPublicFeed(any());
     }
 
     @Test
-    void feed_returns_400_when_tag_exceeds_30_codepoints() throws Exception {
-        // Tag VO invariant — controller assemble 시점 InvalidTagException 발생
+    void feed_returns_400_when_service_throws_InvalidTagException() throws Exception {
+        // 책임 재배치 (test-reviewer M4 정합) — Tag VO invariant 검증은 Service 책임. 도메인 invariant
+        // 위반 → InvalidTagException → ExceptionHandler 400 매핑 회귀 신호.
         mockValidAuth();
+        when(listPublicFeedService.listPublicFeed(any()))
+            .thenThrow(new InvalidTagException("tag length out of range: max 30 code points"));
         String tooLong = "x".repeat(31);
 
         mockMvc.perform(get("/api/v1/diaries/feed")
@@ -511,9 +519,8 @@ class DiaryControllerWebMvcTest {
                 .param("tag", tooLong))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"))
-            // test-reviewer L1 — generic message 박제 (handleDomainValidation 매핑 회귀 신호)
+            // test-reviewer L1 — generic message 박제 (sanitization)
             .andExpect(jsonPath("$.message").value("request is invalid"));
-        verify(listPublicFeedService, never()).listPublicFeed(any());
     }
 
     @Test
@@ -543,7 +550,7 @@ class DiaryControllerWebMvcTest {
         ListMyFeedQuery q = captor.getValue();
         assertThat(q.authorId()).isEqualTo(USER_ID);
         assertThat(q.size()).isEqualTo(10);
-        assertThat(q.cursor()).isEmpty();
+        assertThat(q.cursorOrNull()).isNull();
     }
 
     @Test
@@ -559,15 +566,17 @@ class DiaryControllerWebMvcTest {
     }
 
     @Test
-    void me_returns_400_when_cursor_invalid() throws Exception {
+    void me_returns_400_when_service_throws_InvalidDiaryFeedCursorException() throws Exception {
+        // 책임 재배치 — cursor 디코딩은 Service 책임. invalid → InvalidDiaryFeedCursorException → 400.
         mockValidAuth();
+        when(listMyFeedService.listMyFeed(any()))
+            .thenThrow(new InvalidDiaryFeedCursorException("invalid base64 cursor"));
 
         mockMvc.perform(get("/api/v1/diaries/me")
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .param("cursor", "***not-base64***"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
-        verify(listMyFeedService, never()).listMyFeed(any());
     }
 
     @Test
