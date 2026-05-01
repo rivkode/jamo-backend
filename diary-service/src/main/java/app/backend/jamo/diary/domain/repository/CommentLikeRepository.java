@@ -51,11 +51,24 @@ public interface CommentLikeRepository {
     Set<CommentId> findCommentIdsLikedByUser(UUID userId, Set<CommentId> commentIds);
 
     /**
-     * 단일 댓글 삭제 cascade — {@code DeleteCommentService} 가 호출.
+     * 단일 댓글 삭제 cascade — {@code DeleteCommentService} 가 호출 (본인 좋아요 일괄 삭제).
      *
      * @return hard-delete 된 row 수
      */
     int deleteAllByCommentId(CommentId commentId);
+
+    /**
+     * 답글 cascade 의 좋아요 동시 삭제 — {@code DeleteCommentService} 가 부모 댓글 hard-delete 직전에 호출
+     * (자식 답글들의 좋아요 일괄 삭제). depth 1단 제한이라 단일 호출로 모든 cascade 처리.
+     *
+     * <p>구현체는 SQL JOIN ({@code DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments
+     * WHERE parent_id = ?)}) — {@link #deleteAllByDiaryId} 와 동일한 JOIN 패턴.
+     *
+     * <p>호출자: {@code DeleteCommentService}. 멱등 — 자식 좋아요 없으면 no-op (return 0).
+     *
+     * @return hard-delete 된 row 수
+     */
+    int deleteAllByCommentParentId(CommentId parentId);
 
     /**
      * DiaryDeleted Saga cascade — {@code CommentOnDiaryDeletedListener} 가 호출. 박제 §10. 일반 Application

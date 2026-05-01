@@ -36,6 +36,14 @@ public interface CommentRepository {
 
     Optional<Comment> findById(CommentId id);
 
+    /**
+     * lock 순서 결정을 위한 non-lock 조회.
+     *
+     * <p>삭제 use case 는 일관된 lock order ({@code Diary -> Comment}) 를 지키기 위해 먼저 댓글의
+     * {@code diaryId} 를 읽은 뒤 Diary 를 lock 하고, 이후 {@link #findById} 로 Comment 를 다시 lock/검증한다.
+     */
+    Optional<Comment> findByIdWithoutLock(CommentId id);
+
     boolean existsById(CommentId id);
 
     /** 멱등 hard-delete (박제 §3) — 존재하지 않는 ID 호출은 no-op (구현체 강제). */
@@ -52,6 +60,15 @@ public interface CommentRepository {
      * @param limit        1..100 (size+1 fetch 패턴 — Application 이 limit+1 호출 후 hasNext 계산)
      */
     List<Comment> findByDiaryId(DiaryId diaryId, CommentCursor cursorOrNull, int limit);
+
+    /**
+     * 부모 댓글 삭제 cascade 직전 자식 댓글 row 를 잠그기 위한 조회.
+     *
+     * <p>ADR-0005 로 DB FK cascade 를 쓰지 않으므로, 자식 좋아요 삭제와 자식 댓글 삭제 사이에
+     * {@code ToggleCommentLikeService} 가 자식 댓글에 새 좋아요를 INSERT 하는 race 를 Application lock 으로
+     * 직렬화한다.
+     */
+    List<Comment> findChildrenByParentIdForUpdate(CommentId parentId);
 
     /**
      * 답글 cascade — 부모 댓글 삭제 시 자식 답글 일괄 hard-delete.
