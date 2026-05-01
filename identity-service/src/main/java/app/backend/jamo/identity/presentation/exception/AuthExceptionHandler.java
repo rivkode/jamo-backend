@@ -2,6 +2,8 @@ package app.backend.jamo.identity.presentation.exception;
 
 import app.backend.jamo.identity.domain.exception.AuthCodeExpiredException;
 import app.backend.jamo.identity.domain.exception.AuthCodeNotFoundException;
+import app.backend.jamo.identity.domain.exception.LoginInvalidException;
+import app.backend.jamo.identity.domain.exception.LoginRateLimitedException;
 import app.backend.jamo.identity.domain.exception.OAuthAuthenticationException;
 import app.backend.jamo.identity.domain.exception.RefreshTokenExpiredException;
 import app.backend.jamo.identity.domain.exception.RefreshTokenInvalidException;
@@ -39,6 +41,24 @@ public class AuthExceptionHandler {
                 .body(new AuthErrorResponse(
                         AuthErrorCode.AUTH_CODE_INVALID,
                         "authorization code is invalid"));
+    }
+
+    @ExceptionHandler(LoginInvalidException.class)
+    public ResponseEntity<AuthErrorResponse> handleLoginInvalid(LoginInvalidException ex) {
+        log.warn("local login rejected reason={}", ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new AuthErrorResponse(
+                        AuthErrorCode.LOGIN_INVALID,
+                        "login credentials are invalid"));
+    }
+
+    @ExceptionHandler(LoginRateLimitedException.class)
+    public ResponseEntity<AuthErrorResponse> handleLoginRateLimited(LoginRateLimitedException ex) {
+        log.warn("local login rate limited reason={}", ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(new AuthErrorResponse(
+                        AuthErrorCode.LOGIN_RATE_LIMITED,
+                        "too many requests, please try again later"));
     }
 
     @ExceptionHandler(RefreshTokenExpiredException.class)
@@ -91,6 +111,15 @@ public class AuthExceptionHandler {
                 .body(new AuthErrorResponse(
                         AuthErrorCode.VALIDATION_FAILED,
                         "request body is malformed"));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<AuthErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("auth request rejected by domain validation reason={}", ex.getClass().getSimpleName());
+        return ResponseEntity.badRequest()
+                .body(new AuthErrorResponse(
+                        AuthErrorCode.VALIDATION_FAILED,
+                        "request body is invalid"));
     }
 
     /**

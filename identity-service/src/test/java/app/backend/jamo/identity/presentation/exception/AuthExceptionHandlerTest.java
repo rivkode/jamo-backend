@@ -2,6 +2,8 @@ package app.backend.jamo.identity.presentation.exception;
 
 import app.backend.jamo.identity.domain.exception.AuthCodeExpiredException;
 import app.backend.jamo.identity.domain.exception.AuthCodeNotFoundException;
+import app.backend.jamo.identity.domain.exception.LoginInvalidException;
+import app.backend.jamo.identity.domain.exception.LoginRateLimitedException;
 import app.backend.jamo.identity.domain.exception.OAuthAuthenticationException;
 import app.backend.jamo.identity.domain.exception.OAuthProviderCallFailedException;
 import app.backend.jamo.identity.domain.exception.OAuthStateInvalidException;
@@ -47,6 +49,38 @@ class AuthExceptionHandlerTest {
 
         assertThat(response.getBody().message()).doesNotContain("SECRET-MARKER");
         assertThat(response.getBody().message()).doesNotContain("Redis");
+    }
+
+    @Test
+    void login_invalid_maps_to_401_with_login_invalid_and_no_leak() {
+        ResponseEntity<AuthErrorResponse> response =
+                handler.handleLoginInvalid(new LoginInvalidException("SECRET account missing"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getBody().code()).isEqualTo(AuthErrorCode.LOGIN_INVALID);
+        assertThat(response.getBody().message()).doesNotContain("SECRET");
+        assertThat(response.getBody().message()).doesNotContain("missing");
+    }
+
+    @Test
+    void login_rate_limited_maps_to_429_with_login_rate_limited_and_no_leak() {
+        ResponseEntity<AuthErrorResponse> response =
+                handler.handleLoginRateLimited(new LoginRateLimitedException("SECRET attempts=5"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(response.getBody().code()).isEqualTo(AuthErrorCode.LOGIN_RATE_LIMITED);
+        assertThat(response.getBody().message()).doesNotContain("SECRET");
+        assertThat(response.getBody().message()).doesNotContain("attempts");
+    }
+
+    @Test
+    void illegal_argument_maps_to_400_with_validation_failed() {
+        ResponseEntity<AuthErrorResponse> response =
+                handler.handleIllegalArgument(new IllegalArgumentException("SECRET invalid email"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().code()).isEqualTo(AuthErrorCode.VALIDATION_FAILED);
+        assertThat(response.getBody().message()).doesNotContain("SECRET");
     }
 
     @Test

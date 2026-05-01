@@ -21,6 +21,12 @@ import java.util.Objects;
 public class BCryptPasswordEncoderAdapter implements PasswordEncoder {
 
     private static final int BCRYPT_COST = 12;
+    /**
+     * BCrypt cost=12 dummy hash for timing equalization on missing LOCAL accounts.
+     * The raw password intentionally does not matter; {@link #matchesDummy} ignores the result.
+     */
+    private static final String DUMMY_HASH =
+            "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6Ttxx6PGBesbhtPGE7PKwq6wDeFDC";
 
     private final BCryptPasswordEncoder delegate;
 
@@ -42,5 +48,11 @@ public class BCryptPasswordEncoderAdapter implements PasswordEncoder {
         Objects.requireNonNull(rawPassword, "rawPassword");
         Objects.requireNonNull(hashed, "hashed");
         return delegate.matches(rawPassword, hashed.value());
+    }
+
+    @Override
+    public boolean matchesDummy(String rawPassword) {
+        Objects.requireNonNull(rawPassword, "rawPassword");
+        return delegate.matches(rawPassword, DUMMY_HASH);
     }
 }

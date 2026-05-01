@@ -17,4 +17,10 @@ public interface PasswordEncoder {
     HashedPassword encode(String rawPassword);
 
     boolean matches(String rawPassword, HashedPassword hashed);
+
+    /**
+     * 계정 없음/OAuth-only 계정 로그인 실패에서도 실제 hash 검증과 유사한 비용을 지불하기 위한
+     * dummy verification hook. 클라이언트에는 항상 동일한 LOGIN_INVALID 응답을 반환한다.
+     */
+    boolean matchesDummy(String rawPassword);
 }

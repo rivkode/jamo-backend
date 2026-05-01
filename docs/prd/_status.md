@@ -16,7 +16,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 
 | 도메인 | 담당 서비스 | 총 API | mined | proposed | KEEP | FIX | DROP | 평가 진행 |
 |---|---|---:|---:|---:|---:|---:|---:|:---:|
-| auth | identity-service | 5 | 5 | 0 | 0 | 5 | 0 | ✅ |
+| auth | identity-service | 6 | 5 | 1 | 0 | 5 | 0 | ✅ |
 | user | identity-service | 4 | 4 | 0 | 0 | 3 | 1 | ✅ |
 | profile | identity-service | 3 | 3 | 0 | 0 | 3 | 0 | ✅ |
 | diary | diary-service | 6 | 6 | 0 | 0 | 6 | 0 | ✅ |
@@ -30,7 +30,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 | shorts | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | event | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
 | feedback | platform-service | 1 | 1 | 0 | - | - | - | ⏳ |
-| **합계** | | **62** | **58** | **4** | 0 | 34 | 2 | |
+| **합계** | | **63** | **58** | **5** | 0 | 34 | 2 | |
 
 ## 평가 절차
 
@@ -42,7 +42,7 @@ PRD 진행 상태 트래커. 13개 도메인 / 60+ API.
 ## 도메인별 PRD 목록 (참조)
 
 ### identity-service
-- [`auth/start.md`](auth/start.md), [`auth/callback.md`](auth/callback.md), [`auth/exchange.md`](auth/exchange.md), [`auth/refresh.md`](auth/refresh.md), [`auth/logout.md`](auth/logout.md)
+- [`auth/start.md`](auth/start.md), [`auth/callback.md`](auth/callback.md), [`auth/exchange.md`](auth/exchange.md), [`auth/refresh.md`](auth/refresh.md), [`auth/logout.md`](auth/logout.md), [`auth/login.md`](auth/login.md)
 - [`user/createUser.md`](user/createUser.md), [`user/sendValidationNumber.md`](user/sendValidationNumber.md), [`user/validateEmail.md`](user/validateEmail.md), [`user/getMyInfo.md`](user/getMyInfo.md)
 - [`profile/getMyProfile.md`](profile/getMyProfile.md), [`profile/getProfile.md`](profile/getProfile.md), [`profile/updateMyProfile.md`](profile/updateMyProfile.md)
 
