@@ -1,16 +1,23 @@
 package app.backend.jamo.diary.infrastructure.persistence.repository;
 
 import app.backend.jamo.diary.infrastructure.persistence.entity.DiaryJpaEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface SpringDataDiaryRepository extends JpaRepository<DiaryJpaEntity, UUID> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from DiaryJpaEntity d where d.id = :id")
+    Optional<DiaryJpaEntity> findByIdForUpdate(@Param("id") UUID id);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from DiaryJpaEntity d where d.authorId = :authorId")

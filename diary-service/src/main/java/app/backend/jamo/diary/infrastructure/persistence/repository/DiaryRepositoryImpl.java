@@ -38,6 +38,11 @@ public class DiaryRepositoryImpl implements DiaryRepository {
     }
 
     @Override
+    public Optional<Diary> findByIdForUpdate(DiaryId id) {
+        return jpa.findByIdForUpdate(id.value()).map(DiaryMapper::toDomain);
+    }
+
+    @Override
     public boolean existsById(DiaryId id) {
         return jpa.existsById(id.value());
     }

@@ -26,6 +26,14 @@ public interface DiaryRepository {
 
     Optional<Diary> findById(DiaryId id);
 
+    /**
+     * denormalized counter 갱신용 row lock 조회.
+     *
+     * <p>댓글 생성/삭제가 {@code Diary.commentCount} 를 read-modify-write 로 갱신하므로 같은 일기 대상
+     * 동시 comment write 를 직렬화해야 한다. 일반 조회 유스케이스는 {@link #findById} 를 사용한다.
+     */
+    Optional<Diary> findByIdForUpdate(DiaryId id);
+
     boolean existsById(DiaryId id);
 
     /** 멱등 hard-delete (박제 §9) — 존재하지 않는 ID 호출은 no-op (구현체 강제). */
