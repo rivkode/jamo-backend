@@ -95,6 +95,10 @@ jamo:
     max-age: P365D
   frontend:
     base-url: ${FRONTEND_BASE_URL:https://jamoai.app}
+  auth-login:
+    # LOCAL email/password credential stuffing soft guard.
+    max-failures: ${AUTH_LOGIN_MAX_FAILURES:5}
+    window: ${AUTH_LOGIN_WINDOW:PT15M}
   user-validation:
     # PRD user/sendValidationNumber.md §9 + user/validateEmail.md §9
     # 운영 배포 시 envvar 로 강화 가능 — decisions/identity/email-validation-deployment-checklist.md

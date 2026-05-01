@@ -20,6 +20,12 @@ public enum AuthErrorCode {
     /** Exchange — authorization code 가 없거나 만료/이미 사용됨 (HTTP 401) */
     AUTH_CODE_INVALID,
 
+    /** LOCAL login — 계정 없음/OAuth-only/비밀번호 불일치 통합 (HTTP 401) */
+    LOGIN_INVALID,
+
+    /** LOCAL login — 실패 시도 한도 초과 (HTTP 429) */
+    LOGIN_RATE_LIMITED,
+
     /** Refresh — refresh JWT exp 만료 (HTTP 401, SPA 가 재로그인 redirect) */
     REFRESH_EXPIRED,
 

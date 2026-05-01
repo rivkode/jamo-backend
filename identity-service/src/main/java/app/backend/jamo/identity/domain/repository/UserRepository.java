@@ -19,4 +19,12 @@ public interface UserRepository {
      * OAuth 가입자와의 email 충돌은 본 검사 범위 밖 (ADR-0006 결정 4: OAuth 자동 링크 X).
      */
     boolean existsLocalAccountByEmail(Email email);
+
+    /**
+     * LOCAL email/password 로그인 전용 조회.
+     *
+     * <p>OAuth 계정과 email 이 같아도 자동 링크하지 않는 ADR-0006 정책을 유지하기 위해
+     * {@code account_type = LOCAL} row 만 반환한다.
+     */
+    Optional<User> findLocalAccountByEmail(Email email);
 }

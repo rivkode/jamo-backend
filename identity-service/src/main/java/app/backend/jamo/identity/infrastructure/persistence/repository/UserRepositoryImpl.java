@@ -61,4 +61,10 @@ public class UserRepositoryImpl implements UserRepository {
     public boolean existsLocalAccountByEmail(Email email) {
         return userRepo.existsByEmailAndAccountType(email.value(), AccountType.LOCAL);
     }
+
+    @Override
+    public Optional<User> findLocalAccountByEmail(Email email) {
+        return userRepo.findByEmailAndAccountType(email.value(), AccountType.LOCAL)
+                .map(entity -> UserMapper.toDomain(entity, oauthRepo.findAllByUserId(entity.getId())));
+    }
 }
