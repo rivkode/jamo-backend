@@ -4,7 +4,7 @@ import app.backend.jamo.common.auth.BlacklistChecker;
 import app.backend.jamo.common.auth.JwtVerifier;
 import app.backend.jamo.common.auth.KeyProvider;
 import app.backend.jamo.common.auth.RsaJwtVerifier;
-import app.backend.jamo.common.auth.RsaKeyPairKeyProvider;
+import com.nimbusds.jose.jwk.RSAKey;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,9 +54,20 @@ public class DiaryServiceConfig {
 
     @Bean
     public KeyProvider jwtVerifierKeyProvider(JwtVerifierProperties props) {
-        return new RsaKeyPairKeyProvider(
-            JwkPemReader.readVerificationKey(props.publicKeyPem(), props.keyId())
-        );
+        // diary-service 는 verify-only — common-auth-jwt 의 RsaKeyPairKeyProvider 는 signing key (private 포함)
+        // 를 강제하므로 verify 전용 어댑터로 우회한다. common 모듈에 VerifyOnlyKeyProvider 추출은 후속 PR.
+        RSAKey verificationKey = JwkPemReader.readVerificationKey(props.publicKeyPem(), props.keyId());
+        return new KeyProvider() {
+            @Override
+            public RSAKey signingKey() {
+                throw new UnsupportedOperationException("diary-service is verify-only");
+            }
+
+            @Override
+            public RSAKey verificationKey() {
+                return verificationKey;
+            }
+        };
     }
 
     @Bean

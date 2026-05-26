@@ -24,7 +24,7 @@ public class SentenceFeedbackExpireBatch {
     private final ExpireSentenceFeedbackService service;
     private final SentenceFeedbackBatchProperties properties;
 
-    @Scheduled(fixedDelayString = "#{@sentenceFeedbackBatchProperties.expireInterval}")
+    @Scheduled(fixedDelayString = "${jamo.sentence-feedback.batch.expire-interval}")
     public void run() {
         try {
             ExpireSentenceFeedbackService.Result result = service.run(properties.chunkSize());
