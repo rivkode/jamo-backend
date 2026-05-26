@@ -1,5 +1,6 @@
 package app.backend.jamo.identity.presentation.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -28,6 +29,10 @@ import jakarta.validation.constraints.Size;
  *       inbound 역직렬화는 정상.</li>
  *   <li>{@code toString} override — {@code log.info("body={}", request)} 같은 실수 회피.</li>
  * </ul>
+ *
+ * <p><b>PRD 0526_flutter.md §1.2 정합 (Slice 2)</b>: {@code displayName} 에 {@code @JsonAlias("username")}
+ * 추가 — frontend 가 {@code "username"} 으로 보내도 동일 필드 매핑. 응답 측 {@code username} 노출은
+ * {@link RegisterUserResponse} 참조.
  */
 public record RegisterUserRequest(
         @NotBlank(message = "email must not be blank")
@@ -42,6 +47,7 @@ public record RegisterUserRequest(
 
         @NotBlank(message = "displayName must not be blank")
         @Size(min = 1, max = 32, message = "displayName must be between 1 and 32 characters")
+        @JsonAlias("username")
         String displayName
 ) {
 

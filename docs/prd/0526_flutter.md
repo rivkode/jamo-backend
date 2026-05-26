@@ -7,6 +7,20 @@ Jamo Backend API 명세 — stack/jamo-migration
 - 상태 표기: LIVE(클라+백 모두 살아있음) / MOCK(클라가 인메모리 mock으로만 호출) / PENDING(스펙만
   있고 클라 미구현)
 
+▎ 백엔드 정합 (Slice 2, 2026-05-27): 본 명세의 path / field 명을 백엔드가 alias 로 동시 노출.
+▎  - path alias: /api/v1/users/login, /users/me, /users/{id} → 본 명세 §1.1, §1.5, §1.6 호환
+▎    (백엔드 정식 path 는 /auth/login, /profiles/me, /profiles/{id})
+▎  - field alias (모두 양방향 호환 — 정식 필드도 응답에 그대로 노출):
+▎      username ↔ displayName (request body 의 @JsonAlias + response getter)
+▎      provider 단수 ↔ providers 복수 (multi-OAuth 사용자는 providers 배열을 SoT 로 사용)
+▎      expiresIn ↔ expiresInSeconds, tokenType="Bearer" 고정
+▎      isPublic (boolean) ↔ visibility ("PUBLIC"|"PRIVATE")
+▎      userLiked ↔ likedByMe (Diary) / liked (DiaryLike)
+▎      Diary.author{userId,username,avatarUrl} ↔ Diary.authorId / authorDisplayName
+▎  - sort alias: GET /diaries/feed?sort=trending == sort=popular (의미 동일)
+▎  - alias 는 frontend 가 정식 필드 전환 후 deprecation → 제거. 박제:
+▎    docs/decisions/api/spec-alias-removal-plan.md.
+
 0. OAuth & 토큰
 
 #: 0.1

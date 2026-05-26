@@ -161,9 +161,37 @@ class ListPublicFeedServiceTest {
         UUID viewer = UUID.randomUUID();
 
         assertThatThrownBy(() -> service.listPublicFeed(
-            new ListPublicFeedQuery(viewer, null, "trending", null, 10)))
+            new ListPublicFeedQuery(viewer, null, "foobar", null, 10)))
             .isInstanceOf(IllegalArgumentException.class);
         verify(diaryRepository, never()).findPublicFeedRecent(any(), any(), any(Integer.class));
+    }
+
+    @Test
+    void sort_trending_alias_maps_to_POPULAR() {
+        // PRD 0526_flutter.md §2.1 정합 (Slice 2) — frontend 의 "trending" 은 POPULAR 동의어.
+        UUID viewer = UUID.randomUUID();
+        when(diaryRepository.findPublicFeedPopular(any(), any(), any(Integer.class)))
+            .thenReturn(List.of());
+
+        service.listPublicFeed(new ListPublicFeedQuery(viewer, null, "trending", null, 10));
+
+        verify(diaryRepository).findPublicFeedPopular(any(), any(), eq(11));
+        verify(diaryRepository, never()).findPublicFeedRecent(any(), any(), any(Integer.class));
+    }
+
+    @Test
+    void sort_trending_alias_is_case_insensitive() {
+        // upper / lower / mixed 모두 POPULAR 매핑 (test-reviewer L3).
+        UUID viewer = UUID.randomUUID();
+        when(diaryRepository.findPublicFeedPopular(any(), any(), any(Integer.class)))
+            .thenReturn(List.of());
+
+        service.listPublicFeed(new ListPublicFeedQuery(viewer, null, "TRENDING", null, 10));
+        service.listPublicFeed(new ListPublicFeedQuery(viewer, null, "Trending", null, 10));
+        service.listPublicFeed(new ListPublicFeedQuery(viewer, null, "trending", null, 10));
+
+        verify(diaryRepository, org.mockito.Mockito.times(3))
+            .findPublicFeedPopular(any(), any(), eq(11));
     }
 
     @Test
