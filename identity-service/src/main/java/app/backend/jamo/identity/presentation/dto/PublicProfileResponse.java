@@ -1,12 +1,16 @@
 package app.backend.jamo.identity.presentation.dto;
 
 import app.backend.jamo.identity.application.dto.PublicProfileResult;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * GET /api/v1/profiles/{userId} 의 Response body — public-safe 4 필드.
  *
  * <p>{@code email} / {@code providers} / {@code createdAt} / {@code locale} 노출 X
  * (UserSummaryService gRPC 정합, decisions/identity/profile-prd-evaluation.md §결정 #2).
+ *
+ * <p><b>PRD 0526_flutter.md §1.6 정합 (Slice 2)</b>: {@code username} alias 동시 노출.
+ * follower / diaryCount 등은 Slice 3 또는 후속 plan.
  */
 public record PublicProfileResponse(
         String id,
@@ -14,6 +18,12 @@ public record PublicProfileResponse(
         String bio,
         String avatarUrl
 ) {
+
+    /** PRD §1.6 alias — frontend 호환 필드명. */
+    @JsonProperty("username")
+    public String username() {
+        return displayName;
+    }
 
     public static PublicProfileResponse from(PublicProfileResult result) {
         return new PublicProfileResponse(

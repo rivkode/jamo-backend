@@ -101,12 +101,22 @@ public class ListPublicFeedService {
         return new FeedView(items, nextCursor, hasNext);
     }
 
-    /** sort null → default RECENT. case-insensitive. 알 수 없는 값 → IllegalArgumentException → 400. */
+    /**
+     * sort null → default RECENT. case-insensitive. 알 수 없는 값 → IllegalArgumentException → 400.
+     *
+     * <p><b>PRD 0526_flutter.md §2.1 정합 (Slice 2)</b>: frontend 가 보내는 {@code "trending"} 값은
+     * {@link DiaryFeedSort#POPULAR} 의 alias 로 매핑 (의미 동일 — 좋아요 기반 인기 정렬). 백엔드 도메인 enum
+     * 명칭은 {@code POPULAR} 유지.
+     */
     private static DiaryFeedSort resolveSort(String sortOrNull) {
         if (sortOrNull == null || sortOrNull.isBlank()) {
             return DiaryFeedSort.defaultSort();
         }
-        return DiaryFeedSort.valueOf(sortOrNull.toUpperCase());
+        String normalized = sortOrNull.toUpperCase();
+        if ("TRENDING".equals(normalized)) {
+            return DiaryFeedSort.POPULAR;
+        }
+        return DiaryFeedSort.valueOf(normalized);
     }
 
     /** tag null/blank → no filter. invariant 위반 → InvalidTagException → 400. */
