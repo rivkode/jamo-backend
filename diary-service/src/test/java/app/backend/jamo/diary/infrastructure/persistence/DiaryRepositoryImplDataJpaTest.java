@@ -100,6 +100,35 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
     }
 
     @Test
+    void upsert_persists_content_images_tags_visibility_change_after_update() {
+        // Slice 3-a 회귀 차단 (code-reviewer C1) — mergeInto 가 4 필드 갱신 + JPA flush 후
+        // DB 에 반영되는지. content / images / tags / visibility 가 update 호출 후 정확히 저장.
+        UUID author = UUID.randomUUID();
+        Diary diary = newPublicDiary(author, "before", baseTime);
+        repository.save(diary);
+        flushAndClear();
+
+        Diary loaded = repository.findById(diary.id()).orElseThrow();
+        loaded.update(
+            new DiaryContent("after"),
+            new ImageUrls(List.of("https://cdn.example/1.png")),
+            Tags.ofStrings(List.of("새태그")),
+            Visibility.PRIVATE,
+            author);
+        repository.save(loaded);
+        flushAndClear();
+
+        Diary reloaded = repository.findById(diary.id()).orElseThrow();
+        assertThat(reloaded.content().value()).isEqualTo("after");
+        assertThat(reloaded.images().values()).containsExactly("https://cdn.example/1.png");
+        assertThat(reloaded.tags().asStrings()).containsExactly("새태그");
+        assertThat(reloaded.visibility()).isEqualTo(Visibility.PRIVATE);
+        // immutable 보존
+        assertThat(reloaded.authorId()).isEqualTo(author);
+        assertThat(reloaded.createdAt()).isEqualTo(baseTime);
+    }
+
+    @Test
     void public_feed_recent_pages_with_cursor() {
         UUID author = UUID.randomUUID();
         Diary d1 = newPublicDiary(author, "d1", baseTime);

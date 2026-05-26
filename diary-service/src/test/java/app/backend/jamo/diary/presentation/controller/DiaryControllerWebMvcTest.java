@@ -49,6 +49,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -70,6 +71,7 @@ class DiaryControllerWebMvcTest {
     @MockitoBean private ListPublicFeedService listPublicFeedService;
     @MockitoBean private ListMyFeedService listMyFeedService;
     @MockitoBean private DeleteDiaryService deleteDiaryService;
+    @MockitoBean private app.backend.jamo.diary.application.service.diary.UpdateDiaryService updateDiaryService;
     @MockitoBean private JwtVerifier jwtVerifier;
 
     private void mockValidAuth() throws JwtVerificationException {
@@ -651,5 +653,164 @@ class DiaryControllerWebMvcTest {
         mockMvc.perform(delete("/api/v1/diaries/{id}", DIARY_ID))
             .andExpect(status().isUnauthorized());
         verify(deleteDiaryService, never()).delete(any());
+    }
+
+    // ============================================================
+    // PUT /api/v1/diaries/{diaryId} (update — Slice 3-a)
+    // ============================================================
+
+    @Test
+    void update_returns_200_with_new_DiaryResponse_when_called_by_author() throws Exception {
+        mockValidAuth();
+        DiaryView updated = new DiaryView(
+            DIARY_ID, USER_ID, "철수",
+            "수정된 본문", List.of("https://cdn.example/b.png"), List.of("새태그"),
+            Visibility.PRIVATE, 2, 1, true, NOW);
+        when(updateDiaryService.update(any())).thenReturn(updated);
+
+        mockMvc.perform(put("/api/v1/diaries/{id}", DIARY_ID)
+                .header(HttpHeaders.AUTHORIZATION, BEARER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"content":"수정된 본문","images":["https://cdn.example/b.png"],"tags":["새태그"],"visibility":"PRIVATE"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.diaryId").value(DIARY_ID.toString()))
+            .andExpect(jsonPath("$.content").value("수정된 본문"))
+            .andExpect(jsonPath("$.visibility").value("PRIVATE"))
+            .andExpect(jsonPath("$.tags[0]").value("새태그"))
+            .andExpect(jsonPath("$.images[0]").value("https://cdn.example/b.png"))
+            .andExpect(jsonPath("$.likeCount").value(2))
+            .andExpect(jsonPath("$.commentCount").value(1))
+            .andExpect(jsonPath("$.likedByMe").value(true))
+            // Slice 2 alias 동시 노출 확인
+            .andExpect(jsonPath("$.isPublic").value(false))
+            .andExpect(jsonPath("$.userLiked").value(true))
+            // author{} 객체 alias (PRD §2 정합)
+            .andExpect(jsonPath("$.author.userId").value(USER_ID.toString()))
+            .andExpect(jsonPath("$.author.username").value("철수"))
+            .andExpect(jsonPath("$.author.avatarUrl").isEmpty());
+
+        org.mockito.ArgumentCaptor<app.backend.jamo.diary.application.dto.diary.UpdateDiaryCommand> captor =
+            org.mockito.ArgumentCaptor.forClass(app.backend.jamo.diary.application.dto.diary.UpdateDiaryCommand.class);
+        verify(updateDiaryService).update(captor.capture());
+        var cmd = captor.getValue();
+        org.assertj.core.api.Assertions.assertThat(cmd.diaryId()).isEqualTo(DIARY_ID);
+        org.assertj.core.api.Assertions.assertThat(cmd.editorId()).isEqualTo(USER_ID);
+        org.assertj.core.api.Assertions.assertThat(cmd.content()).isEqualTo("수정된 본문");
+        org.assertj.core.api.Assertions.assertThat(cmd.visibility()).isEqualTo(Visibility.PRIVATE);
+    }
+
+    @Test
+    void update_defaults_visibility_to_PUBLIC_when_omitted() throws Exception {
+        mockValidAuth();
+        when(updateDiaryService.update(any())).thenReturn(publicDiaryView());
+
+        mockMvc.perform(put("/api/v1/diaries/{id}", DIARY_ID)
+                .header(HttpHeaders.AUTHORIZATION, BEARER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"content":"수정"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.visibility").value("PUBLIC"));
+
+        org.mockito.ArgumentCaptor<app.backend.jamo.diary.application.dto.diary.UpdateDiaryCommand> captor =
+            org.mockito.ArgumentCaptor.forClass(app.backend.jamo.diary.application.dto.diary.UpdateDiaryCommand.class);
+        verify(updateDiaryService).update(captor.capture());
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().visibility()).isEqualTo(Visibility.PUBLIC);
+    }
+
+    @Test
+    void update_returns_404_when_diary_not_found() throws Exception {
+        mockValidAuth();
+        when(updateDiaryService.update(any()))
+            .thenThrow(new DiaryNotFoundException("not found"));
+
+        mockMvc.perform(put("/api/v1/diaries/{id}", DIARY_ID)
+                .header(HttpHeaders.AUTHORIZATION, BEARER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"content":"수정"}
+                    """))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("DIARY_NOT_FOUND"))
+            .andExpect(jsonPath("$.message").value("diary not found"));
+        // test-reviewer L1 — Controller 가 service 를 호출했는지 (다른 경로로 404 가 나는 회귀 차단)
+        verify(updateDiaryService).update(any());
+    }
+
+    @Test
+    void update_returns_404_when_non_author_editor_IDOR() throws Exception {
+        // Q-S3a-1 (사용자 결정 404 IDOR): 도메인 DiaryAccessDeniedException → presentation 404 통일.
+        mockValidAuth();
+        when(updateDiaryService.update(any()))
+            .thenThrow(new DiaryAccessDeniedException("not owner"));
+
+        mockMvc.perform(put("/api/v1/diaries/{id}", DIARY_ID)
+                .header(HttpHeaders.AUTHORIZATION, BEARER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"content":"수정"}
+                    """))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("DIARY_NOT_FOUND"))
+            .andExpect(jsonPath("$.message").value("diary not found"));
+    }
+
+    @Test
+    void update_returns_400_when_path_diaryId_not_uuid() throws Exception {
+        mockValidAuth();
+
+        mockMvc.perform(put("/api/v1/diaries/not-uuid")
+                .header(HttpHeaders.AUTHORIZATION, BEARER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"content":"수정"}
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
+        verify(updateDiaryService, never()).update(any());
+    }
+
+    @Test
+    void update_returns_400_when_content_blank() throws Exception {
+        mockValidAuth();
+
+        mockMvc.perform(put("/api/v1/diaries/{id}", DIARY_ID)
+                .header(HttpHeaders.AUTHORIZATION, BEARER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"content":"  "}
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
+        verify(updateDiaryService, never()).update(any());
+    }
+
+    @Test
+    void update_returns_400_when_visibility_invalid_enum() throws Exception {
+        mockValidAuth();
+
+        mockMvc.perform(put("/api/v1/diaries/{id}", DIARY_ID)
+                .header(HttpHeaders.AUTHORIZATION, BEARER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"content":"수정","visibility":"INVALID"}
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
+        verify(updateDiaryService, never()).update(any());
+    }
+
+    @Test
+    void update_returns_401_when_no_auth_header() throws Exception {
+        mockMvc.perform(put("/api/v1/diaries/{id}", DIARY_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"content":"수정"}
+                    """))
+            .andExpect(status().isUnauthorized());
+        verify(updateDiaryService, never()).update(any());
     }
 }

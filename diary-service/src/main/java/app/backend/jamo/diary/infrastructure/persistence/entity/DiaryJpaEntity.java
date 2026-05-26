@@ -88,8 +88,12 @@ public class DiaryJpaEntity {
         this.createdAt = createdAt;
     }
 
-    // setter 는 명시 유지 — Mapper mergeInto 패턴 (likeCount / commentCount 만 변경. 나머지는 작성 후 immutable
-    // 박제 §13.5).
+    // setter — Mapper.mergeInto 호출용. Slice 3-a 부터 content / images / tags / visibility 도 작성자 수정에
+    // 의해 변경 가능 (PRD 0526_flutter.md §2.4 / PUT /diaries/{id}). id / authorId / createdAt 은 여전히 immutable.
     public void setLikeCount(int likeCount) { this.likeCount = likeCount; }
     public void setCommentCount(int commentCount) { this.commentCount = commentCount; }
+    public void setContent(String content) { this.content = content; }
+    public void setImages(List<String> images) { this.images = images; }
+    public void setTags(List<String> tags) { this.tags = tags; }
+    public void setVisibility(String visibility) { this.visibility = visibility; }
 }

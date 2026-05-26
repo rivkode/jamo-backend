@@ -13,8 +13,9 @@ import app.backend.jamo.diary.infrastructure.persistence.entity.DiaryJpaEntity;
  *
  * <p>SentenceFeedbackMapper 패턴 정합 — toJpaEntity / mergeInto / toDomain 3 메서드.
  *
- * <p><b>mergeInto 범위</b>: {@code likeCount} / {@code commentCount} 만 갱신. 나머지 필드 (content / images /
- * tags / visibility / authorId / createdAt) 는 작성 후 immutable (박제 Non-Goals §editDiary).
+ * <p><b>mergeInto 범위</b>: {@code likeCount} / {@code commentCount} (Aggregate behavior) + {@code content} /
+ * {@code images} / {@code tags} / {@code visibility} (Slice 3-a 작성자 수정, PRD 0526_flutter.md §2.4 — PUT
+ * /diaries/{id}). {@code id} / {@code authorId} / {@code createdAt} 은 immutable.
  */
 public final class DiaryMapper {
 
@@ -36,10 +37,19 @@ public final class DiaryMapper {
     }
 
     /**
-     * 기존 row 갱신용 — JPA managed entity 의 mutable setter 호출. 카운터만 변경. Aggregate 의 모든 필드를
-     * 외부에서 변경하지 않으므로 본 메서드는 카운터 sync 전용.
+     * 기존 row 갱신용 — JPA managed entity 의 mutable setter 호출.
+     *
+     * <p>Slice 3-a 부터 Aggregate.update 가 content / images / tags / visibility 를 변경하므로 본 메서드도
+     * 4 필드 갱신을 포함한다. likeCount / commentCount 는 좋아요 / 댓글 mutator 와 함께 동기화.
+     *
+     * <p>{@code id} / {@code authorId} / {@code createdAt} 은 immutable — 본 메서드에서 갱신하지 않는다.
+     * Aggregate 가 이들 값을 바꾸지 않는 invariant 와 정합.
      */
     public static DiaryJpaEntity mergeInto(DiaryJpaEntity existing, Diary diary) {
+        existing.setContent(diary.content().value());
+        existing.setImages(diary.images().values());
+        existing.setTags(diary.tags().asStrings());
+        existing.setVisibility(diary.visibility().name());
         existing.setLikeCount(diary.likeCount());
         existing.setCommentCount(diary.commentCount());
         return existing;
