@@ -208,6 +208,114 @@ class DiaryTest {
     }
 
     @Nested
+    class Update {
+
+        @Test
+        void replaces_content_images_tags_visibility_when_called_by_author() {
+            Diary d = Diary.create(id, author, content, images, tags, Visibility.PUBLIC, clock);
+            // 카운터 변화 — 카운터 보존 검증용
+            d.onLikeAdded();
+            d.onCommentAdded();
+            d.onLikeAdded();
+
+            DiaryContent newContent = new DiaryContent("수정된 본문");
+            ImageUrls newImages = new ImageUrls(List.of("https://e.io/1.png"));
+            Tags newTags = Tags.ofStrings(List.of("새태그"));
+
+            d.update(newContent, newImages, newTags, Visibility.PRIVATE, author);
+
+            assertAll(
+                () -> assertEquals(newContent, d.content()),
+                () -> assertEquals(newImages, d.images()),
+                () -> assertEquals(newTags, d.tags()),
+                () -> assertEquals(Visibility.PRIVATE, d.visibility()),
+                // 카운터 / id / authorId / createdAt 보존
+                () -> assertEquals(2, d.likeCount()),
+                () -> assertEquals(1, d.commentCount()),
+                () -> assertEquals(id, d.id()),
+                () -> assertEquals(author, d.authorId()),
+                () -> assertEquals(now, d.createdAt())
+            );
+        }
+
+        @Test
+        void throws_DiaryAccessDeniedException_when_editor_is_not_author() {
+            Diary d = Diary.create(id, author, content, images, tags, Visibility.PUBLIC, clock);
+
+            assertThrows(app.backend.jamo.diary.domain.exception.DiaryAccessDeniedException.class,
+                () -> d.update(new DiaryContent("x"), ImageUrls.empty(), Tags.empty(),
+                    Visibility.PRIVATE, otherUser));
+        }
+
+        @Test
+        void throws_NullPointerException_when_any_argument_is_null() {
+            Diary d = Diary.create(id, author, content, images, tags, Visibility.PUBLIC, clock);
+
+            assertAll(
+                () -> assertThrows(NullPointerException.class, () ->
+                    d.update(null, ImageUrls.empty(), Tags.empty(), Visibility.PUBLIC, author)),
+                () -> assertThrows(NullPointerException.class, () ->
+                    d.update(content, null, Tags.empty(), Visibility.PUBLIC, author)),
+                () -> assertThrows(NullPointerException.class, () ->
+                    d.update(content, ImageUrls.empty(), null, Visibility.PUBLIC, author)),
+                () -> assertThrows(NullPointerException.class, () ->
+                    d.update(content, ImageUrls.empty(), Tags.empty(), null, author)),
+                () -> assertThrows(NullPointerException.class, () ->
+                    d.update(content, ImageUrls.empty(), Tags.empty(), Visibility.PUBLIC, null))
+            );
+        }
+
+        @Test
+        void update_failure_leaves_state_unchanged_when_unauthorized() {
+            // 비작성자 시도 후에도 원래 content / visibility 가 보존되어야 함 (invariant 안전성).
+            Diary d = Diary.create(id, author, content, images, tags, Visibility.PUBLIC, clock);
+
+            try {
+                d.update(new DiaryContent("hacked"), ImageUrls.empty(), Tags.empty(),
+                    Visibility.PRIVATE, otherUser);
+            } catch (app.backend.jamo.diary.domain.exception.DiaryAccessDeniedException ignored) {
+                // expected
+            }
+
+            assertAll(
+                () -> assertEquals(content, d.content()),
+                () -> assertEquals(Visibility.PUBLIC, d.visibility())
+            );
+        }
+
+        @Test
+        void update_failure_leaves_state_unchanged_when_unauthorized_AND_null_content() {
+            // code-reviewer M3 — 두 invariant 가 동시 위반 시에도 state 보존. ownership 검증이 먼저 실행되어
+            // DiaryAccessDeniedException 이 던져지고, null content 까지 도달하지 않음 (그러나 둘 다 위반 케이스
+            // 회귀 신호로 함께 단정).
+            Diary d = Diary.create(id, author, content, images, tags, Visibility.PUBLIC, clock);
+
+            // ownership 이 먼저 검증되므로 AccessDenied 가 던져진다 (NPE 아님).
+            assertThrows(app.backend.jamo.diary.domain.exception.DiaryAccessDeniedException.class,
+                () -> d.update(null, ImageUrls.empty(), Tags.empty(), Visibility.PRIVATE, otherUser));
+
+            assertAll(
+                () -> assertEquals(content, d.content()),
+                () -> assertEquals(Visibility.PUBLIC, d.visibility())
+            );
+        }
+
+        @Test
+        void update_failure_leaves_state_unchanged_when_authorized_AND_null_VO() {
+            // 작성자가 null content 보낼 시 NPE 가 던져진 후에도 state 보존.
+            Diary d = Diary.create(id, author, content, images, tags, Visibility.PUBLIC, clock);
+
+            assertThrows(NullPointerException.class,
+                () -> d.update(null, ImageUrls.empty(), Tags.empty(), Visibility.PRIVATE, author));
+
+            assertAll(
+                () -> assertEquals(content, d.content()),
+                () -> assertEquals(Visibility.PUBLIC, d.visibility())
+            );
+        }
+    }
+
+    @Nested
     class Equality {
 
         @Test

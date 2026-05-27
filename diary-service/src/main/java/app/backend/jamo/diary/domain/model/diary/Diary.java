@@ -37,10 +37,10 @@ public final class Diary {
 
     private final DiaryId id;
     private final UUID authorId;
-    private final DiaryContent content;
-    private final ImageUrls images;
-    private final Tags tags;
-    private final Visibility visibility;
+    private DiaryContent content;
+    private ImageUrls images;
+    private Tags tags;
+    private Visibility visibility;
     private int likeCount;
     private int commentCount;
     private final Instant createdAt;
@@ -160,6 +160,53 @@ public final class Diary {
             throw new IllegalStateException("commentCount cannot go below zero");
         }
         this.commentCount--;
+    }
+
+    /**
+     * 작성자에 의한 일기 수정 (PRD 0526_flutter.md §2.4 / Slice 3-a).
+     *
+     * <p><b>전체 replace 의미</b>: content / images / tags / visibility 모두 새 값으로 교체. likeCount /
+     * commentCount / createdAt / id / authorId 는 보존 (수정 시 카운터 초기화 금지). 카운터 보존은
+     * Aggregate 의 invariant — 수정으로 좋아요 / 댓글이 사라지면 정합 위반.
+     *
+     * <p><b>작성자 검증 (필수 invariant)</b>: {@code editorId} != {@code authorId} 면
+     * {@link DiaryAccessDeniedException} 발생. Presentation 매핑은 404 (사용자 결정 Q-S3a-1 / IDOR 통일 —
+     * {@code DiaryNotFoundException} 과 동일 응답으로 자원 존재 비노출). 호출자 (Application Service) 는
+     * 별도 검증 가능하나 도메인 안에서 강제하는 게 안전 ({@link #onLikeRemoved} / {@link #onCommentRemoved}
+     * 와 같은 invariant 가드 패턴 정합).
+     *
+     * <p><b>updatedAt 추적 부재</b>: Slice 3-a plan 박제 — 스키마 변경 회피. 향후 PR 에서 `updated_at` 컬럼 +
+     * Aggregate 필드 추가 시 본 javadoc 갱신 필수.
+     *
+     * @param newContent  new {@link DiaryContent} VO (null 차단)
+     * @param newImages   new {@link ImageUrls} VO (null 차단)
+     * @param newTags     new {@link Tags} VO (null 차단)
+     * @param newVisibility new {@link Visibility} (null 차단)
+     * @param editorId    수정 시도자 user id (null 차단)
+     * @throws DiaryAccessDeniedException {@code editorId} 가 작성자 아닌 경우
+     */
+    public void update(
+        DiaryContent newContent,
+        ImageUrls newImages,
+        Tags newTags,
+        Visibility newVisibility,
+        UUID editorId
+    ) {
+        // 작성자 검증을 가장 먼저 (code-reviewer H1) — 비작성자 요청은 다른 invariant 위반 (예: null VO) 보다
+        // 먼저 차단해 IDOR 누출 방지. editorId null 만 우선 막고, 나머지 nonNull 은 ownership 통과 후.
+        Objects.requireNonNull(editorId, "editorId");
+        if (!this.authorId.equals(editorId)) {
+            throw new DiaryAccessDeniedException(
+                "diary not editable by non-author: diaryId=" + id.asString());
+        }
+        Objects.requireNonNull(newContent, "newContent");
+        Objects.requireNonNull(newImages, "newImages");
+        Objects.requireNonNull(newTags, "newTags");
+        Objects.requireNonNull(newVisibility, "newVisibility");
+        this.content = newContent;
+        this.images = newImages;
+        this.tags = newTags;
+        this.visibility = newVisibility;
     }
 
     /**
