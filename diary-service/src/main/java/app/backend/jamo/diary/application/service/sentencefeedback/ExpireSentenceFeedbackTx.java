@@ -19,8 +19,10 @@ import java.util.List;
  *
  * <p>OutboxPublisherTx 패턴 정합 — 별 bean 으로 트랜잭션 경계 분리:
  * <ul>
- *   <li>{@link #findExpirableIds(int)} — readOnly TX 안에서 native SQL {@code FOR UPDATE SKIP LOCKED}
- *       호출 (auto-commit 시 SKIP LOCKED 잠금 즉시 해제 회피)</li>
+ *   <li>{@link #findExpirableIds(int)} — native SQL {@code FOR UPDATE SKIP LOCKED} 조회. <b>writable
+ *       TX 필수</b>: MySQL Connector/J 가 {@code readOnly=true} 를 서버 세션({@code SET TRANSACTION
+ *       READ ONLY})에 전파해 locking read 가 error 1792 (SQLState 25006) 로 거부되기 때문
+ *       (OutboxPublisherTx 와 동일 제약). auto-commit 회피 + SKIP LOCKED 로 다중 인스턴스 안전</li>
  *   <li>{@link #expireOne(SentenceFeedbackId)} — write TX (load + Aggregate.expire(clock) + save)</li>
  * </ul>
  */
@@ -31,7 +33,7 @@ public class ExpireSentenceFeedbackTx {
     private final SentenceFeedbackRepository repository;
     private final Clock clock;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<SentenceFeedbackId> findExpirableIds(int chunkSize) {
         Instant cutoff = Instant.now(clock);
         return repository.findExpirableSuggestedBefore(cutoff, chunkSize);

@@ -17,7 +17,7 @@ import java.util.List;
  *
  * <p><b>흐름</b>:
  * <ol>
- *   <li>{@link ExpireSentenceFeedbackTx#findExpirableIds} (readOnly TX, SKIP LOCKED) — chunk 조회</li>
+ *   <li>{@link ExpireSentenceFeedbackTx#findExpirableIds} (writable TX, FOR UPDATE SKIP LOCKED) — chunk 조회</li>
  *   <li>각 id 마다 {@link ExpireSentenceFeedbackTx#expireOne} (write TX) — load → Aggregate.expire(clock) → save</li>
  *   <li>한 row 의 race InvalidTransition (다른 인스턴스가 먼저 처리 / 사용자가 동시에 accept) → log debug + skip,
  *       다른 row 진행</li>
