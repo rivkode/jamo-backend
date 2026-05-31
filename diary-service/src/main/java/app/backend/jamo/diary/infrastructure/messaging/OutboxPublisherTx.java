@@ -21,7 +21,10 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>두 메서드 모두 별 트랜잭션:
  * <ul>
- *   <li>{@link #findPendingIds()} — readOnly. {@code SKIP LOCKED} 로 다른 인스턴스가 잠근 row 회피</li>
+ *   <li>{@link #findPendingIds()} — {@code FOR UPDATE SKIP LOCKED} 조회. <b>writable TX 필수</b>: MySQL
+ *       Connector/J 가 {@code readOnly=true} 를 서버 세션({@code SET TRANSACTION READ ONLY})에 전파해
+ *       locking read 가 error 1792 (SQLState 25006) 로 거부되기 때문. SKIP LOCKED 로 다른 인스턴스가
+ *       잠근 row 회피</li>
  *   <li>{@link #publishOne(Long)} — write. row 재잠금 → Kafka send (timeout 명시) → 명시 UPDATE
  *       markPublished. 실패 시 markPublished 미호출 → 다음 polling 사이클 재시도</li>
  * </ul>
@@ -44,7 +47,7 @@ public class OutboxPublisherTx {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final Clock clock;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<Long> findPendingIds() {
         return repository.findUnpublishedForUpdate(BATCH_SIZE).stream()
             .map(OutboxEventJpaEntity::getId)
