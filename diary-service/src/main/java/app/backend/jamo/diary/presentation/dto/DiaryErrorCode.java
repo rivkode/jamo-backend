@@ -9,8 +9,15 @@ package app.backend.jamo.diary.presentation.dto;
  */
 public enum DiaryErrorCode {
 
-    /** 요청 검증 실패 (HTTP 400) — Bean Validation, VO invariant 위반, UUID parse, cursor decode, sort 값 등. */
+    /** 요청 검증 실패 (HTTP 400) — Bean Validation, VO invariant 위반, UUID parse, cursor decode, sort 값,
+     *  각 줄 길이 위반 (INVALID_LINE_LENGTH) 등. */
     DIARY_VALIDATION_FAILED,
+
+    /** 일기 줄 개수가 정확히 3 이 아님 (HTTP 422, PRD §2.3 INVALID_LINE_COUNT). 구조적으로 처리 불가한 요청. */
+    INVALID_LINE_COUNT,
+
+    /** 한 줄의 길이가 1..200 code points 밖이거나 blank (HTTP 400, PRD §2.3 INVALID_LINE_LENGTH). */
+    INVALID_LINE_LENGTH,
 
     /** diaryId 부재, 비공개+비작성자, 작성자 아닌 삭제 (HTTP 404) — IDOR 통일 (박제 §2). */
     DIARY_NOT_FOUND,

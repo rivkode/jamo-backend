@@ -208,10 +208,10 @@ class DiarySentenceFeedbackControllerWebMvcTest {
     }
 
     @Test
-    void request_returns_400_when_sentence_exceeds_200_char_bean_validation() throws Exception {
-        // test-reviewer M3 — Bean Validation 1차 거부 (도메인 50 cp 검증 도달 전)
+    void request_returns_400_when_sentence_exceeds_400_char_bean_validation() throws Exception {
+        // Bean Validation 1차 거부 (도메인 200 cp 검증 도달 전). 한도 char 400 = 200cp × 2 (라인 단위 피드백).
         mockValidAuth();
-        String tooLong = "x".repeat(201);
+        String tooLong = "x".repeat(401);
 
         mockMvc.perform(post("/api/v1/diaries/sentence-feedback")
                 .header(HttpHeaders.AUTHORIZATION, BEARER)

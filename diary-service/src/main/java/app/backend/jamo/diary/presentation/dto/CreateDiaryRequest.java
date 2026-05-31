@@ -1,6 +1,7 @@
 package app.backend.jamo.diary.presentation.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -12,33 +13,27 @@ import java.util.List;
  * <p>박제: decisions/diary/diary-domain-policy.md §3 (CreateRequest 필드 명시).
  *
  * <p>Bean Validation 1차 — char (UTF-16) 기준 상한은 도메인 code points 한도의 ×2 (surrogate pair 대비) 로
- * 빠른 거부. 도메인 VO ({@link app.backend.jamo.diary.domain.model.diary.DiaryContent} /
+ * 빠른 거부. 도메인 VO ({@link app.backend.jamo.diary.domain.model.diary.DiaryLines} /
  * {@link app.backend.jamo.diary.domain.model.diary.Tag} /
- * {@link app.backend.jamo.diary.domain.model.diary.ImageUrls}) 가 정확한 invariant 검증 (1..2000 cp /
- * 1..30 cp / max 5 + http(s) only). sentence-feedback 정합.
+ * {@link app.backend.jamo.diary.domain.model.diary.ImageUrls}) 가 정확한 invariant 검증 (정확히 3줄 각 1..200 cp /
+ * 1..30 cp / max 5 + http(s) only).
  *
- * <p>{@code visibility} 는 optional — null 시 Controller 가 PUBLIC default 변환 (박제 §3, Application
- * Command 는 명시 값 강제). 빈 문자열은 null 로 normalization (compact constructor) 하여 정규식
- * 변경 시 NPE 회귀 차단.
+ * <p><b>lines (PRD §2.3)</b>: 정확히 3줄, 각 1~200자. Bean Validation 의 {@code @Size} 는 List 의 element 개수
+ * 검증이 가변(min/max)이라 "정확히 3" 을 강제할 수 없다 — 개수/길이 invariant 는 도메인 {@code DiaryLines} VO 가
+ * 검증 (개수 위반 422 INVALID_LINE_COUNT / 길이 위반 400 INVALID_LINE_LENGTH). Request 단에서는 각 줄의 char
+ * 1차 상한만.
  *
- * <p><b>1차 거부 한도</b> (code-reviewer L1 — 매직 넘버 박제):
- * <ul>
- *   <li>{@link #CONTENT_MAX_CHARS} = 4000 = {@code DiaryContent.MAX_CODE_POINTS} × 2</li>
- *   <li>{@link #TAG_MAX_CHARS} = 60 = {@code Tag.MAX_CODE_POINTS} × 2</li>
- *   <li>{@link #IMAGE_URL_MAX_CHARS} = 2048 (RFC 7230 권장 URL 한도 정합)</li>
- *   <li>{@link #IMAGES_MAX_COUNT} = 5, {@link #TAGS_MAX_COUNT} = 10 — 도메인 invariant 정합</li>
- * </ul>
- * record annotation 의 parameter 가 컴파일 타임 상수만 허용해 직접 참조는 불가 — 본 javadoc 으로 박제 cross-reference.
+ * <p>{@code visibility} 는 optional — null 시 Controller 가 PUBLIC default 변환 (박제 §3). 빈 문자열은 null 로
+ * normalization.
  *
- * @param content    일기 본문 (1..4000 char 1차, 도메인 1..2000 cp)
+ * @param lines      일기 3줄 본문 — 정확히 3개, 각 1~200자 (도메인 VO 강제). null 차단
  * @param images     이미지 URL 목록 (max 5건, 각 URL 1..2048 char) — null/생략 가능 → empty list
  * @param tags       태그 목록 (max 10건, 각 1..60 char 1차, 도메인 1..30 cp) — null/생략 가능 → empty list
  * @param visibility "PUBLIC" / "PRIVATE" / null (default PUBLIC)
  */
 public record CreateDiaryRequest(
-    @NotBlank
-    @Size(max = 4000, message = "content too long")
-    String content,
+    @NotNull(message = "lines is required")
+    List<@NotBlank @Size(max = LINE_MAX_CHARS, message = "line too long") String> lines,
 
     @Size(max = 5, message = "images max 5")
     List<@NotBlank @Size(max = 2048) String> images,
@@ -49,7 +44,8 @@ public record CreateDiaryRequest(
     @Pattern(regexp = "^(PUBLIC|PRIVATE)$", message = "visibility must be PUBLIC or PRIVATE")
     String visibility
 ) {
-    public static final int CONTENT_MAX_CHARS = 4000;
+    /** 각 줄 char 1차 상한 = DiaryLines.LINE_MAX_CODE_POINTS(200) × 2 (surrogate pair 대비). */
+    public static final int LINE_MAX_CHARS = 400;
     public static final int TAG_MAX_CHARS = 60;
     public static final int IMAGE_URL_MAX_CHARS = 2048;
     public static final int IMAGES_MAX_COUNT = 5;
@@ -62,9 +58,6 @@ public record CreateDiaryRequest(
         if (tags == null) {
             tags = List.of();
         }
-        // code-reviewer H1 — 빈 문자열 normalization. @Pattern 이 null 은 통과시키므로
-        // 빈 문자열도 null 처럼 처리 (PUBLIC default). 정규식이 ^(...)$ 로 빈 문자열을 거부해
-        // 현재 도달 가능 경로는 없지만, 향후 정규식 변경 시 Visibility.valueOf("") IAE 회귀 차단.
         if (visibility != null && visibility.isBlank()) {
             visibility = null;
         }

@@ -38,7 +38,7 @@ public record DiaryResponse(
     UUID diaryId,
     UUID authorId,
     String authorDisplayName,
-    String content,
+    List<String> lines,
     List<String> images,
     List<String> tags,
     String visibility,
@@ -52,11 +52,12 @@ public record DiaryResponse(
         Objects.requireNonNull(diaryId, "diaryId");
         Objects.requireNonNull(authorId, "authorId");
         Objects.requireNonNull(authorDisplayName, "authorDisplayName");
-        Objects.requireNonNull(content, "content");
+        Objects.requireNonNull(lines, "lines");
         Objects.requireNonNull(images, "images");
         Objects.requireNonNull(tags, "tags");
         Objects.requireNonNull(visibility, "visibility");
         Objects.requireNonNull(createdAt, "createdAt");
+        lines = List.copyOf(lines);
         images = List.copyOf(images);
         tags = List.copyOf(tags);
     }
@@ -84,7 +85,7 @@ public record DiaryResponse(
             view.diaryId(),
             view.authorId(),
             view.authorDisplayName(),
-            view.content(),
+            view.lines(),
             view.images(),
             view.tags(),
             view.visibility().name(),

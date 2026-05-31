@@ -3,8 +3,9 @@ package app.backend.jamo.diary.presentation.exception;
 import app.backend.jamo.diary.application.cursor.InvalidDiaryFeedCursorException;
 import app.backend.jamo.diary.domain.exception.DiaryAccessDeniedException;
 import app.backend.jamo.diary.domain.exception.DiaryNotFoundException;
-import app.backend.jamo.diary.domain.exception.InvalidDiaryContentException;
 import app.backend.jamo.diary.domain.exception.InvalidImageUrlException;
+import app.backend.jamo.diary.domain.exception.InvalidLineCountException;
+import app.backend.jamo.diary.domain.exception.InvalidLineLengthException;
 import app.backend.jamo.diary.domain.exception.InvalidTagException;
 import app.backend.jamo.diary.presentation.controller.DiaryController;
 import app.backend.jamo.diary.presentation.controller.DiaryLikeController;
@@ -34,8 +35,9 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * <ul>
  *   <li>{@link DiaryNotFoundException}, {@link DiaryAccessDeniedException} → 404 DIARY_NOT_FOUND
  *       (§2 / §9 IDOR 통일)</li>
- *   <li>{@link InvalidDiaryContentException}, {@link InvalidTagException},
- *       {@link InvalidImageUrlException} → 400 DIARY_VALIDATION_FAILED (§3 도메인 invariant)</li>
+ *   <li>{@link InvalidLineCountException} → <b>422</b> INVALID_LINE_COUNT (PRD §2.3 — 줄 개수≠3)</li>
+ *   <li>{@link InvalidLineLengthException} → 400 INVALID_LINE_LENGTH (PRD §2.3 — 각 줄 1..200cp)</li>
+ *   <li>{@link InvalidTagException}, {@link InvalidImageUrlException} → 400 DIARY_VALIDATION_FAILED (§3)</li>
  *   <li>{@link InvalidDiaryFeedCursorException} → 400 DIARY_VALIDATION_FAILED (§7)</li>
  *   <li>{@link MethodArgumentNotValidException} → 400 (Bean Validation, body)</li>
  *   <li>{@link ConstraintViolationException} → 400 (query / path Bean Validation)</li>
@@ -62,8 +64,23 @@ public class DiaryExceptionHandler {
             .body(new DiaryErrorResponse(DiaryErrorCode.DIARY_NOT_FOUND, "diary not found"));
     }
 
+    /** lines 개수≠3 → 422 (PRD §2.3 INVALID_LINE_COUNT). 구조적으로 처리 불가한 요청. */
+    @ExceptionHandler(InvalidLineCountException.class)
+    public ResponseEntity<DiaryErrorResponse> handleLineCount(InvalidLineCountException ex) {
+        log.warn("diary line count invalid reason={}", ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(new DiaryErrorResponse(DiaryErrorCode.INVALID_LINE_COUNT, "lines must be exactly 3"));
+    }
+
+    /** 각 줄 길이/blank 위반 → 400 (PRD §2.3 INVALID_LINE_LENGTH). */
+    @ExceptionHandler(InvalidLineLengthException.class)
+    public ResponseEntity<DiaryErrorResponse> handleLineLength(InvalidLineLengthException ex) {
+        log.warn("diary line length invalid reason={}", ex.getClass().getSimpleName());
+        return ResponseEntity.badRequest()
+            .body(new DiaryErrorResponse(DiaryErrorCode.INVALID_LINE_LENGTH, "line length is invalid"));
+    }
+
     @ExceptionHandler({
-        InvalidDiaryContentException.class,
         InvalidTagException.class,
         InvalidImageUrlException.class,
         InvalidDiaryFeedCursorException.class

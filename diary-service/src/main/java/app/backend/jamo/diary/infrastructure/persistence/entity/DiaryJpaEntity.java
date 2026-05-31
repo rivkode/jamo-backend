@@ -40,8 +40,16 @@ public class DiaryJpaEntity {
     @Column(name = "author_id", nullable = false, columnDefinition = "BINARY(16)")
     private UUID authorId;
 
-    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
-    private String content;
+    // 일기 본문 3줄 (PRD 0526_flutter.md §2.3 / DiaryLines VO). 각 1..200 code points.
+    // VARCHAR(800) = 200 cp × 4 bytes (utf8mb4 surrogate 최악). 3컬럼 고정 (사용자 결정 — JSON 아님).
+    @Column(name = "line1", nullable = false, length = 800)
+    private String line1;
+
+    @Column(name = "line2", nullable = false, length = 800)
+    private String line2;
+
+    @Column(name = "line3", nullable = false, length = 800)
+    private String line3;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "images", nullable = false, columnDefinition = "JSON")
@@ -69,7 +77,9 @@ public class DiaryJpaEntity {
     public DiaryJpaEntity(
         UUID id,
         UUID authorId,
-        String content,
+        String line1,
+        String line2,
+        String line3,
         List<String> images,
         List<String> tags,
         String visibility,
@@ -79,7 +89,9 @@ public class DiaryJpaEntity {
     ) {
         this.id = id;
         this.authorId = authorId;
-        this.content = content;
+        this.line1 = line1;
+        this.line2 = line2;
+        this.line3 = line3;
         this.images = images;
         this.tags = tags;
         this.visibility = visibility;
@@ -88,11 +100,13 @@ public class DiaryJpaEntity {
         this.createdAt = createdAt;
     }
 
-    // setter — Mapper.mergeInto 호출용. Slice 3-a 부터 content / images / tags / visibility 도 작성자 수정에
-    // 의해 변경 가능 (PRD 0526_flutter.md §2.4 / PUT /diaries/{id}). id / authorId / createdAt 은 여전히 immutable.
+    // setter — Mapper.mergeInto 호출용. Slice 3-a 부터 본문(line1/2/3) / images / tags / visibility 도 작성자
+    // 수정에 의해 변경 가능 (PRD 0526_flutter.md §2.4 / PUT /diaries/{id}). id / authorId / createdAt 은 immutable.
     public void setLikeCount(int likeCount) { this.likeCount = likeCount; }
     public void setCommentCount(int commentCount) { this.commentCount = commentCount; }
-    public void setContent(String content) { this.content = content; }
+    public void setLine1(String line1) { this.line1 = line1; }
+    public void setLine2(String line2) { this.line2 = line2; }
+    public void setLine3(String line3) { this.line3 = line3; }
     public void setImages(List<String> images) { this.images = images; }
     public void setTags(List<String> tags) { this.tags = tags; }
     public void setVisibility(String visibility) { this.visibility = visibility; }
