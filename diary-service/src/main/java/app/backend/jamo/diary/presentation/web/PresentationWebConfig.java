@@ -9,6 +9,7 @@ import java.util.List;
 
 /**
  * diary-service presentation 의 Spring MVC 설정. {@link LoginUserArgumentResolver} 등록.
+ * CORS 정책은 별도 {@link CorsConfig} 가 담당 (WebMvcTest 슬라이스 영향 격리).
  */
 @Configuration
 @RequiredArgsConstructor

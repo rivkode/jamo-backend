@@ -95,6 +95,10 @@ jamo:
     max-age: P365D
   frontend:
     base-url: ${FRONTEND_BASE_URL:https://jamoai.app}
+  cors:
+    # Frontend SPA cross-origin 호출 허용 origin (쉼표 구분). 인증 서비스라 * 미사용 — 명시 origin 만.
+    # dev/local 기본 localhost:3000, prod 는 아래 multi-document override 로 jamoai.app.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   auth-login:
     # LOCAL email/password credential stuffing soft guard.
     max-failures: ${AUTH_LOGIN_MAX_FAILURES:5}
@@ -164,7 +168,7 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 ---
-# prod profile 전용 override — swagger-ui / api-docs 비활성
+# prod profile 전용 override — swagger-ui / api-docs 비활성 + CORS origin prod 기본값
 spring:
   config:
     activate:
@@ -174,3 +178,7 @@ springdoc:
     enabled: false
   api-docs:
     enabled: false
+jamo:
+  cors:
+    # prod 미설정 시 운영 frontend origin. env CORS_ALLOWED_ORIGINS 로 override 가능.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://jamoai.app}
