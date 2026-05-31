@@ -153,10 +153,18 @@ PRD `request §8` 의 "AI 실패 시 200(FAILED) vs 5xx 정책" Open Item 해소
 
 ### 9. 입력 검증 — 도메인 invariant 만, LLM 강제 X
 
+> **정정 (2026-05-31)**: 일기가 3줄 lines (각 1..200cp) 로 재설계되며 sentence-feedback 이 **라인 단위 호출**
+> (1줄 = 1 문장) 로 정합. `sentence` / `priorSentences` 항목 길이 **50 → 200 code points** 확장
+> (`SentenceText.MAX_CODE_POINTS=200`). Request Bean Validation char 1차 한도도 200→400 (200cp × 2). 아래
+> 표의 "50" 은 history.
+>
+> 참고: `priorSentences` 항목의 code-point 강제는 현재 미적용 (Request DTO char 한도만) — 본 정정 범위 밖,
+> 후속 박제. 라인 컨텍스트의 논리적 상한은 200cp.
+
 | 검증 | 결정 |
 |---|---|
-| `sentence` 길이 | **1..50 code points** (PRD §8 산정 기준 Open Item 해소 — code point 채택, char/grapheme 미사용) |
-| `priorSentences` 항목 길이 | 각 1..50 code points |
+| `sentence` 길이 | **1..200 code points** (2026-05-31 정정, 50→200 라인 단위 피드백. char/grapheme 미사용) |
+| `priorSentences` 항목 길이 | 각 1..200 code points (DTO 강제는 char 한도만 — 후속) |
 | `priorSentences` 개수 상한 | **max 5** (PRD §8 Open Item 해소) |
 | 금칙어 | 도메인 invariant 만 (간단한 deny list — 코드 슬라이스 시점 정의). LLM 강제 검증 X |
 | `tone` 화이트리스트 | §10 박제 |

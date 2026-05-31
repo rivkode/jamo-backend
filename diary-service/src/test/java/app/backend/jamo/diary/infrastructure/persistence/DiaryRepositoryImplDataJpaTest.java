@@ -1,7 +1,7 @@
 package app.backend.jamo.diary.infrastructure.persistence;
 
 import app.backend.jamo.diary.domain.model.diary.Diary;
-import app.backend.jamo.diary.domain.model.diary.DiaryContent;
+import app.backend.jamo.diary.domain.model.diary.DiaryLines;
 import app.backend.jamo.diary.domain.model.diary.DiaryId;
 import app.backend.jamo.diary.domain.model.diary.ImageUrls;
 import app.backend.jamo.diary.domain.model.diary.Tag;
@@ -59,7 +59,7 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
         DiaryId id = DiaryId.newId();
         Diary diary = Diary.create(
             id, author,
-            new DiaryContent("오늘 산책 🌞 날씨 좋아"),
+            new DiaryLines(List.of("오늘 산책 🌞 날씨 좋아", "오늘 산책 🌞 날씨 좋아-2", "오늘 산책 🌞 날씨 좋아-3")),
             new ImageUrls(List.of("https://cdn.example.com/a.jpg", "https://cdn.example.com/b.png")),
             Tags.ofStrings(List.of("일상", "산책")),
             Visibility.PUBLIC,
@@ -74,7 +74,7 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
         Diary got = loaded.get();
         assertThat(got.id()).isEqualTo(id);
         assertThat(got.authorId()).isEqualTo(author);
-        assertThat(got.content().value()).isEqualTo("오늘 산책 🌞 날씨 좋아");
+        assertThat(got.lines().values()).containsExactly("오늘 산책 🌞 날씨 좋아", "오늘 산책 🌞 날씨 좋아-2", "오늘 산책 🌞 날씨 좋아-3");
         assertThat(got.images().values()).containsExactly(
             "https://cdn.example.com/a.jpg", "https://cdn.example.com/b.png");
         assertThat(got.tags().asStrings()).containsExactly("일상", "산책");
@@ -100,7 +100,7 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
     }
 
     @Test
-    void upsert_persists_content_images_tags_visibility_change_after_update() {
+    void upsert_persists_lines_images_tags_visibility_change_after_update() {
         // Slice 3-a 회귀 차단 (code-reviewer C1) — mergeInto 가 4 필드 갱신 + JPA flush 후
         // DB 에 반영되는지. content / images / tags / visibility 가 update 호출 후 정확히 저장.
         UUID author = UUID.randomUUID();
@@ -110,7 +110,7 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
 
         Diary loaded = repository.findById(diary.id()).orElseThrow();
         loaded.update(
-            new DiaryContent("after"),
+            new DiaryLines(List.of("after", "after-2", "after-3")),
             new ImageUrls(List.of("https://cdn.example/1.png")),
             Tags.ofStrings(List.of("새태그")),
             Visibility.PRIVATE,
@@ -119,7 +119,7 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
         flushAndClear();
 
         Diary reloaded = repository.findById(diary.id()).orElseThrow();
-        assertThat(reloaded.content().value()).isEqualTo("after");
+        assertThat(reloaded.lines().values()).containsExactly("after", "after-2", "after-3");
         assertThat(reloaded.images().values()).containsExactly("https://cdn.example/1.png");
         assertThat(reloaded.tags().asStrings()).containsExactly("새태그");
         assertThat(reloaded.visibility()).isEqualTo(Visibility.PRIVATE);
@@ -192,11 +192,11 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
     void public_feed_recent_filtered_by_tag() {
         UUID author = UUID.randomUUID();
         Diary withTag = Diary.create(
-            DiaryId.newId(), author, new DiaryContent("ok"),
+            DiaryId.newId(), author, new DiaryLines(List.of("ok", "ok-2", "ok-3")),
             ImageUrls.empty(), Tags.ofStrings(List.of("일상", "산책")),
             Visibility.PUBLIC, Clock.fixed(baseTime, ZoneOffset.UTC));
         Diary withoutTag = Diary.create(
-            DiaryId.newId(), author, new DiaryContent("ok"),
+            DiaryId.newId(), author, new DiaryLines(List.of("ok", "ok-2", "ok-3")),
             ImageUrls.empty(), Tags.ofStrings(List.of("운동")),
             Visibility.PUBLIC, Clock.fixed(baseTime.minusSeconds(60), ZoneOffset.UTC));
         repository.save(withTag);
@@ -238,9 +238,9 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
         // 같은 createdAt 으로 두 diary 생성 — diary_id (UUID) 의 desc 순으로 정렬
         DiaryId idA = DiaryId.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         DiaryId idB = DiaryId.of(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"));
-        repository.save(Diary.reconstitute(idA, author, new DiaryContent("a"),
+        repository.save(Diary.reconstitute(idA, author, new DiaryLines(List.of("a", "a-2", "a-3")),
             ImageUrls.empty(), Tags.empty(), Visibility.PUBLIC, 0, 0, baseTime));
-        repository.save(Diary.reconstitute(idB, author, new DiaryContent("b"),
+        repository.save(Diary.reconstitute(idB, author, new DiaryLines(List.of("b", "b-2", "b-3")),
             ImageUrls.empty(), Tags.empty(), Visibility.PUBLIC, 0, 0, baseTime));
         flushAndClear();
 
@@ -261,16 +261,16 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
     void public_feed_recent_with_tag_filter_and_cursor_combined() {
         // M3 — tag 필터 + cursor 조합. tag 매칭하면서 cursor 이후 페이지를 정확히 반환.
         UUID author = UUID.randomUUID();
-        Diary tagged1 = Diary.create(DiaryId.newId(), author, new DiaryContent("t1"),
+        Diary tagged1 = Diary.create(DiaryId.newId(), author, new DiaryLines(List.of("t1", "t1-2", "t1-3")),
             ImageUrls.empty(), Tags.ofStrings(List.of("일상")),
             Visibility.PUBLIC, Clock.fixed(baseTime, ZoneOffset.UTC));
-        Diary tagged2 = Diary.create(DiaryId.newId(), author, new DiaryContent("t2"),
+        Diary tagged2 = Diary.create(DiaryId.newId(), author, new DiaryLines(List.of("t2", "t2-2", "t2-3")),
             ImageUrls.empty(), Tags.ofStrings(List.of("일상")),
             Visibility.PUBLIC, Clock.fixed(baseTime.minusSeconds(60), ZoneOffset.UTC));
-        Diary tagged3 = Diary.create(DiaryId.newId(), author, new DiaryContent("t3"),
+        Diary tagged3 = Diary.create(DiaryId.newId(), author, new DiaryLines(List.of("t3", "t3-2", "t3-3")),
             ImageUrls.empty(), Tags.ofStrings(List.of("일상")),
             Visibility.PUBLIC, Clock.fixed(baseTime.minusSeconds(120), ZoneOffset.UTC));
-        Diary other = Diary.create(DiaryId.newId(), author, new DiaryContent("o"),
+        Diary other = Diary.create(DiaryId.newId(), author, new DiaryLines(List.of("o", "o-2", "o-3")),
             ImageUrls.empty(), Tags.ofStrings(List.of("운동")),
             Visibility.PUBLIC, Clock.fixed(baseTime.minusSeconds(30), ZoneOffset.UTC));
         repository.save(tagged1);
@@ -304,13 +304,13 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
     void public_feed_popular_with_tag_filter_and_cursor_combined() {
         // M4 — POPULAR sort + tag + cursor 조합.
         UUID author = UUID.randomUUID();
-        Diary high = Diary.reconstitute(DiaryId.newId(), author, new DiaryContent("h"),
+        Diary high = Diary.reconstitute(DiaryId.newId(), author, new DiaryLines(List.of("h", "h-2", "h-3")),
             ImageUrls.empty(), Tags.ofStrings(List.of("일상")),
             Visibility.PUBLIC, 100, 0, baseTime);
-        Diary mid = Diary.reconstitute(DiaryId.newId(), author, new DiaryContent("m"),
+        Diary mid = Diary.reconstitute(DiaryId.newId(), author, new DiaryLines(List.of("m", "m-2", "m-3")),
             ImageUrls.empty(), Tags.ofStrings(List.of("일상")),
             Visibility.PUBLIC, 50, 0, baseTime.minusSeconds(60));
-        Diary other = Diary.reconstitute(DiaryId.newId(), author, new DiaryContent("o"),
+        Diary other = Diary.reconstitute(DiaryId.newId(), author, new DiaryLines(List.of("o", "o-2", "o-3")),
             ImageUrls.empty(), Tags.ofStrings(List.of("운동")),
             Visibility.PUBLIC, 200, 0, baseTime);  // 점수 높지만 tag mismatch
         repository.save(high);
@@ -338,9 +338,9 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
         UUID author = UUID.randomUUID();
         DiaryId idA = DiaryId.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         DiaryId idB = DiaryId.of(UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"));
-        repository.save(Diary.reconstitute(idA, author, new DiaryContent("a"),
+        repository.save(Diary.reconstitute(idA, author, new DiaryLines(List.of("a", "a-2", "a-3")),
             ImageUrls.empty(), Tags.empty(), Visibility.PUBLIC, 50, 0, baseTime));
-        repository.save(Diary.reconstitute(idB, author, new DiaryContent("b"),
+        repository.save(Diary.reconstitute(idB, author, new DiaryLines(List.of("b", "b-2", "b-3")),
             ImageUrls.empty(), Tags.empty(), Visibility.PUBLIC, 50, 0, baseTime));
         flushAndClear();
 
@@ -417,11 +417,11 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
                            Visibility visibility, int likeCount) {
         DiaryId id = DiaryId.newId();
         if (likeCount == 0) {
-            return Diary.create(id, author, new DiaryContent(content),
+            return Diary.create(id, author, new DiaryLines(List.of(content, content + "-2", content + "-3")),
                 ImageUrls.empty(), Tags.empty(), visibility,
                 Clock.fixed(createdAt, ZoneOffset.UTC));
         }
-        return Diary.reconstitute(id, author, new DiaryContent(content),
+        return Diary.reconstitute(id, author, new DiaryLines(List.of(content, content + "-2", content + "-3")),
             ImageUrls.empty(), Tags.empty(), visibility, likeCount, 0, createdAt);
     }
 

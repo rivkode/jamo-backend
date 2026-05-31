@@ -11,13 +11,13 @@ import java.util.UUID;
  *
  * <p>박제: decisions/diary/diary-domain-policy.md §3 / §4.
  *
- * <p>도메인 invariant 검증은 VO 생성 시점에 위임 (DiaryContent / Tags / ImageUrls). 본 record 는 단순 운반.
+ * <p>도메인 invariant 검증은 VO 생성 시점에 위임 (DiaryLines / Tags / ImageUrls). 본 record 는 단순 운반.
  *
  * <p>{@code visibility} default 는 Presentation 책임 (PUBLIC) — 본 record 는 명시 값 강제 (null 차단).
  */
 public record CreateDiaryCommand(
     UUID authorId,
-    String content,
+    List<String> lines,
     List<String> images,
     List<String> tags,
     Visibility visibility
@@ -25,7 +25,7 @@ public record CreateDiaryCommand(
 
     public CreateDiaryCommand {
         Objects.requireNonNull(authorId, "authorId");
-        Objects.requireNonNull(content, "content");
+        Objects.requireNonNull(lines, "lines");
         Objects.requireNonNull(images, "images");
         Objects.requireNonNull(tags, "tags");
         Objects.requireNonNull(visibility, "visibility");

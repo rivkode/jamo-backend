@@ -37,7 +37,7 @@ public final class Diary {
 
     private final DiaryId id;
     private final UUID authorId;
-    private DiaryContent content;
+    private DiaryLines lines;
     private ImageUrls images;
     private Tags tags;
     private Visibility visibility;
@@ -48,7 +48,7 @@ public final class Diary {
     private Diary(
         DiaryId id,
         UUID authorId,
-        DiaryContent content,
+        DiaryLines lines,
         ImageUrls images,
         Tags tags,
         Visibility visibility,
@@ -58,7 +58,7 @@ public final class Diary {
     ) {
         this.id = Objects.requireNonNull(id, "id");
         this.authorId = Objects.requireNonNull(authorId, "authorId");
-        this.content = Objects.requireNonNull(content, "content");
+        this.lines = Objects.requireNonNull(lines, "lines");
         this.images = Objects.requireNonNull(images, "images");
         this.tags = Objects.requireNonNull(tags, "tags");
         this.visibility = Objects.requireNonNull(visibility, "visibility");
@@ -83,21 +83,21 @@ public final class Diary {
     public static Diary create(
         DiaryId id,
         UUID authorId,
-        DiaryContent content,
+        DiaryLines lines,
         ImageUrls images,
         Tags tags,
         Visibility visibility,
         Clock clock
     ) {
         Objects.requireNonNull(clock, "clock");
-        return new Diary(id, authorId, content, images, tags, visibility, 0, 0, clock.instant());
+        return new Diary(id, authorId, lines, images, tags, visibility, 0, 0, clock.instant());
     }
 
     /** Repository 복원용 — JpaEntity → Domain. invariant 검증 스킵 (DB 데이터는 이미 검증된 것으로 간주). */
     public static Diary reconstitute(
         DiaryId id,
         UUID authorId,
-        DiaryContent content,
+        DiaryLines lines,
         ImageUrls images,
         Tags tags,
         Visibility visibility,
@@ -105,7 +105,7 @@ public final class Diary {
         int commentCount,
         Instant createdAt
     ) {
-        return new Diary(id, authorId, content, images, tags, visibility, likeCount, commentCount, createdAt);
+        return new Diary(id, authorId, lines, images, tags, visibility, likeCount, commentCount, createdAt);
     }
 
     // ============================================================
@@ -165,7 +165,7 @@ public final class Diary {
     /**
      * 작성자에 의한 일기 수정 (PRD 0526_flutter.md §2.4 / Slice 3-a).
      *
-     * <p><b>전체 replace 의미</b>: content / images / tags / visibility 모두 새 값으로 교체. likeCount /
+     * <p><b>전체 replace 의미</b>: lines / images / tags / visibility 모두 새 값으로 교체. likeCount /
      * commentCount / createdAt / id / authorId 는 보존 (수정 시 카운터 초기화 금지). 카운터 보존은
      * Aggregate 의 invariant — 수정으로 좋아요 / 댓글이 사라지면 정합 위반.
      *
@@ -178,7 +178,7 @@ public final class Diary {
      * <p><b>updatedAt 추적 부재</b>: Slice 3-a plan 박제 — 스키마 변경 회피. 향후 PR 에서 `updated_at` 컬럼 +
      * Aggregate 필드 추가 시 본 javadoc 갱신 필수.
      *
-     * @param newContent  new {@link DiaryContent} VO (null 차단)
+     * @param newLines    new {@link DiaryLines} VO (null 차단)
      * @param newImages   new {@link ImageUrls} VO (null 차단)
      * @param newTags     new {@link Tags} VO (null 차단)
      * @param newVisibility new {@link Visibility} (null 차단)
@@ -186,7 +186,7 @@ public final class Diary {
      * @throws DiaryAccessDeniedException {@code editorId} 가 작성자 아닌 경우
      */
     public void update(
-        DiaryContent newContent,
+        DiaryLines newLines,
         ImageUrls newImages,
         Tags newTags,
         Visibility newVisibility,
@@ -199,11 +199,11 @@ public final class Diary {
             throw new DiaryAccessDeniedException(
                 "diary not editable by non-author: diaryId=" + id.asString());
         }
-        Objects.requireNonNull(newContent, "newContent");
+        Objects.requireNonNull(newLines, "newLines");
         Objects.requireNonNull(newImages, "newImages");
         Objects.requireNonNull(newTags, "newTags");
         Objects.requireNonNull(newVisibility, "newVisibility");
-        this.content = newContent;
+        this.lines = newLines;
         this.images = newImages;
         this.tags = newTags;
         this.visibility = newVisibility;
@@ -242,8 +242,8 @@ public final class Diary {
         return authorId;
     }
 
-    public DiaryContent content() {
-        return content;
+    public DiaryLines lines() {
+        return lines;
     }
 
     public ImageUrls images() {

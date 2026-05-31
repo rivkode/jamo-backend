@@ -23,26 +23,25 @@ class SentenceTextTest {
         }
 
         @Test
-        void exactly_50_code_points_is_accepted() {
-            String exact50 = "a".repeat(50);
-            assertEquals(exact50, new SentenceText(exact50).value());
+        void exactly_200_code_points_is_accepted() {
+            String exact200 = "a".repeat(200);
+            assertEquals(exact200, new SentenceText(exact200).value());
         }
 
         @Test
-        void korean_50_code_points_is_accepted() {
-            // 가나다... 50자
-            String korean50 = "가".repeat(50);
-            assertDoesNotThrow(() -> new SentenceText(korean50));
+        void korean_200_code_points_is_accepted() {
+            String korean200 = "가".repeat(200);
+            assertDoesNotThrow(() -> new SentenceText(korean200));
         }
 
         @Test
         void emoji_counted_as_single_code_point() {
             // 😀 = 1 code point (BMP supplementary), 2 chars (surrogate pair)
             // String 50 code points = 100 chars when emoji 만
-            String emoji50 = "😀".repeat(50);
-            assertEquals(100, emoji50.length(), "sanity check — emoji is 2 chars");
-            assertEquals(50, emoji50.codePointCount(0, emoji50.length()));
-            assertDoesNotThrow(() -> new SentenceText(emoji50));
+            String emoji200 = "😀".repeat(200);
+            assertEquals(400, emoji200.length(), "sanity check — emoji is 2 chars");
+            assertEquals(200, emoji200.codePointCount(0, emoji200.length()));
+            assertDoesNotThrow(() -> new SentenceText(emoji200));
         }
 
         @Test
@@ -57,19 +56,19 @@ class SentenceTextTest {
     class Boundaries {
 
         @Test
-        void exceeds_50_code_points_is_rejected() {
-            String over50 = "a".repeat(51);
+        void exceeds_200_code_points_is_rejected() {
+            String over200 = "a".repeat(201);
             InvalidSentenceTextException ex = assertThrows(
                 InvalidSentenceTextException.class,
-                () -> new SentenceText(over50)
+                () -> new SentenceText(over200)
             );
-            assertTrue(ex.getMessage().contains("max 50"));
+            assertTrue(ex.getMessage().contains("max 200"));
         }
 
         @Test
-        void emoji_51_code_points_is_rejected() {
-            String over50 = "😀".repeat(51);
-            assertThrows(InvalidSentenceTextException.class, () -> new SentenceText(over50));
+        void emoji_201_code_points_is_rejected() {
+            String over200 = "😀".repeat(201);
+            assertThrows(InvalidSentenceTextException.class, () -> new SentenceText(over200));
         }
     }
 

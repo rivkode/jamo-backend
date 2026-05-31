@@ -29,7 +29,7 @@ class SpecAliasJsonSerializationTest {
 
     private static DiaryView sampleView(Visibility visibility, boolean likedByMe) {
         return new DiaryView(
-            DIARY_ID, AUTHOR_ID, "Minji", "hello", List.of(), List.of(),
+            DIARY_ID, AUTHOR_ID, "Minji", List.of("hello", "line2", "line3"), List.of(), List.of(),
             visibility, 3, 1, likedByMe, NOW
         );
     }

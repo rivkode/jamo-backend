@@ -19,8 +19,9 @@ import app.backend.jamo.diary.application.service.diary.ListPublicFeedService;
 import app.backend.jamo.diary.application.cursor.InvalidDiaryFeedCursorException;
 import app.backend.jamo.diary.domain.exception.DiaryAccessDeniedException;
 import app.backend.jamo.diary.domain.exception.DiaryNotFoundException;
-import app.backend.jamo.diary.domain.exception.InvalidDiaryContentException;
 import app.backend.jamo.diary.domain.exception.InvalidImageUrlException;
+import app.backend.jamo.diary.domain.exception.InvalidLineCountException;
+import app.backend.jamo.diary.domain.exception.InvalidLineLengthException;
 import app.backend.jamo.diary.domain.exception.InvalidTagException;
 import app.backend.jamo.diary.domain.model.diary.Visibility;
 import app.backend.jamo.diary.presentation.exception.DiaryExceptionHandler;
@@ -84,7 +85,7 @@ class DiaryControllerWebMvcTest {
     private DiaryView publicDiaryView() {
         return new DiaryView(
             DIARY_ID, USER_ID, "철수",
-            "오늘은 기분이 좋다", List.of("https://cdn.example/a.png"), List.of("일상"),
+            List.of("오늘은 기분이 좋다", "날씨 좋다", "기분 좋음"), List.of("https://cdn.example/a.png"), List.of("일상"),
             Visibility.PUBLIC, 0, 0, false, NOW
         );
     }
@@ -92,7 +93,7 @@ class DiaryControllerWebMvcTest {
     private DiaryView privateDiaryView() {
         return new DiaryView(
             DIARY_ID, USER_ID, "철수",
-            "비공개 메모", List.of(), List.of(),
+            List.of("비공개 메모", "둘째 줄", "셋째 줄"), List.of(), List.of(),
             Visibility.PRIVATE, 3, 1, true, NOW
         );
     }
@@ -110,13 +111,13 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"오늘은 기분이 좋다","images":["https://cdn.example/a.png"],"tags":["일상"]}
+                    {"lines":["오늘은 기분이 좋다","날씨 좋다","기분 좋음"],"images":["https://cdn.example/a.png"],"tags":["일상"]}
                     """))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.diaryId").value(DIARY_ID.toString()))
             .andExpect(jsonPath("$.authorId").value(USER_ID.toString()))
             .andExpect(jsonPath("$.authorDisplayName").value("철수"))
-            .andExpect(jsonPath("$.content").value("오늘은 기분이 좋다"))
+            .andExpect(jsonPath("$.lines[0]").value("오늘은 기분이 좋다"))
             .andExpect(jsonPath("$.images[0]").value("https://cdn.example/a.png"))
             .andExpect(jsonPath("$.tags[0]").value("일상"))
             .andExpect(jsonPath("$.visibility").value("PUBLIC"))
@@ -129,7 +130,7 @@ class DiaryControllerWebMvcTest {
         verify(createDiaryService).create(captor.capture());
         CreateDiaryCommand cmd = captor.getValue();
         assertThat(cmd.authorId()).isEqualTo(USER_ID);
-        assertThat(cmd.content()).isEqualTo("오늘은 기분이 좋다");
+        assertThat(cmd.lines()).containsExactly("오늘은 기분이 좋다", "날씨 좋다", "기분 좋음");
         assertThat(cmd.visibility()).isEqualTo(Visibility.PUBLIC);  // default 적용 박제 §3
     }
 
@@ -142,7 +143,7 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"비공개 메모","visibility":"PRIVATE"}
+                    {"lines":["비공개 메모","둘째 줄","셋째 줄"],"visibility":"PRIVATE"}
                     """))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.visibility").value("PRIVATE"));
@@ -153,14 +154,14 @@ class DiaryControllerWebMvcTest {
     }
 
     @Test
-    void create_returns_400_when_content_blank() throws Exception {
+    void create_returns_400_when_line_blank() throws Exception {
         mockValidAuth();
 
         mockMvc.perform(post("/api/v1/diaries")
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"   "}
+                    {"lines":["   ","line2","line3"]}
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
@@ -175,7 +176,7 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"hi","tags":["a","b","c","d","e","f","g","h","i","j","k"]}
+                    {"lines":["hi","line2","line3"],"tags":["a","b","c","d","e","f","g","h","i","j","k"]}
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
@@ -190,7 +191,7 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"hi","visibility":"FOLLOWERS_ONLY"}
+                    {"lines":["hi","line2","line3"],"visibility":"FOLLOWERS_ONLY"}
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
@@ -209,7 +210,7 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"hi","images":["ftp://example/a.png"]}
+                    {"lines":["hi","line2","line3"],"images":["ftp://example/a.png"]}
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"))
@@ -218,22 +219,41 @@ class DiaryControllerWebMvcTest {
     }
 
     @Test
-    void create_returns_400_when_content_violates_domain_codepoint_invariant() throws Exception {
-        // test-reviewer M4 부가 — Bean Validation 통과한 char 길이가 도메인 cp 한도 위반 시
-        // InvalidDiaryContentException 매핑 회귀 신호.
+    void create_returns_400_INVALID_LINE_LENGTH_when_domain_line_length_violated() throws Exception {
+        // Bean Validation(char) 통과 후 도메인 DiaryLines 가 cp 한도/blank 위반 → InvalidLineLengthException 400.
         mockValidAuth();
         when(createDiaryService.create(any()))
-            .thenThrow(new InvalidDiaryContentException("length out of range: max 2000 cp"));
+            .thenThrow(new InvalidLineLengthException("line[0] length out of range: max 200"));
 
         mockMvc.perform(post("/api/v1/diaries")
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"hi"}
+                    {"lines":["hi","line2","line3"]}
                     """))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"))
-            .andExpect(jsonPath("$.message").value("request is invalid"));
+            .andExpect(jsonPath("$.code").value("INVALID_LINE_LENGTH"))
+            .andExpect(jsonPath("$.message").value("line length is invalid"));
+    }
+
+    @Test
+    void create_returns_422_INVALID_LINE_COUNT_when_lines_not_three() throws Exception {
+        // PRD §2.3 — lines 개수≠3 → 422 INVALID_LINE_COUNT. Bean Validation 은 List 개수 정확값을 막지
+        // 못하므로 도메인 DiaryLines VO 가 던지고 ExceptionHandler 가 422 매핑.
+        mockValidAuth();
+        when(createDiaryService.create(any()))
+            .thenThrow(new InvalidLineCountException("lines must be exactly 3, got 2"));
+
+        mockMvc.perform(post("/api/v1/diaries")
+                .header(HttpHeaders.AUTHORIZATION, BEARER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"lines":["첫 줄","둘째 줄"]}
+                    """))
+            .andExpect(status().isUnprocessableEntity())
+            .andExpect(jsonPath("$.code").value("INVALID_LINE_COUNT"))
+            .andExpect(jsonPath("$.message").value("lines must be exactly 3"));
+        verify(createDiaryService).create(any());
     }
 
     @Test
@@ -254,7 +274,7 @@ class DiaryControllerWebMvcTest {
         mockMvc.perform(post("/api/v1/diaries")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"hi"}
+                    {"lines":["hi","line2","line3"]}
                     """))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
@@ -271,7 +291,7 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer bad-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"hi"}
+                    {"lines":["hi","line2","line3"]}
                     """))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
@@ -664,7 +684,7 @@ class DiaryControllerWebMvcTest {
         mockValidAuth();
         DiaryView updated = new DiaryView(
             DIARY_ID, USER_ID, "철수",
-            "수정된 본문", List.of("https://cdn.example/b.png"), List.of("새태그"),
+            List.of("수정된 본문", "둘째 줄", "셋째 줄"), List.of("https://cdn.example/b.png"), List.of("새태그"),
             Visibility.PRIVATE, 2, 1, true, NOW);
         when(updateDiaryService.update(any())).thenReturn(updated);
 
@@ -672,11 +692,11 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"수정된 본문","images":["https://cdn.example/b.png"],"tags":["새태그"],"visibility":"PRIVATE"}
+                    {"lines":["수정된 본문","둘째 줄","셋째 줄"],"images":["https://cdn.example/b.png"],"tags":["새태그"],"visibility":"PRIVATE"}
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.diaryId").value(DIARY_ID.toString()))
-            .andExpect(jsonPath("$.content").value("수정된 본문"))
+            .andExpect(jsonPath("$.lines[0]").value("수정된 본문"))
             .andExpect(jsonPath("$.visibility").value("PRIVATE"))
             .andExpect(jsonPath("$.tags[0]").value("새태그"))
             .andExpect(jsonPath("$.images[0]").value("https://cdn.example/b.png"))
@@ -697,7 +717,7 @@ class DiaryControllerWebMvcTest {
         var cmd = captor.getValue();
         org.assertj.core.api.Assertions.assertThat(cmd.diaryId()).isEqualTo(DIARY_ID);
         org.assertj.core.api.Assertions.assertThat(cmd.editorId()).isEqualTo(USER_ID);
-        org.assertj.core.api.Assertions.assertThat(cmd.content()).isEqualTo("수정된 본문");
+        org.assertj.core.api.Assertions.assertThat(cmd.lines()).containsExactly("수정된 본문", "둘째 줄", "셋째 줄");
         org.assertj.core.api.Assertions.assertThat(cmd.visibility()).isEqualTo(Visibility.PRIVATE);
     }
 
@@ -710,7 +730,7 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"수정"}
+                    {"lines":["수정","둘째","셋째"]}
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.visibility").value("PUBLIC"));
@@ -731,7 +751,7 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"수정"}
+                    {"lines":["수정","둘째","셋째"]}
                     """))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code").value("DIARY_NOT_FOUND"))
@@ -751,7 +771,7 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"수정"}
+                    {"lines":["수정","둘째","셋째"]}
                     """))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.code").value("DIARY_NOT_FOUND"))
@@ -766,7 +786,7 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"수정"}
+                    {"lines":["수정","둘째","셋째"]}
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
@@ -774,14 +794,14 @@ class DiaryControllerWebMvcTest {
     }
 
     @Test
-    void update_returns_400_when_content_blank() throws Exception {
+    void update_returns_400_when_line_blank() throws Exception {
         mockValidAuth();
 
         mockMvc.perform(put("/api/v1/diaries/{id}", DIARY_ID)
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"  "}
+                    {"lines":["  ","line2","line3"]}
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
@@ -796,7 +816,7 @@ class DiaryControllerWebMvcTest {
                 .header(HttpHeaders.AUTHORIZATION, BEARER)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"수정","visibility":"INVALID"}
+                    {"lines":["수정","둘째","셋째"],"visibility":"INVALID"}
                     """))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.code").value("DIARY_VALIDATION_FAILED"));
@@ -808,7 +828,7 @@ class DiaryControllerWebMvcTest {
         mockMvc.perform(put("/api/v1/diaries/{id}", DIARY_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                    {"content":"수정"}
+                    {"lines":["수정","둘째","셋째"]}
                     """))
             .andExpect(status().isUnauthorized());
         verify(updateDiaryService, never()).update(any());

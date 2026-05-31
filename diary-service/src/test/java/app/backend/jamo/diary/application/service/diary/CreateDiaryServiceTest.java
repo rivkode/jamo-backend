@@ -5,7 +5,8 @@ import app.backend.jamo.diary.application.dto.diary.CreateDiaryCommand;
 import app.backend.jamo.diary.application.dto.diary.DiaryView;
 import app.backend.jamo.diary.application.port.UserSummaryPort;
 import app.backend.jamo.diary.application.port.UserSummaryView;
-import app.backend.jamo.diary.domain.exception.InvalidDiaryContentException;
+import app.backend.jamo.diary.domain.exception.InvalidLineCountException;
+import app.backend.jamo.diary.domain.exception.InvalidLineLengthException;
 import app.backend.jamo.diary.domain.model.diary.Visibility;
 import app.backend.jamo.diary.domain.repository.DiaryRepository;
 import app.backend.jamo.diary.domain.repository.OutboxEventPublisher;
@@ -57,7 +58,7 @@ class CreateDiaryServiceTest {
             .thenReturn(Optional.of(new UserSummaryView(author, "홍길동")));
 
         CreateDiaryCommand cmd = new CreateDiaryCommand(
-            author, "오늘 산책",
+            author, List.of("오늘 산책", "날씨 좋다", "기분 좋음"),
             List.of("https://cdn.example.com/a.jpg"),
             List.of("일상"),
             Visibility.PUBLIC
@@ -67,7 +68,7 @@ class CreateDiaryServiceTest {
 
         assertThat(view.authorId()).isEqualTo(author);
         assertThat(view.authorDisplayName()).isEqualTo("홍길동");
-        assertThat(view.content()).isEqualTo("오늘 산책");
+        assertThat(view.lines()).containsExactly("오늘 산책", "날씨 좋다", "기분 좋음");
         assertThat(view.images()).containsExactly("https://cdn.example.com/a.jpg");
         assertThat(view.tags()).containsExactly("일상");
         assertThat(view.visibility()).isEqualTo(Visibility.PUBLIC);
@@ -95,18 +96,30 @@ class CreateDiaryServiceTest {
         when(userSummaryPort.get(author)).thenReturn(Optional.empty());
 
         DiaryView view = service.create(new CreateDiaryCommand(
-            author, "ok", List.of(), List.of(), Visibility.PRIVATE
+            author, List.of("ok", "line2", "line3"), List.of(), List.of(), Visibility.PRIVATE
         ));
 
         assertThat(view.authorDisplayName()).isEqualTo("(unknown)");
     }
 
     @Test
-    void invalid_content_propagates_domain_exception_no_persist() {
+    void line_count_not_three_propagates_InvalidLineCount_no_persist() {
+        // test-reviewer M1 — Request DTO 가 개수(정확히 3)를 못 막고 도메인 DiaryLines 가 422 던지는 경로 실증.
         UUID author = UUID.randomUUID();
         assertThatThrownBy(() -> service.create(new CreateDiaryCommand(
-            author, "  ", List.of(), List.of(), Visibility.PUBLIC
-        ))).isInstanceOf(InvalidDiaryContentException.class);
+            author, List.of("한 줄", "두 줄"), List.of(), List.of(), Visibility.PUBLIC
+        ))).isInstanceOf(InvalidLineCountException.class);
+
+        verify(diaryRepository, never()).save(any());
+        verify(outboxEventPublisher, never()).publish(any());
+    }
+
+    @Test
+    void invalid_line_propagates_domain_exception_no_persist() {
+        UUID author = UUID.randomUUID();
+        assertThatThrownBy(() -> service.create(new CreateDiaryCommand(
+            author, List.of("  ", "line2", "line3"), List.of(), List.of(), Visibility.PUBLIC
+        ))).isInstanceOf(InvalidLineLengthException.class);
 
         verify(diaryRepository, never()).save(any());
         verify(outboxEventPublisher, never()).publish(any());

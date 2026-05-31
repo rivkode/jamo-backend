@@ -5,7 +5,8 @@ import app.backend.jamo.diary.application.dto.diary.UpdateDiaryCommand;
 import app.backend.jamo.diary.application.port.UserSummaryPort;
 import app.backend.jamo.diary.application.port.UserSummaryView;
 import app.backend.jamo.diary.domain.exception.DiaryNotFoundException;
-import app.backend.jamo.diary.domain.exception.InvalidDiaryContentException;
+import app.backend.jamo.diary.domain.exception.InvalidLineCountException;
+import app.backend.jamo.diary.domain.exception.InvalidLineLengthException;
 import app.backend.jamo.diary.domain.model.diary.Diary;
 import app.backend.jamo.diary.domain.model.diary.Visibility;
 import app.backend.jamo.diary.domain.repository.DiaryLikeRepository;
@@ -62,12 +63,12 @@ class UpdateDiaryServiceTest {
 
         DiaryView view = service.update(new UpdateDiaryCommand(
             diary.id().value(), author,
-            "수정된 본문", List.of("https://e.io/x.png"), List.of("새태그"),
+            List.of("수정된 본문", "둘째 줄", "셋째 줄"), List.of("https://e.io/x.png"), List.of("새태그"),
             Visibility.PRIVATE));
 
         verify(diaryRepository).findByIdForUpdate(diary.id());
         verify(diaryRepository).save(diary);
-        assertThat(view.content()).isEqualTo("수정된 본문");
+        assertThat(view.lines()).containsExactly("수정된 본문", "둘째 줄", "셋째 줄");
         assertThat(view.visibility()).isEqualTo(Visibility.PRIVATE);
         assertThat(view.images()).containsExactly("https://e.io/x.png");
         assertThat(view.tags()).containsExactly("새태그");
@@ -90,7 +91,7 @@ class UpdateDiaryServiceTest {
 
         DiaryView view = service.update(new UpdateDiaryCommand(
             diary.id().value(), author,
-            "수정", List.of(), List.of(), Visibility.PUBLIC));
+            List.of("수정", "둘째", "셋째"), List.of(), List.of(), Visibility.PUBLIC));
 
         assertThat(view.likeCount()).isEqualTo(beforeLikes);
         assertThat(view.commentCount()).isEqualTo(beforeComments);
@@ -108,7 +109,7 @@ class UpdateDiaryServiceTest {
 
         DiaryView view = service.update(new UpdateDiaryCommand(
             diary.id().value(), author,
-            "수정", List.of(), List.of(), Visibility.PUBLIC));
+            List.of("수정", "둘째", "셋째"), List.of(), List.of(), Visibility.PUBLIC));
 
         assertThat(view.likedByMe()).isFalse();
     }
@@ -126,7 +127,7 @@ class UpdateDiaryServiceTest {
 
         DiaryView view = service.update(new UpdateDiaryCommand(
             diary.id().value(), author,
-            "수정", List.of(), List.of(), Visibility.PUBLIC));
+            List.of("수정", "둘째", "셋째"), List.of(), List.of(), Visibility.PUBLIC));
 
         assertThat(view.likedByMe()).isTrue();
         assertThat(view.likeCount()).isEqualTo(1);
@@ -138,7 +139,7 @@ class UpdateDiaryServiceTest {
 
         assertThatThrownBy(() -> service.update(new UpdateDiaryCommand(
             UUID.randomUUID(), UUID.randomUUID(),
-            "수정", List.of(), List.of(), Visibility.PUBLIC)))
+            List.of("수정", "둘째", "셋째"), List.of(), List.of(), Visibility.PUBLIC)))
             .isInstanceOf(DiaryNotFoundException.class);
 
         verify(diaryRepository, never()).save(any());
@@ -151,18 +152,18 @@ class UpdateDiaryServiceTest {
         UUID author = UUID.randomUUID();
         UUID otherUser = UUID.randomUUID();
         Diary diary = DiaryTestFixtures.publicDiary(author);
-        String beforeContent = diary.content().value();
+        java.util.List<String> beforeLines = diary.lines().values();
         Visibility beforeVisibility = diary.visibility();
         when(diaryRepository.findByIdForUpdate(any())).thenReturn(Optional.of(diary));
 
         assertThatThrownBy(() -> service.update(new UpdateDiaryCommand(
             diary.id().value(), otherUser,
-            "수정", List.of(), List.of(), Visibility.PUBLIC)))
+            List.of("수정", "둘째", "셋째"), List.of(), List.of(), Visibility.PUBLIC)))
             .isInstanceOf(DiaryNotFoundException.class);
 
         verify(diaryRepository, never()).save(any());
         // test-reviewer M2 — atomic 보존: 비작성자 시도 후 Aggregate state 유지
-        assertThat(diary.content().value()).isEqualTo(beforeContent);
+        assertThat(diary.lines().values()).isEqualTo(beforeLines);
         assertThat(diary.visibility()).isEqualTo(beforeVisibility);
     }
 
@@ -177,23 +178,38 @@ class UpdateDiaryServiceTest {
 
         assertThatThrownBy(() -> service.update(new UpdateDiaryCommand(
             diary.id().value(), otherUser,
-            "  ", List.of(), List.of(), Visibility.PUBLIC)))
+            List.of("  ", "둘째", "셋째"), List.of(), List.of(), Visibility.PUBLIC)))
             .isInstanceOf(DiaryNotFoundException.class);
 
         verify(diaryRepository, never()).save(any());
     }
 
     @Test
-    void invalid_content_VO_throws_400_when_called_by_author() {
-        // 작성자가 invalid body 를 보내면 ownership 통과 후 VO 생성 단계에서 400 (InvalidDiaryContent).
+    void line_count_not_three_throws_InvalidLineCount_when_called_by_author() {
+        // test-reviewer M2 — 작성자가 2줄 보낼 시 ownership 통과 후 VO 생성 단계에서 422 (InvalidLineCount).
         UUID author = UUID.randomUUID();
         Diary diary = DiaryTestFixtures.publicDiary(author);
         when(diaryRepository.findByIdForUpdate(any())).thenReturn(Optional.of(diary));
 
         assertThatThrownBy(() -> service.update(new UpdateDiaryCommand(
             diary.id().value(), author,
-            "  ", List.of(), List.of(), Visibility.PUBLIC)))
-            .isInstanceOf(InvalidDiaryContentException.class);
+            List.of("한 줄", "두 줄"), List.of(), List.of(), Visibility.PUBLIC)))
+            .isInstanceOf(InvalidLineCountException.class);
+
+        verify(diaryRepository, never()).save(any());
+    }
+
+    @Test
+    void invalid_line_VO_throws_400_when_called_by_author() {
+        // 작성자가 invalid body 를 보내면 ownership 통과 후 VO 생성 단계에서 400 (InvalidLineLength).
+        UUID author = UUID.randomUUID();
+        Diary diary = DiaryTestFixtures.publicDiary(author);
+        when(diaryRepository.findByIdForUpdate(any())).thenReturn(Optional.of(diary));
+
+        assertThatThrownBy(() -> service.update(new UpdateDiaryCommand(
+            diary.id().value(), author,
+            List.of("  ", "둘째", "셋째"), List.of(), List.of(), Visibility.PUBLIC)))
+            .isInstanceOf(InvalidLineLengthException.class);
 
         verify(diaryRepository, never()).save(any());
     }

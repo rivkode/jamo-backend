@@ -87,7 +87,7 @@ public class DiaryController {
         Visibility visibility = resolveVisibility(body.visibility());
         DiaryView view = createDiaryService.create(new CreateDiaryCommand(
             auth.userId(),
-            body.content(),
+            body.lines(),
             body.images(),
             body.tags(),
             visibility
@@ -142,7 +142,7 @@ public class DiaryController {
         DiaryView view = updateDiaryService.update(new UpdateDiaryCommand(
             diaryUuid,
             auth.userId(),
-            body.content(),
+            body.lines(),
             body.images(),
             body.tags(),
             visibility

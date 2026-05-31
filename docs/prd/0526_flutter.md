@@ -127,8 +127,8 @@ Response: 1.5 + diaryCount,followerCount,followingCount,isFollowing,bio
 │     │     │ iaryId}     │ K   │                                │ DIARY_NOT_FOUND           │
 ├─────┼─────┼─────────────┼─────┼────────────────────────────────┼───────────────────────────┤
 │     │     │             │     │ {"lines":[s1,s2,s3],"tags":["# │ Diary · 422               │
-│ 2.3 │ POS │ /diaries    │ MOC │ 태그",...max5],"isPublic":true │ INVALID_LINE_COUNT · 400  │
-│     │ T   │             │ K   │ } (lines 정확히 3개, 각        │ INVALID_LINE_LENGTH       │
+│ 2.3 │ POS │ /diaries    │ LIV │ 태그",...max5],"isPublic":true │ INVALID_LINE_COUNT · 400  │
+│     │ T   │             │ E   │ } (lines 정확히 3개, 각        │ INVALID_LINE_LENGTH       │
 │     │     │             │     │ 1~200자)                       │                           │
 ├─────┼─────┼─────────────┼─────┼────────────────────────────────┼───────────────────────────┤
 │     │     │ /diaries/{d │ PEN │                                │ Diary · 403               │
@@ -188,7 +188,10 @@ Diary 스키마
 ▎  - 3.2 정상 응답 201. UUID 기반 식별자 (PRD 예시 정수 1001은 mock — 실제는 UUID 문자열).
 ▎  - 3.4 응답은 204 No Content.
 ▎  - author.avatarUrl / parentCommentId 가 null 인 경우 응답에 키 명시 노출 ("avatarUrl": null) — Jackson Include.ALWAYS.
-▎  - diaryId 정수 ↔ UUID, lines[3] ↔ content 차이는 Slice 2 alias / 프론트 변환으로 해소 (plan 박제).
+▎  - diaryId 정수 ↔ UUID 차이는 프론트가 UUID 문자열 처리.
+▎  - lines[3]: 백엔드가 lines 구조로 직접 처리 (2026-05-31 — content 단일 → 3줄 재설계). POST/PUT body 와
+▎    응답 모두 lines:["L1","L2","L3"] (정확히 3개, 각 1~200자). 개수 위반 422 INVALID_LINE_COUNT /
+▎    길이·blank 위반 400 INVALID_LINE_LENGTH. AI 피드백 (sentence-feedback) 도 라인 단위 호출 (각 1~200cp).
 
 Comment 스키마
 {

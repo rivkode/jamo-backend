@@ -50,9 +50,15 @@ enum Visibility {
 
 ### 3. CreateRequest 필드 명시
 
+> **정정 (2026-05-31)**: 단일 `content: String(1..2000)` → **`lines: List<String>` 정확히 3줄, 각 1..200 code
+> points** 로 재설계 (PRD 0526_flutter.md §2.3 "3줄 일기"). `DiaryContent` VO → `DiaryLines` VO (단일 record,
+> size==3 + 각 1..200cp invariant). 개수 위반 → `InvalidLineCountException`(422 INVALID_LINE_COUNT), 길이/blank
+> 위반 → `InvalidLineLengthException`(400 INVALID_LINE_LENGTH). DB: `content TEXT` → `line1/line2/line3
+> VARCHAR(800)` 3컬럼 (Flyway V10, dev 데이터 초기화). 아래 원안의 `content` 표기는 history 로 보존.
+
 ```
 CreateRequest {
-  content: String          // 1..2000
+  content: String          // 1..2000  ← (history) 현행: lines: List<String> 3줄, 각 1..200cp
   images: List<URL>        // max 5, 업로드는 별 endpoint (Non-Goals)
   tags: List<String>       // max 10, 각 1..30
   visibility: Visibility   // default PUBLIC

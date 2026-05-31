@@ -1,7 +1,7 @@
 package app.backend.jamo.diary.application.service.diary;
 
 import app.backend.jamo.diary.domain.model.diary.Diary;
-import app.backend.jamo.diary.domain.model.diary.DiaryContent;
+import app.backend.jamo.diary.domain.model.diary.DiaryLines;
 import app.backend.jamo.diary.domain.model.diary.DiaryId;
 import app.backend.jamo.diary.domain.model.diary.ImageUrls;
 import app.backend.jamo.diary.domain.model.diary.Tags;
@@ -30,7 +30,7 @@ final class DiaryTestFixtures {
     static Diary publicDiary(UUID author) {
         return Diary.create(
             DiaryId.newId(), author,
-            new DiaryContent("오늘 산책"),
+            new DiaryLines(List.of("오늘 산책", "날씨 좋다", "기분 좋음")),
             ImageUrls.empty(),
             Tags.ofStrings(List.of("일상")),
             Visibility.PUBLIC,
@@ -41,7 +41,7 @@ final class DiaryTestFixtures {
     static Diary privateDiary(UUID author) {
         return Diary.create(
             DiaryId.newId(), author,
-            new DiaryContent("비공개 메모"),
+            new DiaryLines(List.of("비공개 메모", "둘째 줄", "셋째 줄")),
             ImageUrls.empty(),
             Tags.empty(),
             Visibility.PRIVATE,
@@ -52,7 +52,7 @@ final class DiaryTestFixtures {
     static Diary publicDiaryAt(UUID author, Instant createdAt, int likeCount) {
         return Diary.reconstitute(
             DiaryId.newId(), author,
-            new DiaryContent("ok"),
+            new DiaryLines(List.of("ok", "line2", "line3")),
             ImageUrls.empty(),
             Tags.empty(),
             Visibility.PUBLIC,
