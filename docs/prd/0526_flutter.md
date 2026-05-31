@@ -102,10 +102,16 @@ Response:
 #: 1.6
 Method: GET
 Path: /users/{userId}
-상태: PENDING
+상태: LIVE (부분 — diaryCount)
 Body: path: userId
 Response: 1.5 + diaryCount,followerCount,followingCount,isFollowing,bio
 비고: 404 USER_NOT_FOUND
+▎ 백엔드 정합 (Slice 3-b, 2026-05-31): diaryCount LIVE.
+▎  - 1.5 (본인 /users/me): diaryCount = 전체 일기 수 (PUBLIC + PRIVATE).
+▎  - 1.6 (타인 /users/{id}): diaryCount = 공개 일기 수만 (비공개 누설 차단, IDOR).
+▎  - diaryCount 는 diary-service gRPC 조회 — 실패 시 null (키 명시 노출, "집계 불가").
+▎  - followerCount/followingCount/isFollowing 은 follow 도메인 부재로 후속 plan (PENDING).
+▎  - PATCH /users/me (PATCH profile) 응답의 diaryCount 는 항상 null — GET 으로 조회.
 
 2. Diary (3줄 일기)
 
@@ -359,7 +365,7 @@ Client 타임아웃: wait + 10s 필요. 폴링은 응답 받으면 즉시 다음
 │ P1   │ Diary Chatroom 전체 (5.1~5.9)              │ 클라는 실제 API 호출 중인데 백         │
 │      │                                            │ 미구현이면 404. 음성 채팅방 동작 안 함 │
 ├──────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ P1   │ Diary edit (2.4), Profile diaryCount (1.6) │ Slice 3 — Aggregate update + gRPC      │
+│ DONE │ Diary edit (2.4), Profile diaryCount (1.6) │ Slice 3-a (PUT) + Slice 3-b (gRPC) 완료│
 ├──────┼────────────────────────────────────────────┼────────────────────────────────────────┤
 │ P2   │ User profile follower* (1.6 잔여)          │ follower 도메인 신규                   │
 ├──────┼────────────────────────────────────────────┼────────────────────────────────────────┤

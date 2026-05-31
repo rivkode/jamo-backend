@@ -33,6 +33,10 @@ dependencies {
     implementation("net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE")
     implementation("io.grpc:grpc-netty-shaded:1.66.0")
 
+    // ===== gRPC server (DiaryQueryService 노출 — identity-service 의 diaryCount 조회) =====
+    // diary-service 가 처음으로 gRPC server 역할 (Slice 3-b / PRD 0526_flutter.md §1.5·§1.6).
+    implementation("net.devh:grpc-server-spring-boot-starter:3.1.0.RELEASE")
+
     // ===== Resilience4j (CLAUDE.md NEVER: Circuit Breaker/Retry/Fallback 미설정) =====
     implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
     implementation("io.github.resilience4j:resilience4j-circuitbreaker:2.2.0")

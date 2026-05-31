@@ -2,6 +2,7 @@ package app.backend.jamo.identity.application.service;
 
 import app.backend.jamo.identity.application.dto.MyProfileResult;
 import app.backend.jamo.identity.application.dto.RetrieveMyProfileQuery;
+import app.backend.jamo.identity.application.port.DiaryCountPort;
 import app.backend.jamo.identity.domain.exception.AuthenticatedUserNotFoundException;
 import app.backend.jamo.identity.domain.model.oauth.OAuthIdentity;
 import app.backend.jamo.identity.domain.model.oauth.OAuthProvider;
@@ -24,7 +25,11 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RetrieveMyProfileServiceTest {
@@ -33,13 +38,15 @@ class RetrieveMyProfileServiceTest {
 
     private UserRepository userRepository;
     private ProfileRepository profileRepository;
+    private DiaryCountPort diaryCountPort;
     private RetrieveMyProfileService service;
 
     @BeforeEach
     void setUp() {
         userRepository = mock(UserRepository.class);
         profileRepository = mock(ProfileRepository.class);
-        service = new RetrieveMyProfileService(userRepository, profileRepository);
+        diaryCountPort = mock(DiaryCountPort.class);
+        service = new RetrieveMyProfileService(userRepository, profileRepository, diaryCountPort);
     }
 
     @Test
@@ -53,6 +60,7 @@ class RetrieveMyProfileServiceTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
+        when(diaryCountPort.getCount(eq(userId.value()), eq(true))).thenReturn(7L);
 
         MyProfileResult result = service.retrieve(new RetrieveMyProfileQuery(userId));
 
@@ -64,6 +72,25 @@ class RetrieveMyProfileServiceTest {
         assertThat(result.bio()).isEqualTo(new Bio("hello"));
         assertThat(result.avatarUrl()).isEqualTo(new AvatarUrl("https://e.io/a.png"));
         assertThat(result.locale()).isEqualTo(new Locale("en"));
+        assertThat(result.diaryCount()).isEqualTo(7L);
+        // 본인 조회 — 전체 일기 수 (includePrivate=true)
+        verify(diaryCountPort).getCount(userId.value(), true);
+    }
+
+    @Test
+    void retrieve_returns_null_diaryCount_when_grpc_fails() {
+        // diary-service gRPC 실패 시 fallback=null — 응답에 그대로 노출.
+        UserId userId = UserId.generate();
+        User user = User.registerWithOAuth(
+                OAuthProvider.GOOGLE, new ProviderUserId("google-2"),
+                new DisplayName("jamo"), new Email("user@jamoai.app"), NOW);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(profileRepository.findById(userId)).thenReturn(Optional.empty());
+        when(diaryCountPort.getCount(any(), anyBoolean())).thenReturn(null);
+
+        MyProfileResult result = service.retrieve(new RetrieveMyProfileQuery(userId));
+
+        assertThat(result.diaryCount()).isNull();
     }
 
     @Test

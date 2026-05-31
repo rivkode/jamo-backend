@@ -3,6 +3,7 @@ package app.backend.jamo.diary.infrastructure.persistence.repository;
 import app.backend.jamo.diary.domain.model.diary.Diary;
 import app.backend.jamo.diary.domain.model.diary.DiaryId;
 import app.backend.jamo.diary.domain.model.diary.Tag;
+import app.backend.jamo.diary.domain.model.diary.Visibility;
 import app.backend.jamo.diary.domain.repository.DiaryRepository;
 import app.backend.jamo.diary.domain.repository.cursor.PopularFeedCursor;
 import app.backend.jamo.diary.domain.repository.cursor.RecentFeedCursor;
@@ -102,5 +103,15 @@ public class DiaryRepositoryImpl implements DiaryRepository {
     @Override
     public int deleteAllByAuthorId(UUID authorId) {
         return jpa.deleteAllByAuthorId(authorId);
+    }
+
+    @Override
+    public long countByAuthorId(UUID authorId) {
+        return jpa.countByAuthorId(authorId);
+    }
+
+    @Override
+    public long countPublicByAuthorId(UUID authorId) {
+        return jpa.countByAuthorIdAndVisibility(authorId, Visibility.PUBLIC.name());
     }
 }

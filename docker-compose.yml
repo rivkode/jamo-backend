@@ -85,6 +85,8 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3000}
+      # diary-service gRPC (DiaryQueryService — 프로필 diaryCount 조회, Slice 3-b)
+      DIARY_SERVICE_GRPC_ADDRESS: ${DIARY_SERVICE_GRPC_ADDRESS:-static://diary-service:9092}
       TZ: Asia/Seoul
     depends_on:
       mysql:
@@ -106,11 +108,19 @@ services:
     container_name: jamo-diary-service
     ports:
       - "${DIARY_SERVER_PORT:-8082}:8082"
+    # gRPC server (DiaryQueryService — identity-service 의 diaryCount 조회, Slice 3-b).
+    # host 바인딩 금지 (security-reviewer C1): 인증/authz interceptor 가 없어 host 노출 시 누구나
+    # include_private=true 로 임의 사용자 전체 일기 수 조회 가능 (application-layer IDOR 우회). 같은
+    # compose 네트워크의 identity-service 는 서비스명(diary-service:9092)으로 접근하므로 host 포트 불요.
+    # 내부 디버깅은 `docker compose exec` 또는 임시 ports 매핑. prod 차단 조건: docs/decisions/api/diary-grpc-internal-only.md
+    expose:
+      - "9092"
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       DIARY_DB_URL: jdbc:mysql://mysql:3306/diary?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
       DIARY_DB_USERNAME: ${DIARY_DB_USERNAME:-diary}
       DIARY_DB_PASSWORD: ${DIARY_DB_PASSWORD:-diary-dev}
+      DIARY_GRPC_PORT: 9092
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-jamo-redis-dev}

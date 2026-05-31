@@ -58,7 +58,8 @@ class SpecAliasJsonSerializationTest {
             NOW,
             new Bio("hello"),
             new AvatarUrl("https://e.io/a.png"),
-            new Locale("ko")));
+            new Locale("ko"),
+            7L));
 
         JsonNode node = mapper.readTree(mapper.writeValueAsString(res));
 
@@ -66,6 +67,7 @@ class SpecAliasJsonSerializationTest {
         assertThat(node.get("username").asText()).isEqualTo("Minji"); // PRD §1.5 alias
         assertThat(node.get("providers")).hasSize(2);
         assertThat(node.get("provider").asText()).isEqualTo("GOOGLE"); // PRD §1.5 단수 — providers[0]
+        assertThat(node.get("diaryCount").asLong()).isEqualTo(7L); // Slice 3-b
     }
 
     @Test
@@ -78,13 +80,17 @@ class SpecAliasJsonSerializationTest {
             NOW,
             null,
             null,
-            new Locale("ko")));
+            new Locale("ko"),
+            null));
 
         JsonNode node = mapper.readTree(mapper.writeValueAsString(res));
 
         // PRD: provider 가 null 일 수 있다 — 키 명시 노출 (Include.ALWAYS).
         assertThat(node.has("provider")).isTrue();
         assertThat(node.get("provider").isNull()).isTrue();
+        // Slice 3-b: diaryCount 도 null 일 수 있다 (gRPC 실패) — 키 명시 노출.
+        assertThat(node.has("diaryCount")).isTrue();
+        assertThat(node.get("diaryCount").isNull()).isTrue();
     }
 
     @Test
@@ -93,12 +99,14 @@ class SpecAliasJsonSerializationTest {
             new UserId(USER_UUID),
             new DisplayName("Minji"),
             new Bio("hi"),
-            new AvatarUrl("https://e.io/a.png")));
+            new AvatarUrl("https://e.io/a.png"),
+            3L));
 
         JsonNode node = mapper.readTree(mapper.writeValueAsString(res));
 
         assertThat(node.get("displayName").asText()).isEqualTo("Minji");
         assertThat(node.get("username").asText()).isEqualTo("Minji"); // PRD §1.6 alias
+        assertThat(node.get("diaryCount").asLong()).isEqualTo(3L); // Slice 3-b — 공개 일기만
     }
 
     @Test

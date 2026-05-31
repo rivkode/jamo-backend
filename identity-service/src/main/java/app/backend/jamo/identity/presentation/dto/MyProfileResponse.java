@@ -21,6 +21,9 @@ import java.util.List;
  *       {@code providers} 배열을 읽도록 전환.</li>
  *   <li>기존 {@code displayName} / {@code providers} 필드도 그대로 노출 — 양방향 호환.</li>
  * </ul>
+ *
+ * <p><b>PRD §1.6 정합 (Slice 3-b)</b>: {@code diaryCount} — 본인 전체 일기 수 (PUBLIC + PRIVATE).
+ * diary-service gRPC 조회 실패 시 null (키 명시 노출 — Jackson Include.ALWAYS, 프론트 "집계 불가").
  */
 public record MyProfileResponse(
         String id,
@@ -30,7 +33,8 @@ public record MyProfileResponse(
         Instant createdAt,
         String bio,
         String avatarUrl,
-        String locale
+        String locale,
+        Long diaryCount
 ) {
 
     /** PRD §1.5 alias — frontend 호환 필드명. */
@@ -54,6 +58,7 @@ public record MyProfileResponse(
                 result.createdAt(),
                 result.bio() == null ? null : result.bio().value(),
                 result.avatarUrl() == null ? null : result.avatarUrl().value(),
-                result.locale().code());
+                result.locale().code(),
+                result.diaryCount());
     }
 }

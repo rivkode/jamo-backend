@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package app.backend.jamo.contracts.proto.diary;
+
+option java_multiple_files = true;
+option java_package = "app.backend.jamo.contracts.proto.diary";
+option java_outer_classname = "DiaryProto";
+
+// DiaryQueryService — diary-service (Java) 가 노출하는 일기 집계 조회.
+//
+// 제공자: diary-service (Java, Spring Boot)
+// 호출자: identity-service (프로필 응답의 diaryCount 합성 — PRD 0526_flutter.md §1.5 / §1.6).
+//        다른 서비스도 사용자별 일기 수를 실시간 정확한 최신값으로 조회해야 할 때 호출 가능.
+// 언어: Java / Java
+//
+// 책임:
+//   identity-service 의 profile 조회 (GET /api/v1/profiles/me, /profiles/{userId}) 가
+//   diaryCount 필드를 채울 때 본 서비스를 호출. SoT 는 diary-service 의 Diary Aggregate —
+//   identity 는 집계값만 읽는 Read 호출 (쓰기 없음). 결과 stale 허용 (호출 측 fallback 정책).
+//
+// 정책 일관성 (identity.proto UserSummaryService 와 동일):
+//   - 모든 요청에 optional `request_id` (호출 측 cache 키 / 분산 trace). 비우면
+//     diary-service 가 생성하여 응답 echo.
+//   - status 등 enum 가능 필드는 string (proto3 enum 미사용 — 도메인 변경 시 contracts
+//     breaking change 회피).
+//
+// 비고:
+//   - diary-service 의 일기 read 단일 진입점은 HTTP (GET /api/v1/diaries/*). 본 gRPC 는
+//     서비스간 집계 조회에 한정.
+//   - 비공개 일기 수 누설 차단: `include_private=false` (타인 조회) 시 PUBLIC 일기만 카운트.
+//     `include_private=true` (본인 조회) 시 전체. 호출 측(identity)이 본인/타인을 판별해 플래그 설정.
+service DiaryQueryService {
+  // 사용자별 일기 수 조회. 호출자 Deadline: 5초 (단순 count + Resilience4j 마진).
+  rpc GetDiaryCount (GetDiaryCountRequest) returns (GetDiaryCountResponse);
+}
+
+// ============================================================
+// GetDiaryCount
+// ============================================================
+
+message GetDiaryCountRequest {
+  // 집계 대상 작성자 ID (UUID 문자열).
+  string author_id = 1;
+
+  // true  = 전체 일기 (PUBLIC + PRIVATE) — 본인 프로필 조회 (MyProfile).
+  // false = PUBLIC 일기만 — 타인 프로필 조회 (PublicProfile). 비공개 수 누설 차단 (IDOR).
+  // 호출 측(identity)이 viewer == target 여부로 결정.
+  bool include_private = 2;
+
+  // 호출자가 부여하는 추적 ID (호출 측 cache 키 / 분산 trace).
+  // 비우면 diary-service 가 생성하여 응답에 echo.
+  string request_id = 3;
+
+  // field 4 ~ 9: viewer_id / 기간 필터 / visibility 세분화 등 후속 예약.
+  reserved 4 to 9;
+}
+
+message GetDiaryCountResponse {
+  // RPC 결과 status. 값 카탈로그: "OK" / "FAILED" (string).
+  // gRPC `Status` 와 별개 — 호출 측 UX 단순화 위해 200 응답 + status.
+  string status = 1;
+
+  // 일기 수. status="OK" 일 때만 유효. "FAILED" 시 0 (호출 측은 status 로 판별).
+  int64 count = 2;
+
+  // 추적 ID echo.
+  string request_id = 3;
+
+  reserved 4 to 9;
+}

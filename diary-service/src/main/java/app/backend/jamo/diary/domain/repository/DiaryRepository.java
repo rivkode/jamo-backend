@@ -55,6 +55,21 @@ public interface DiaryRepository {
     List<Diary> findMyFeedRecent(UUID authorId, RecentFeedCursor cursorOrNull, int limit);
 
     /**
+     * 작성자별 전체 일기 수 (visibility 무관) — 본인 프로필 diaryCount (Slice 3-b / DiaryQueryService).
+     *
+     * <p>호출자: gRPC server {@code DiaryQueryGrpcService} (identity-service 가 본인 프로필 조회 시).
+     * 비공개 일기 포함이므로 본인 조회 전용 — 타인 조회는 {@link #countPublicByAuthorId} 사용.
+     */
+    long countByAuthorId(UUID authorId);
+
+    /**
+     * 작성자별 공개(PUBLIC) 일기 수 — 타인 프로필 diaryCount (Slice 3-b / DiaryQueryService).
+     *
+     * <p>비공개 일기 수 누설 차단 (IDOR) — 타인 프로필 조회 시 PUBLIC 만 카운트.
+     */
+    long countPublicByAuthorId(UUID authorId);
+
+    /**
      * 회원 탈퇴 Saga cascade — sentence-feedback 정합 (Saga 구독자 only).
      *
      * <p>호출자: {@code UserWithdrawalRequestedListener} — {@code UserWithdrawalRequested} 구독 후 실행.

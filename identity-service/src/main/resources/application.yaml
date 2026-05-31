@@ -109,6 +109,40 @@ jamo:
     daily-limit: ${USER_VALIDATION_DAILY_LIMIT:5}
     validated-flag-ttl: ${USER_VALIDATION_FLAG_TTL:PT10M}
 
+# gRPC client (diary-service DiaryQueryService — 프로필 diaryCount 조회, Slice 3-b)
+grpc:
+  client:
+    diary-service:
+      address: ${DIARY_SERVICE_GRPC_ADDRESS:static://localhost:9092}
+      negotiationType: ${DIARY_SERVICE_GRPC_NEGOTIATION:plaintext}
+      # Deadline 은 DiaryCountGrpcClient 의 withDeadlineAfter(5s). CB/Retry 는 아래 resilience4j.
+
+# Resilience4j — diary-service DiaryQueryService 호출용 instance (CLAUDE.md NEVER 회피).
+# Circuit Breaker: 50% 실패율 / 10건 sliding / open 후 30s. Retry: 3회 (gRPC StatusRuntimeException).
+# 실패 일원화 → diaryCount=null fallback (DiaryCountGrpcClient).
+resilience4j:
+  circuitbreaker:
+    instances:
+      diaryService:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - io.grpc.StatusRuntimeException
+  retry:
+    instances:
+      diaryService:
+        # maxAttempts 2 (code-reviewer M1): withDeadlineAfter(5s) 가 매 시도 리셋되므로 누적 최악
+        # 5s×2 + waitDuration 200ms ≈ 10.2s. 3회면 ~15.4s 로 readOnly 트랜잭션 connection 점유 과다.
+        maxAttempts: 2
+        waitDuration: 200ms
+        retryExceptions:
+          - io.grpc.StatusRuntimeException
+
 # Actuator endpoint 차단 — health 만 노출. configprops/env 노출 시 secret leak 위험
 management:
   endpoints:

@@ -383,6 +383,32 @@ class DiaryRepositoryImplDataJpaTest extends AbstractMySQLContainerTest {
         assertThat(repository.findMyFeedRecent(other, null, 10)).hasSize(1);
     }
 
+    @Test
+    void countByAuthorId_counts_all_visibilities_countPublic_counts_public_only() {
+        // Slice 3-b — diaryCount. 본인(전체) vs 타인(공개만) 카운트 구분 검증.
+        UUID author = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        repository.save(newPublicDiary(author, "pub1", baseTime));
+        repository.save(newPublicDiary(author, "pub2", baseTime.minusSeconds(60)));
+        repository.save(newDiary(author, "priv1", baseTime.minusSeconds(120), Visibility.PRIVATE, 0));
+        repository.save(newPublicDiary(other, "other-pub", baseTime));
+        flushAndClear();
+
+        // 전체 (PUBLIC 2 + PRIVATE 1) = 3
+        assertThat(repository.countByAuthorId(author)).isEqualTo(3L);
+        // 공개만 (PUBLIC 2) = 2 — 비공개 누설 차단
+        assertThat(repository.countPublicByAuthorId(author)).isEqualTo(2L);
+        // 다른 작성자 격리
+        assertThat(repository.countByAuthorId(other)).isEqualTo(1L);
+        assertThat(repository.countPublicByAuthorId(other)).isEqualTo(1L);
+    }
+
+    @Test
+    void count_returns_zero_for_author_with_no_diaries() {
+        assertThat(repository.countByAuthorId(UUID.randomUUID())).isZero();
+        assertThat(repository.countPublicByAuthorId(UUID.randomUUID())).isZero();
+    }
+
     private Diary newPublicDiary(UUID author, String content, Instant createdAt) {
         return newDiary(author, content, createdAt, Visibility.PUBLIC, 0);
     }
