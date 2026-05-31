@@ -129,6 +129,9 @@ public class UpdateMyProfileService {
                 .map(OAuthIdentity::provider)
                 .toList();
 
+        // diaryCount=null (Slice 3-b): PATCH 는 프로필 메타데이터 (displayName/bio/avatarUrl/locale) 만
+        // 수정 — 일기 수와 무관. write 트랜잭션 안에서 diary-service gRPC 를 호출하지 않음 (lock 점유 회피).
+        // 프론트는 PATCH 응답을 부분 갱신으로 사용하고 diaryCount 는 GET /me 값을 유지. null = "이 응답 미집계".
         return new MyProfileResult(
                 user.id(),
                 user.email().orElse(null),
@@ -137,6 +140,7 @@ public class UpdateMyProfileService {
                 user.createdAt(),
                 profile.bio().orElse(null),
                 profile.avatarUrl().orElse(null),
-                profile.locale());
+                profile.locale(),
+                null);
     }
 }

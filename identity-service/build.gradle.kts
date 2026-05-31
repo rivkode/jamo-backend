@@ -19,6 +19,16 @@ dependencies {
 
     runtimeOnly("com.mysql:mysql-connector-j")
 
+    // ===== gRPC client (diary-service DiaryQueryService 호출 — 프로필 diaryCount, Slice 3-b) =====
+    // identity-service 가 처음 갖는 gRPC client. contracts 가 grpc-stub / grpc-protobuf 를 api 노출.
+    implementation("net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE")
+    implementation("io.grpc:grpc-netty-shaded:1.66.0")
+
+    // ===== Resilience4j (CLAUDE.md NEVER: Circuit Breaker/Retry/Fallback 미설정) =====
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
+    implementation("io.github.resilience4j:resilience4j-circuitbreaker:2.2.0")
+    implementation("io.github.resilience4j:resilience4j-retry:2.2.0")
+
     implementation(project(":contracts"))
     implementation(project(":common-auth-jwt"))
     implementation(project(":common-infrastructure"))
@@ -30,6 +40,8 @@ dependencies {
     testImplementation("org.testcontainers:mysql")
     // WireMock — OAuth provider stub (ADR-0006 결정 5: HttpOAuthProviderClient 단위 테스트)
     testImplementation("org.wiremock:wiremock-standalone:3.9.1")
+    // gRPC InProcess transport — DiaryCountGrpcClient 어댑터 단위 테스트 (server stub mock impl, Slice 3-b)
+    testImplementation("io.grpc:grpc-inprocess:1.66.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

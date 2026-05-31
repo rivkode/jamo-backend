@@ -54,8 +54,12 @@ server:
     include-stacktrace: never
     include-message: never
 
-# gRPC client (chat-service AiAssistantService) — net.devh:grpc-client-spring-boot-starter
+# gRPC — net.devh:grpc-{client,server}-spring-boot-starter
 grpc:
+  # gRPC server (DiaryQueryService 노출 — identity-service 의 diaryCount 조회, Slice 3-b).
+  # diary-service 가 처음 갖는 gRPC server. HTTP (8082) 와 별도 포트.
+  server:
+    port: ${DIARY_GRPC_PORT:9092}
   client:
     chat-service:
       address: ${CHAT_SERVICE_GRPC_ADDRESS:static://localhost:9093}

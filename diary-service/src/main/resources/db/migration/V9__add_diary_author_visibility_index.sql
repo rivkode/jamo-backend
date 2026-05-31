@@ -1,0 +1,12 @@
+-- Slice 3-b: diaryCount 집계 인덱스 (code-reviewer H1).
+--
+-- countPublicByAuthorId (DiaryQueryService.GetDiaryCount, include_private=false / 타인 프로필) 는
+--   WHERE author_id = ? AND visibility = 'PUBLIC'
+-- 를 수행한다. 기존 인덱스로는:
+--   - idx_diaries_author_created_at (author_id, created_at DESC, id DESC) → author_id 선두 매칭 후
+--     visibility 는 후행 컬럼이 아니라 row 필터링 (작성자 일기 많을수록 스캔 증가).
+--   - idx_diaries_visibility_created_at (visibility, ...) → visibility 카디널리티 2 라 비효율.
+--
+-- 본 복합 인덱스로 (author_id, visibility) 선두 2 컬럼 매칭 → count 가 인덱스만으로 해결 (covering).
+-- countByAuthorId (전체, include_private=true / 본인) 는 idx_diaries_author_created_at 선두로 충분 — 추가 인덱스 불요.
+CREATE INDEX idx_diaries_author_visibility ON diaries (author_id, visibility);

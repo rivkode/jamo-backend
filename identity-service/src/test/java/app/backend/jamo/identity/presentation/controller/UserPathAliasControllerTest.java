@@ -90,7 +90,8 @@ class UserPathAliasControllerTest {
             NOW,
             new Bio("hello"),
             new AvatarUrl("https://e.io/a.png"),
-            new Locale("ko"));
+            new Locale("ko"),
+            7L);
     }
 
     // ---------------- /api/v1/users/login (PRD §1.1)
@@ -161,7 +162,8 @@ class UserPathAliasControllerTest {
             new UserId(targetId),
             new DisplayName("Nick"),
             new Bio("hi"),
-            new AvatarUrl("https://e.io/x.png")));
+            new AvatarUrl("https://e.io/x.png"),
+            3L));
 
         mockMvc.perform(get("/api/v1/users/" + targetId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer valid-access"))

@@ -81,7 +81,8 @@ class ProfileControllerTest {
                 NOW,
                 new Bio("hello"),
                 new AvatarUrl("https://e.io/a.png"),
-                new Locale("en"));
+                new Locale("en"),
+                7L);
     }
 
     // ------------------------------------------------------------- GET /me
@@ -101,7 +102,8 @@ class ProfileControllerTest {
                 .andExpect(jsonPath("$.createdAt").value("2026-04-28T10:00:00Z"))
                 .andExpect(jsonPath("$.bio").value("hello"))
                 .andExpect(jsonPath("$.avatarUrl").value("https://e.io/a.png"))
-                .andExpect(jsonPath("$.locale").value("en"));
+                .andExpect(jsonPath("$.locale").value("en"))
+                .andExpect(jsonPath("$.diaryCount").value(7));  // Slice 3-b — 본인 전체 일기 수
     }
 
     @Test
@@ -153,7 +155,8 @@ class ProfileControllerTest {
                 new UserId(targetId),
                 new DisplayName("nick"),
                 new Bio("hi"),
-                new AvatarUrl("https://e.io/x.png")));
+                new AvatarUrl("https://e.io/x.png"),
+                3L));
 
         mockMvc.perform(get("/api/v1/profiles/" + targetId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer valid-access"))
@@ -162,6 +165,7 @@ class ProfileControllerTest {
                 .andExpect(jsonPath("$.displayName").value("nick"))
                 .andExpect(jsonPath("$.bio").value("hi"))
                 .andExpect(jsonPath("$.avatarUrl").value("https://e.io/x.png"))
+                .andExpect(jsonPath("$.diaryCount").value(3))  // Slice 3-b — 공개 일기만
                 .andExpect(jsonPath("$.email").doesNotExist())
                 .andExpect(jsonPath("$.providers").doesNotExist())
                 .andExpect(jsonPath("$.createdAt").doesNotExist())
@@ -198,7 +202,7 @@ class ProfileControllerTest {
         UUID targetId = UUID.fromString("00000000-0000-0000-0000-000000000099");
         when(jwtVerifier.verify("valid-access")).thenReturn(accessClaims());
         when(retrieveProfileService.retrieve(any())).thenReturn(new PublicProfileResult(
-                new UserId(targetId), new DisplayName("nick"), null, null));
+                new UserId(targetId), new DisplayName("nick"), null, null, null));
 
         ArgumentCaptor<RetrieveProfileQuery> captor = ArgumentCaptor.forClass(RetrieveProfileQuery.class);
         mockMvc.perform(get("/api/v1/profiles/" + targetId)

@@ -127,4 +127,15 @@ public interface SpringDataDiaryRepository extends JpaRepository<DiaryJpaEntity,
                                                @Param("lastCreatedAt") Instant lastCreatedAt,
                                                @Param("lastId") UUID lastId,
                                                @Param("limit") int limit);
+
+    // ========================================================================
+    // diaryCount 집계 (Slice 3-b / DiaryQueryService.GetDiaryCount).
+    //   - countByAuthorId: 전체 (본인 프로필) — idx_diaries_author_created_at 선두 매칭.
+    //   - countByAuthorIdAndVisibility: PUBLIC 만 (타인 프로필, IDOR 차단) —
+    //     idx_diaries_author_visibility (author_id, visibility) 복합 인덱스 활용 (V9, code-reviewer H1).
+    // ========================================================================
+
+    long countByAuthorId(UUID authorId);
+
+    long countByAuthorIdAndVisibility(UUID authorId, String visibility);
 }
