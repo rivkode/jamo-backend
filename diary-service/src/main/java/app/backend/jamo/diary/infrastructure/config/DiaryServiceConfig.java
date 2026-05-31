@@ -32,7 +32,8 @@ import java.time.Clock;
 @EnableConfigurationProperties({
     SentenceFeedbackRateLimitProperties.class,
     SentenceFeedbackBatchProperties.class,
-    JwtVerifierProperties.class
+    JwtVerifierProperties.class,
+    CorsProperties.class
 })
 public class DiaryServiceConfig {
 

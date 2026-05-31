@@ -34,7 +34,8 @@ import java.time.Clock;
         DeviceCookieProperties.class,
         FrontendProperties.class,
         EmailValidationProperties.class,
-        AuthLoginProperties.class
+        AuthLoginProperties.class,
+        CorsProperties.class
 })
 public class IdentityServiceConfig {
 

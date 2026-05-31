@@ -102,6 +102,10 @@ jamo:
     key-id: ${JWT_KEY_ID:identity-k1}
     public-key-pem: ${JWT_PUBLIC_KEY_PEM:}
     clock-skew: PT30S
+  cors:
+    # Frontend SPA cross-origin 호출 허용 origin (쉼표 구분). * 미사용 — 명시 origin 만.
+    # dev/local 기본 localhost:3000, prod 는 아래 multi-document override 로 jamoai.app.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   sentence-feedback:
     # decisions/diary/sentence-feedback-domain-policy.md §3 (TTL 24h) / §6 (Deadline 35s) / §11 (quota)
     ttl: PT24H
@@ -170,3 +174,7 @@ springdoc:
     enabled: false
   api-docs:
     enabled: false
+jamo:
+  cors:
+    # prod 미설정 시 운영 frontend origin. env CORS_ALLOWED_ORIGINS 로 override 가능.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://jamoai.app}
