@@ -63,4 +63,22 @@ class ChatMessageTest {
         assertThatThrownBy(() -> new MessageAudioUrl("https://user:pw@evil.com/a.wav"))
             .isInstanceOf(InvalidChatMessageException.class);
     }
+
+    @Test
+    void ai_message_has_no_author_no_audio_and_ai_source() {
+        ChatMessage m = ChatMessage.aiMessage(ROOM, new MessageText("AI 응답입니다"), CLOCK);
+        assertThat(m.id()).isNull();   // late identity
+        assertThat(m.source()).isEqualTo(MessageSource.AI);
+        assertThat(m.authorUserId()).isEmpty();
+        assertThat(m.text()).isEqualTo("AI 응답입니다");
+        assertThat(m.audioUrl()).isEmpty();
+    }
+
+    @Test
+    void system_message_has_no_author_and_system_source() {
+        ChatMessage m = ChatMessage.systemMessage(ROOM, new MessageText("AI 응답을 생성하지 못했어요."), CLOCK);
+        assertThat(m.source()).isEqualTo(MessageSource.SYSTEM);
+        assertThat(m.authorUserId()).isEmpty();
+        assertThat(m.text()).isEqualTo("AI 응답을 생성하지 못했어요.");
+    }
 }

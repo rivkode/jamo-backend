@@ -2,9 +2,12 @@ package app.backend.jamo.chat.infrastructure.grpc.client;
 
 import app.backend.jamo.chat.domain.ai.AiTimeoutException;
 import app.backend.jamo.chat.domain.ai.AiUnavailableException;
+import app.backend.jamo.chat.domain.ai.LlmCompletion;
 import app.backend.jamo.chat.domain.ai.SynthesizedSpeech;
 import app.backend.jamo.chat.domain.ai.TranscriptResult;
 import app.backend.jamo.contracts.proto.ai.AiServiceGrpc;
+import app.backend.jamo.contracts.proto.ai.CompleteRequest;
+import app.backend.jamo.contracts.proto.ai.CompleteResponse;
 import app.backend.jamo.contracts.proto.ai.SpeechToTextRequest;
 import app.backend.jamo.contracts.proto.ai.SpeechToTextResponse;
 import app.backend.jamo.contracts.proto.ai.TextToSpeechRequest;
@@ -38,6 +41,7 @@ class AiServiceGrpcAdapterTest {
     private AiServiceGrpcAdapter adapter;
     private final AtomicReference<SpeechToTextRequest> lastStt = new AtomicReference<>();
     private final AtomicReference<TextToSpeechRequest> lastTts = new AtomicReference<>();
+    private final AtomicReference<CompleteRequest> lastComplete = new AtomicReference<>();
     private Status failStatus;  // null = 정상, 그 외 = 해당 status 로 onError
 
     @BeforeEach
@@ -67,6 +71,18 @@ class AiServiceGrpcAdapterTest {
                     }
                     obs.onNext(TextToSpeechResponse.newBuilder()
                         .setAudio(ByteString.copyFromUtf8("AUDIO")).setFormat("mp3").build());
+                    obs.onCompleted();
+                }
+
+                @Override
+                public void complete(CompleteRequest request, StreamObserver<CompleteResponse> obs) {
+                    lastComplete.set(request);
+                    if (failStatus != null) {
+                        obs.onError(failStatus.asRuntimeException());
+                        return;
+                    }
+                    obs.onNext(CompleteResponse.newBuilder()
+                        .setCompletion("좋은 하루였네요!").setFinishReason("stop").build());
                     obs.onCompleted();
                 }
             })
@@ -129,6 +145,40 @@ class AiServiceGrpcAdapterTest {
     void deadline_exceeded_becomes_ai_timeout_not_retryable() {
         failStatus = Status.DEADLINE_EXCEEDED.withDescription("slow");
         // AiTimeoutException(= AiUnavailableException 하위) — retry ignoreExceptions 대상 (code H1)
+        assertThatThrownBy(() -> adapter.transcribe(new byte[]{1}, "wav", "ko"))
+            .isInstanceOf(AiTimeoutException.class);
+    }
+
+    @Test
+    void complete_maps_request_and_response() {
+        LlmCompletion completion = adapter.complete("프롬프트", 0.7, 256);
+
+        assertThat(completion.text()).isEqualTo("좋은 하루였네요!");
+        assertThat(completion.finishReason()).isEqualTo("stop");
+        assertThat(completion.isUsable()).isTrue();
+        assertThat(lastComplete.get().getPrompt()).isEqualTo("프롬프트");
+        assertThat(lastComplete.get().getTemperature()).isEqualTo(0.7);
+        assertThat(lastComplete.get().getMaxTokens()).isEqualTo(256);
+    }
+
+    @Test
+    void complete_grpc_error_becomes_ai_unavailable() {
+        failStatus = Status.INTERNAL.withDescription("boom");
+        assertThatThrownBy(() -> adapter.complete("p", 0.7, 256))
+            .isInstanceOf(AiUnavailableException.class);
+    }
+
+    @Test
+    void complete_deadline_becomes_ai_timeout() {
+        failStatus = Status.DEADLINE_EXCEEDED.withDescription("slow");
+        assertThatThrownBy(() -> adapter.complete("p", 0.7, 256))
+            .isInstanceOf(AiTimeoutException.class);
+    }
+
+    @Test
+    void cancelled_becomes_ai_timeout_not_retryable() {
+        // toAiException 은 DEADLINE_EXCEEDED 와 CANCELLED 둘 다 AiTimeoutException 으로 매핑 (test-reviewer M1).
+        failStatus = Status.CANCELLED.withDescription("cancelled");
         assertThatThrownBy(() -> adapter.transcribe(new byte[]{1}, "wav", "ko"))
             .isInstanceOf(AiTimeoutException.class);
     }

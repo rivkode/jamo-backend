@@ -45,6 +45,22 @@ public class ChatMessage {
         return new ChatMessage(null, roomId, authorUserId, text, audioUrl, MessageSource.USER, clock.instant());
     }
 
+    /** AI 어시스턴트 자동응답 (S4) — authorUserId 없음, text 필수, audioUrl 없음. */
+    public static ChatMessage aiMessage(RoomId roomId, MessageText text, Clock clock) {
+        Objects.requireNonNull(roomId, "roomId");
+        Objects.requireNonNull(text, "text");
+        Objects.requireNonNull(clock, "clock");
+        return new ChatMessage(null, roomId, null, text, null, MessageSource.AI, clock.instant());
+    }
+
+    /** 시스템 안내 메시지 (S4 — AI 생성 실패/한도 통지) — authorUserId 없음, text 필수. */
+    public static ChatMessage systemMessage(RoomId roomId, MessageText text, Clock clock) {
+        Objects.requireNonNull(roomId, "roomId");
+        Objects.requireNonNull(text, "text");
+        Objects.requireNonNull(clock, "clock");
+        return new ChatMessage(null, roomId, null, text, null, MessageSource.SYSTEM, clock.instant());
+    }
+
     /** persistence 재구성 (Mapper 전용). */
     public static ChatMessage reconstitute(MessageId id, RoomId roomId, UUID authorUserId, MessageText text,
                                            MessageAudioUrl audioUrl, MessageSource source, Instant createdAt) {

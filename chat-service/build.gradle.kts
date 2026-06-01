@@ -17,6 +17,8 @@ dependencies {
     // ===== gRPC client (ai-service AiService 호출 — ADR-0003) =====
     implementation("net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE")
     implementation("io.grpc:grpc-netty-shaded:1.66.0")
+    // ===== gRPC server (AiAssistantService.GenerateChatResponse 노출 — diary-service diarychat AI, S4) =====
+    implementation("net.devh:grpc-server-spring-boot-starter:3.1.0.RELEASE")
 
     // ===== Resilience4j (CLAUDE.md NEVER: Circuit Breaker/Retry/Fallback 미설정) =====
     implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")

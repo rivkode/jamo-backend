@@ -1,11 +1,15 @@
 package app.backend.jamo.chat.infrastructure.grpc.client;
 
+import app.backend.jamo.chat.domain.ai.AiCompletionPort;
 import app.backend.jamo.chat.domain.ai.AiSpeechPort;
 import app.backend.jamo.chat.domain.ai.AiTimeoutException;
 import app.backend.jamo.chat.domain.ai.AiUnavailableException;
+import app.backend.jamo.chat.domain.ai.LlmCompletion;
 import app.backend.jamo.chat.domain.ai.SynthesizedSpeech;
 import app.backend.jamo.chat.domain.ai.TranscriptResult;
 import app.backend.jamo.contracts.proto.ai.AiServiceGrpc;
+import app.backend.jamo.contracts.proto.ai.CompleteRequest;
+import app.backend.jamo.contracts.proto.ai.CompleteResponse;
 import app.backend.jamo.contracts.proto.ai.SpeechToTextRequest;
 import app.backend.jamo.contracts.proto.ai.SpeechToTextResponse;
 import app.backend.jamo.contracts.proto.ai.TextToSpeechRequest;
@@ -29,10 +33,11 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 @Slf4j
-public class AiServiceGrpcAdapter implements AiSpeechPort {
+public class AiServiceGrpcAdapter implements AiSpeechPort, AiCompletionPort {
 
     private static final long STT_DEADLINE_MS = 65_000;
     private static final long TTS_DEADLINE_MS = 35_000;
+    private static final long LLM_DEADLINE_MS = 30_000;  // ai.proto Complete: 30s (ADR-0003 gRPC 운영 정책)
 
     @GrpcClient("ai-service")
     private AiServiceGrpc.AiServiceBlockingStub stub;
@@ -76,6 +81,30 @@ public class AiServiceGrpcAdapter implements AiSpeechPort {
         } catch (StatusRuntimeException e) {
             throw toAiException("textToSpeech", e);
         }
+    }
+
+    @Override
+    @CircuitBreaker(name = "ai-service", fallbackMethod = "completeFallback")
+    @Retry(name = "ai-service")
+    public LlmCompletion complete(String prompt, double temperature, int maxTokens) {
+        try {
+            CompleteResponse resp = stub
+                .withDeadlineAfter(LLM_DEADLINE_MS, TimeUnit.MILLISECONDS)
+                .complete(CompleteRequest.newBuilder()
+                    .setPrompt(prompt)
+                    .setTemperature(temperature)
+                    .setMaxTokens(maxTokens)
+                    .build());
+            return new LlmCompletion(resp.getCompletion(), resp.getFinishReason());
+        } catch (StatusRuntimeException e) {
+            throw toAiException("complete", e);
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private LlmCompletion completeFallback(String prompt, double temperature, int maxTokens, Throwable t) {
+        log.warn("ai-service complete fallback: {}", t.toString());
+        throw new AiUnavailableException("llm completion temporarily unavailable", t);
     }
 
     /** deadline 초과는 retry 비대상 {@link AiTimeoutException}, 그 외 gRPC 오류는 retry 대상 {@link AiUnavailableException}. */
