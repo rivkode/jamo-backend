@@ -1,14 +1,101 @@
 spring:
   application:
     name: chat-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  servlet:
+    multipart:
+      # STT 업로드 한도 — ai-service gRPC 수신 4MB 와 정합 + 멀티파트 마진.
+      max-file-size: 4MB
+      max-request-size: 6MB
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
 
-# server:
-#   port: 8083
-# grpc:
-#   server:
-#     port: 9093
-# grpc:
-#   client:
-#     ai-service:
-#       address: "static://${services.ai.host:ai-service}:${services.ai.grpc-port:9090}"
-#       negotiation-type: plaintext
+server:
+  port: ${CHAT_SERVER_PORT:8083}
+
+# gRPC client — ai-service AiService (STT/TTS/LLM). ADR-0003: chat-service 만 호출.
+grpc:
+  client:
+    ai-service:
+      address: ${AI_SERVICE_GRPC_ADDRESS:static://localhost:9090}
+      negotiationType: ${AI_SERVICE_GRPC_NEGOTIATION:plaintext}
+      # 메시지 한도 — STT audio 수신/응답 (ai-service 와 정합).
+      maxInboundMessageSize: 16777216
+
+# Resilience4j — ai-service 호출 CircuitBreaker/Retry (CLAUDE.md NEVER 회피).
+# Deadline 은 AiServiceGrpcAdapter 의 withDeadlineAfter (STT 65s / TTS 35s). Retry 2회(총 3시도).
+resilience4j:
+  circuitbreaker:
+    instances:
+      ai-service:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - app.backend.jamo.chat.domain.ai.AiUnavailableException
+  retry:
+    instances:
+      ai-service:
+        maxAttempts: 2
+        waitDuration: 500ms
+        retryExceptions:
+          - app.backend.jamo.chat.domain.ai.AiUnavailableException
+        # deadline 초과(AiTimeoutException)는 재시도 비대상 — deadline×재시도 누적(최악 130s) 회피 (code H1).
+        ignoreExceptions:
+          - app.backend.jamo.chat.domain.ai.AiTimeoutException
+
+jamo:
+  jwt:
+    # chat-service 는 access token 검증만 (identity 발급). diary-service 정합.
+    issuer: ${JWT_ISSUER:https://identity.jamoai.app}
+    audience: ${JWT_AUDIENCE:jamo-services}
+    key-id: ${JWT_KEY_ID:identity-k1}
+    public-key-pem: ${JWT_PUBLIC_KEY_PEM:}
+    clock-skew: PT30S
+  cors:
+    # Frontend SPA cross-origin (/chat/*). dev localhost:3000, prod 는 아래 multi-document override.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  audio:
+    # TTS 합성 음성 로컬 저장 (audio-storage volume). 운영 후속 S3.
+    storage-dir: ${AUDIO_STORAGE_DIR:/app/audio-storage}
+
+# Actuator — health 만 노출 (secret leak 방지).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+
+springdoc:
+  swagger-ui:
+    path: /swagger
+    operations-sorter: alpha
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+---
+# prod profile — swagger-ui / api-docs 비활성 + CORS origin prod 기본값
+spring:
+  config:
+    activate:
+      on-profile: prod
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+jamo:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://jamoai.app}
