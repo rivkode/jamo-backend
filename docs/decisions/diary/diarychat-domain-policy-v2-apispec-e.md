@@ -69,7 +69,17 @@
 
 - room `deleted_at` soft-delete, 메시지/참여자 보존. 삭제된 방 모든 endpoint 404. Saga 구독은 후속 PR. 본 슬라이스는 `markDeleted` 도메인 메서드 자리만.
 
-### 8. 롱폴 events (DiaryChatEvent) — S2-b 에서 확정
+### 8-b. 메시지 / 롱폴 (S2-b 확정)
+
+- **ChatMessage**: messageId BIGINT auto-increment, roomId, authorUserId(UUID, AI/SYSTEM 은 null), text(1..1000 cp), audioUrl(http/https, optional), source(USER/AI/SYSTEM), createdAt. 본 슬라이스는 USER 메시지(send)만 — STT 는 클라가 처리해 text 로 전송. AI/SYSTEM 은 S4.
+- **send** (E2.9): {text, audioUrl?} → 201, source=user. 방 접근(가드) 통과 시 작성 (참여 강제 안 함 — get/participants 정합).
+- **listMessages** (E2.7): before={messageId}&size(기본 30, 최대 100) → {items(최근 desc), hasMore, oldestMessageId}. before 없으면 최신부터.
+- **poll** (E2.8): after={messageId}&wait(기본 25, **최대 30s** clamp — 게이트웨이 idle 보다 짧게). `DeferredResult` + 공유 스케줄 체커(약 0.7s 간격)로 servlet thread 비점유. 새 메시지(id>after) 또는 이벤트 발생 시 즉시 반환, 없으면 wait 후 빈 배열. nextAfter = items 의 max messageId (없으면 after).
+- **events 소스** = `chat_room_events` append 테이블 (event_id BIGINT auto-inc, roomId, type, actorUserId, enabled?, createdAt). join/leave/ai-toggle 서비스가 append. poll 은 **시작 시점 baseline max event_id** 를 캡처해 그보다 큰 event 만 반환 (wait 윈도우 동안 발생분). <b>한계</b>: poll 응답과 다음 poll 시작 사이 gap 에 발생한 event 는 유실 가능 — 명세 요청에 event 커서가 없어 불가피. join/leave/ai-toggle 통지는 저위험(room/participants 재조회로 정합)이라 수용. type: PARTICIPANT_JOINED / PARTICIPANT_LEFT / AI_TOGGLE_CHANGED, enabled 는 AI_TOGGLE_CHANGED 만.
+- **확장성 한계** (후속): 단일 인스턴스 in-memory 스케줄 체커 — 다중 인스턴스는 Redis pub/sub 또는 DB notify 필요. 메시지 author displayName 은 UserSummary BatchGet(N+1 회피).
+- **후속 보안/운영 (security-reviewer 반영, 본 슬라이스 범위 밖)**: send 사용자·방 단위 rate limit(메시지 도배/AI 비용 abuse), 동시 poll 커넥션 상한(Tomcat async), audioUrl 자사 스토리지 도메인 화이트리스트(현재 서버 fetch 안 해 SSRF 무관), text/audioUrl 출력 인코딩은 클라 렌더 책임(서버 평문 저장 유지 — API_SPEC 계약), 일기/방 삭제 시 메시지·이벤트 애플리케이션 레벨 cascade(ADR-0005 FK 없음).
+
+### 8. 롱폴 events (DiaryChatEvent) — §8-b 에서 확정 (chat_room_events append)
 
 - poll 응답 `{ items, events, nextAfter }` 의 `events`(`ai_toggle_changed` 등)는 롱폴 전용 in-room 통지(Kafka 아님). events 소스(별도 append 테이블 vs 상태 diff) + 커서 정책은 **S2-b 착수 전 확정**. 본 S2-a 는 events 미구현(poll 없음).
 

@@ -2,6 +2,8 @@ package app.backend.jamo.diary.presentation.exception;
 
 import app.backend.jamo.diary.domain.exception.ChatRoomForbiddenException;
 import app.backend.jamo.diary.domain.exception.ChatRoomNotFoundException;
+import app.backend.jamo.diary.domain.exception.InvalidChatMessageException;
+import app.backend.jamo.diary.presentation.controller.DiaryChatMessageController;
 import app.backend.jamo.diary.presentation.controller.DiaryChatRoomController;
 import app.backend.jamo.diary.presentation.dto.diarychat.ChatErrorCode;
 import app.backend.jamo.diary.presentation.dto.diarychat.ChatErrorResponse;
@@ -32,7 +34,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * </ul>
  */
 @Slf4j
-@RestControllerAdvice(assignableTypes = DiaryChatRoomController.class)
+@RestControllerAdvice(assignableTypes = {DiaryChatRoomController.class, DiaryChatMessageController.class})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class DiaryChatExceptionHandler {
 
@@ -51,6 +53,7 @@ public class DiaryChatExceptionHandler {
     }
 
     @ExceptionHandler({
+        InvalidChatMessageException.class,
         MethodArgumentNotValidException.class,
         ConstraintViolationException.class,
         HttpMessageNotReadableException.class,

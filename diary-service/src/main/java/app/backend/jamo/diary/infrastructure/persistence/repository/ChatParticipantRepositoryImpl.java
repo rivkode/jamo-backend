@@ -42,7 +42,7 @@ public class ChatParticipantRepositoryImpl implements ChatParticipantRepository 
     }
 
     @Override
-    public void deleteByRoomIdAndUserId(RoomId roomId, UUID userId) {
-        jpa.deleteByRoomIdAndUserId(roomId.value(), userId);
+    public int deleteByRoomIdAndUserId(RoomId roomId, UUID userId) {
+        return jpa.deleteByRoomIdAndUserId(roomId.value(), userId);
     }
 }
