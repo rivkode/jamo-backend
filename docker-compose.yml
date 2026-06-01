@@ -147,6 +147,28 @@ services:
       - jamo-network
     restart: unless-stopped
 
+  # ai-service (Python) — gRPC AiService (STT/TTS/LLM). ADR-0003: chat-service 만 호출.
+  # gRPC 9090 host 바인딩 금지 (chat-service 가 compose 네트워크로 ai-service:9090 접근). E2E 디버깅은
+  # docker compose exec 또는 임시 ports 매핑.
+  ai-service:
+    build:
+      context: .
+      dockerfile: python-services/ai-service/Dockerfile
+    container_name: jamo-ai-service
+    expose:
+      - "9090"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY required for ai-service}
+      AI_GRPC_PORT: 9090
+      # 모델 override (미설정 시 기본값: gpt-4o-mini-transcribe / tts-1 / gpt-4o-mini)
+      STT_MODEL: ${STT_MODEL:-gpt-4o-mini-transcribe}
+      TTS_MODEL: ${TTS_MODEL:-tts-1}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      TZ: Asia/Seoul
+    networks:
+      - jamo-network
+    restart: unless-stopped
+
 volumes:
   mysql-data:
   redis-data:

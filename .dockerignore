@@ -25,5 +25,6 @@ HELP.md
 LICENSE
 docs/
 
-# Python 서비스 (Java 이미지 빌드와 무관)
-python-services/
+# Python 서비스 — ai-service 자체 이미지 빌드에는 필요 (Java 이미지는 명시 COPY 라 무관).
+python-services/*
+!python-services/ai-service
