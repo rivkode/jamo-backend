@@ -132,7 +132,12 @@ services:
       JWT_PUBLIC_KEY_PEM: ${JWT_PUBLIC_KEY_PEM:-}
       # Frontend SPA cross-origin 호출 허용 origin (쉼표 구분).
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      # 음성 녹음 저장 디렉토리 (audio-storage volume 마운트 지점).
+      AUDIO_STORAGE_DIR: ${AUDIO_STORAGE_DIR:-/app/audio-storage}
       TZ: Asia/Seoul
+    volumes:
+      # 업로드된 음성 바이너리 영속 (컨테이너 재기동/재빌드에도 유지).
+      - audio-storage:/app/audio-storage
     depends_on:
       mysql:
         condition: service_healthy
@@ -145,6 +150,7 @@ services:
 volumes:
   mysql-data:
   redis-data:
+  audio-storage:
 
 networks:
   jamo-network:

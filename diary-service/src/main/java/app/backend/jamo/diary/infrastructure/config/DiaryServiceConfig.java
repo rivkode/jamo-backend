@@ -33,7 +33,8 @@ import java.time.Clock;
     SentenceFeedbackRateLimitProperties.class,
     SentenceFeedbackBatchProperties.class,
     JwtVerifierProperties.class,
-    CorsProperties.class
+    CorsProperties.class,
+    AudioStorageProperties.class
 })
 public class DiaryServiceConfig {
 
