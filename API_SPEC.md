@@ -831,3 +831,130 @@
 | sentence-feedback status | `REQUESTED`, `SUGGESTED`, `ACCEPTED`, `REJECTED`, `EXPIRED`, `FAILED` | 피드백 응답 |
 | sentence-feedback tone | `casual`, `formal`, `neutral` (대소문자 무관) | 피드백 요청 |
 | feed sort | `recent`, `popular` | 공개 피드 정렬 |
+
+---
+
+# 부록 E. 백엔드 작업 요청 (프론트 연동 미충족 항목)
+
+> 생성일: 2026-06-01 · 작성: 프론트엔드 연동 결과
+> 아래는 **현재 프론트가 호출하지만 백엔드에 없거나 막혀 있어** 동작하지 않는 항목입니다.
+> 백엔드 에이전트는 이 부록을 구현 대상으로 삼고, 구현 완료 시 위 본문(0~8장 / 부록 A)에 정식 편입해 주세요.
+> 우선순위: **E.1 (CORS) > E.2 (음성 채팅방) > E.3 (STT/TTS)**.
+
+## E.1 CORS 허용 (전 서비스, 최우선 / 블로커)
+
+프론트 웹 앱은 `http://localhost:3000`에서 구동되며 게이트웨이 없이 각 서비스를 직접 호출합니다.
+JSON 본문 POST/PATCH는 브라우저가 **preflight(OPTIONS)** 를 먼저 보내므로, **모든 서비스**가 아래 CORS 응답을 내려야 합니다. 현재 **diary-service(:8082) 호출(sentence-feedback 등)이 CORS로 차단**됩니다.
+
+| 헤더 | 값 |
+|---|---|
+| `Access-Control-Allow-Origin` | `http://localhost:3000` (운영: 실제 웹 도메인). `*` 금지(자격증명 사용 시) |
+| `Access-Control-Allow-Methods` | `GET, POST, PUT, PATCH, DELETE, OPTIONS` |
+| `Access-Control-Allow-Headers` | `Authorization, Content-Type` |
+| `Access-Control-Allow-Credentials` | `true` (device_id/state 쿠키를 쓰는 OAuth·로그인 흐름이 있으므로) |
+| `Access-Control-Max-Age` | `3600` (preflight 캐시 권장) |
+
+- **identity-service(:8081)**: 로그인은 되고 있으나, `OPTIONS` preflight 및 위 헤더가 전 엔드포인트(특히 `/auth/exchange`)에 일관 적용되는지 확인.
+- **diary-service(:8082)**: 동일 CORS 설정 추가 필수.
+- 운영 환경에선 Origin 화이트리스트(로컬 + 배포 도메인)로 관리.
+
+---
+
+## E.2 Diary Chatroom — 음성 기반 채팅방 (신규, API_SPEC 본문에 없음)
+
+3줄 일기 1건에 연결되는 다중 사용자 채팅방. 실시간은 **롱 폴링**(WebSocket/SSE 아님). 음성은 스트리밍하지 않고, 클라이언트가 로컬 녹음 → STT(E.3) → **텍스트 메시지**로 전송합니다.
+
+- **서비스**: diary-service(:8082) 권장. base path `/api/v1/diary-chatrooms`. **전 엔드포인트 🔒 인증 필요.**
+- **ID 정합성**: `diaryId`·`userId`는 **UUID 문자열**(identity/diary와 동일). `roomId`·`messageId`는 **정렬 가능한 숫자(int64)** — 메시지 페이지네이션/롱폴 커서가 `before`/`after` 숫자 비교에 의존함.
+- 권한 없는 접근은 본문 규약대로 `404`(IDOR 통일).
+
+### 공통 응답 모델
+
+`DiaryChatRoom`
+```json
+{ "roomId": 1, "diaryId": "<uuid>", "hostUserId": "<uuid>",
+  "aiAssistantEnabled": false, "participantCount": 1, "createdAt": "2026-06-01T08:00:00Z" }
+```
+`DiaryChatMessage`
+```json
+{ "messageId": 42, "roomId": 1,
+  "author": { "userId": "<uuid>", "username": "홍길동", "avatarUrl": null },
+  "text": "안녕하세요", "audioUrl": null,
+  "createdAt": "2026-06-01T08:01:00Z", "source": "user" }
+```
+- `source`: `user` | `ai` | `system`. `audioUrl`: 선택(클라이언트가 보낸 녹음 URL 또는 null).
+
+`DiaryChatParticipant`
+```json
+{ "user": { "userId": "<uuid>", "username": "홍길동", "avatarUrl": null },
+  "isHost": true, "joinedAt": "2026-06-01T08:00:00Z" }
+```
+`DiaryChatEvent` (롱폴 전용 — 메시지가 아닌 상태 변화)
+```json
+{ "type": "participant_joined", "at": "...", "userId": "<uuid>", "enabled": null }
+```
+- `type`: `participant_joined` | `participant_left` | `ai_toggle_changed`. `enabled`는 `ai_toggle_changed`에서만.
+
+### 엔드포인트
+
+| # | Method | Path | Request | Response |
+|---|---|---|---|---|
+| E2.1 | POST | `/api/v1/diary-chatrooms` | `{ "diaryId": "<uuid>", "aiAssistantEnabled": false }` | `200/201` `DiaryChatRoom` (일기당 1방, 멱등: 있으면 기존 반환) |
+| E2.2 | GET | `/api/v1/diary-chatrooms/{roomId}` | — | `200` `DiaryChatRoom` |
+| E2.3 | GET | `/api/v1/diary-chatrooms/{roomId}/participants` | — | `200` `{ "items": [DiaryChatParticipant] }` |
+| E2.4 | POST | `/api/v1/diary-chatrooms/{roomId}/join` | (본문 없음) | `200` `DiaryChatRoom` (participantCount 증가) |
+| E2.5 | POST | `/api/v1/diary-chatrooms/{roomId}/leave` | (본문 없음) | `204` |
+| E2.6 | POST | `/api/v1/diary-chatrooms/{roomId}/ai-toggle` | `{ "enabled": true }` | `200` `DiaryChatRoom`. **호스트만 가능**(아니면 403). 전파는 롱폴 `ai_toggle_changed` 이벤트로 |
+| E2.7 | GET | `/api/v1/diary-chatrooms/{roomId}/messages?before={messageId}&size={int}` | — | `200` `{ "items": [DiaryChatMessage], "hasMore": bool, "oldestMessageId": int|null }` (과거 페이지, `before` 없으면 최신부터, size 기본 30) |
+| E2.8 | GET | `/api/v1/diary-chatrooms/{roomId}/messages/poll?after={messageId}&wait={sec}` | — | `200` `{ "items": [DiaryChatMessage], "events": [DiaryChatEvent], "nextAfter": int }` |
+| E2.9 | POST | `/api/v1/diary-chatrooms/{roomId}/messages` | `{ "text": "...", "audioUrl": "https://..."|null }` | `200/201` `DiaryChatMessage` (`source:"user"`) |
+
+**E2.8 롱 폴링 계약 (중요)**
+- `after` = 클라이언트가 마지막으로 받은 `messageId`. `wait` = 새 메시지 없을 때 블록할 초(기본 25, 최대 60).
+- 새 메시지/이벤트가 있으면 **즉시 반환**, 없으면 `wait`초 대기 후 빈 배열 반환. 클라이언트는 응답의 `nextAfter`를 다음 호출 `after`로 넣어 **즉시 반복 호출**.
+- 서버 응답이 늦어도 클라이언트는 `wait+10s`에 타임아웃하므로, `wait`는 서버에서도 60s 이하로 클램프.
+
+**AI 어시스턴트 (서버 측 생성)**
+- 별도 클라이언트 호출 없음. `aiAssistantEnabled=true`인 방에서 사용자 메시지가 들어오면 **서버가 AI 답변 메시지(`source:"ai"`)를 생성**해 폴링 `items`로 전달.
+- (프론트는 현재 이 동작을 Mock으로 시뮬레이션 중. 실제 AI 답변 생성 로직/모델은 백엔드 결정.)
+
+---
+
+## E.3 음성 파이프라인 — STT / TTS (레거시 엔드포인트, 현재 백엔드에 없음)
+
+음성 채팅방의 녹음→텍스트(STT), AI 텍스트→음성(TTS)에 사용. 과거 모놀리식 백엔드의 `/chat/*` 엔드포인트를 프론트가 **그대로 재사용**합니다. 신규 분리 백엔드에 동일 계약으로 제공 필요.
+
+- **배치/Origin 결정 필요**: 이 엔드포인트들이 어느 서비스(identity 8081 / diary 8082 / 신규 ai 서비스)에 위치할지 백엔드가 정하고 알려주면, 프론트 `ApiConfig`에 해당 base를 추가함. (현재 프론트는 잠정적으로 identity base를 호출.) 해당 서비스도 **E.1 CORS** 적용 필요. 🔒 인증 필요.
+
+| # | Method | Path | Request | Response |
+|---|---|---|---|---|
+| E3.1 | POST | `/api/v1/chat/transcribe` | **multipart/form-data**: `audio`(wav, 44.1kHz/mono), `chatRoomId`(선택) | `200` `{ "transcribeInfo": { "userId": <id>, "text": "변환된 문장" } }` |
+| E3.2 | POST | `/api/v1/chat/speech` | `{ "speechText": "읽을 텍스트", "chatId": <int> }` | `200` `{ "audioSpeechInfo": { "userId": <id>, "speechText": "...", "filePath": "/app/audio-storage/xxx.mp3" } }` |
+
+- **E3.1 STT**: OpenAI Whisper류 기준 wav 44.1kHz/mono 업로드. 필드명 `audio` 고정. 응답 키 `transcribeInfo.text`(프론트 `TranscribeResponse.text`가 이를 읽음).
+- **E3.2 TTS**: 응답의 `filePath`를 프론트가 오디오 URL로 변환해 재생. **정적 오디오 서빙**도 함께 필요 — `filePath`가 `/app/audio-storage/{name}`이면 `{origin}/audio/{name}`에서 접근 가능해야 함(프론트 변환 규칙). 응답 키는 `audioSpeechInfo` 또는 `audioRecordInfo` 모두 허용됨.
+- 인증 만료 대비 401 처리는 프론트 공통 리프레시 흐름을 따름.
+
+---
+
+## E.4 (참고) 이미 프론트가 기대하는 본문 항목 재확인
+
+- **§8 sentence-feedback**: 프론트 문장 AI 리뷰가 `POST /api/v1/diaries/sentence-feedback`(줄당 1요청, 병렬)을 호출함. **diary-service CORS(E.1)** 가 안 되면 전부 실패. `sentence`는 1~50 code points 제약이라 일기 한 줄(≤200자)이 길면 400 → 프론트는 해당 줄을 실패 처리. 줄 길이 제약 완화 여부 검토 요청.
+- **§4 profiles**: 프론트 프로필 화면이 `GET /api/v1/profiles/me`를 사용(정상 연동됨).
+
+---
+
+## E.5 (구현 완료 — Slice 1) 음성 녹음 저장·재생
+
+> 상태: **LIVE** (diary-service :8082). E.1 CORS 적용됨. 부록 E 음성 파이프라인의 저장 토대.
+> E.3 STT/TTS 의 audio 입출력과 E.2 채팅방 메시지 `audioUrl` 이 본 저장소를 사용.
+
+| # | Method | Path | 인증 | Request | Response |
+|---|---|---|---|---|---|
+| E5.1 | POST | `/api/v1/audio` | 🔒 | **multipart/form-data**: `audio` (wav/mp3/m4a/aac/webm/ogg, ≤25MB) | `201` `{ "audioUrl", "filePath", "fileName", "contentType", "sizeBytes" }` |
+| E5.2 | GET | `/audio/{name}` | 무인증 | — | `200` 오디오 바이너리 (재생용) |
+
+- **E5.1 업로드**: 녹음 파일을 올리면 저장 후 `audioUrl`(절대 URL, 즉시 재생 가능) + `filePath`(레거시 `/app/audio-storage/{name}` 호환) 반환. content-type 화이트리스트 + magic byte 검사(HTML/스크립트 위장 차단 → 400). 크기 초과 → 413.
+- **E5.2 재생**: `audioUrl` 을 `<audio src>` 로 재생. 무인증이나 파일명이 추측 불가 UUID(capability URL). 응답에 `X-Content-Type-Options: nosniff` + CSP `sandbox` (위장 콘텐츠 XSS 차단).
+- **에러 코드**: `AUDIO_VALIDATION_FAILED`(400) / `AUDIO_TOO_LARGE`(413) / `AUDIO_NOT_FOUND`(404).
+- **후속(미구현)**: 사용자별 업로드 quota(rate limit), 서빙 스트리밍(대용량 메모리 최적화), 고아 파일 정리 배치, 운영 S3 전환.

@@ -40,6 +40,10 @@ ENV TZ=Asia/Seoul
 
 RUN useradd --system --create-home --uid 1001 spring
 
+# 음성 저장 디렉토리를 spring 소유로 미리 생성 — named volume(/app/audio-storage) 이 최초 마운트 시
+# 이미지의 소유권을 그대로 상속하므로, 비root(spring) 컨테이너가 업로드 파일을 write 할 수 있다.
+RUN mkdir -p /app/audio-storage && chown spring:spring /app/audio-storage
+
 COPY --from=builder --chown=spring:spring /workspace/app.jar /app/app.jar
 
 USER spring
