@@ -20,7 +20,8 @@ import java.time.Clock;
 @EnableConfigurationProperties({
     JwtVerifierProperties.class,
     CorsProperties.class,
-    AudioStorageProperties.class
+    AudioStorageProperties.class,
+    AiRateLimitProperties.class
 })
 public class ChatServiceConfig {
 

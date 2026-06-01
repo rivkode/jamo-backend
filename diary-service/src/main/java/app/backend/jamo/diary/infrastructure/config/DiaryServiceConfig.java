@@ -66,6 +66,26 @@ public class DiaryServiceConfig {
         });
     }
 
+    /**
+     * diarychat AI 자동응답(S4) 비동기 실행 executor — send 커밋 후 chat-service gRPC 호출(최대 35s)을
+     * 요청 스레드 밖에서 수행 (daemon). bounded queue + CallerRuns 로 폭주 시 backpressure (무한 큐 회피).
+     *
+     * <p>단일 인스턴스 in-memory — 다중 인스턴스 확장은 메시지 큐/워커 분리 (후속). chat-service 측 rate limit
+     * 가드가 AI 비용 1차 방어. bounded queue(100) 포화 시 기본 AbortPolicy 로 reject — 호출 측(SendMessageService)
+     * 이 catch + 로그 후 드롭 (요청 스레드를 35s gRPC 로 블록하지 않음, AI 응답은 best-effort).
+     */
+    @Bean(destroyMethod = "shutdown")
+    public java.util.concurrent.ExecutorService aiResponderExecutor() {
+        return new java.util.concurrent.ThreadPoolExecutor(
+            2, 4, 60L, java.util.concurrent.TimeUnit.SECONDS,
+            new java.util.concurrent.LinkedBlockingQueue<>(100),
+            r -> {
+                Thread t = new Thread(r, "diarychat-ai");
+                t.setDaemon(true);
+                return t;
+            });
+    }
+
     // ============================================================
     // JWT verify Bean 그래프 (security-reviewer C1) — diary-service 가 access token 검증만.
     // identity-service IdentityServiceConfig 의 verify-only 슬림 버전.

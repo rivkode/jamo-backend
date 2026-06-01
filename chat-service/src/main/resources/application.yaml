@@ -17,8 +17,12 @@ spring:
 server:
   port: ${CHAT_SERVER_PORT:8083}
 
+# gRPC server — AiAssistantService.GenerateChatResponse 노출 (diary-service diarychat AI 자동응답, S4).
+# HTTP(8083) 와 별도 포트. diary-service 의 grpc.client.chat-service.address 가 이 포트를 가리킴.
 # gRPC client — ai-service AiService (STT/TTS/LLM). ADR-0003: chat-service 만 호출.
 grpc:
+  server:
+    port: ${CHAT_GRPC_PORT:9093}
   client:
     ai-service:
       address: ${AI_SERVICE_GRPC_ADDRESS:static://localhost:9090}
@@ -66,6 +70,11 @@ jamo:
   audio:
     # TTS 합성 음성 로컬 저장 (audio-storage volume). 운영 후속 S3.
     storage-dir: ${AUDIO_STORAGE_DIR:/app/audio-storage}
+  ai:
+    # diarychat AI 자동응답 사용량 최소 가드 (사용자/윈도우). 단일 인스턴스 in-memory — 분산 한도는 후속.
+    rate-limit:
+      max-per-window: ${AI_RATE_LIMIT_MAX:20}
+      window: ${AI_RATE_LIMIT_WINDOW:PT1M}
 
 # Actuator — health 만 노출 (secret leak 방지).
 management:

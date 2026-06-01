@@ -89,6 +89,17 @@ resilience4j:
         # 가 잘못 OPEN 트리거하지 않도록. fallback 안에서 던져진 예외도 카운트 X.
         recordExceptions:
           - io.grpc.StatusRuntimeException
+      # diarychat AI 자동응답(GenerateChatResponse) 전용 — 비멱등 호출이라 retry 분리 (code-reviewer H1).
+      chatServiceGenerate:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - io.grpc.StatusRuntimeException
   retry:
     instances:
       chatService:
@@ -97,6 +108,10 @@ resilience4j:
         # gRPC 시스템 오류만 retry (StatusRuntimeException). business FAILED 응답은 retry 안함.
         retryExceptions:
           - io.grpc.StatusRuntimeException
+      # GenerateChatResponse 는 비멱등(LLM 비용 + chat-service rate-limit 카운터 증가) — ADR-0003
+      # "다른 서비스 → chat: Retry 0" 정책 준수. retry 0 (maxAttempts 1) (code-reviewer H1).
+      chatServiceGenerate:
+        maxAttempts: 1
 
 jamo:
   jwt:
@@ -114,6 +129,9 @@ jamo:
   audio:
     # 음성 바이너리 로컬 저장 위치 (dev — 운영은 후속 S3). 컨테이너는 volume 마운트로 영속.
     storage-dir: ${AUDIO_STORAGE_DIR:/app/audio-storage}
+  diarychat:
+    # AI 자동응답 chat-service GenerateChatResponse 호출 deadline (chat LLM 30s + 마진, S4).
+    ai-deadline: PT35S
   sentence-feedback:
     # decisions/diary/sentence-feedback-domain-policy.md §3 (TTL 24h) / §6 (Deadline 35s) / §11 (quota)
     ttl: PT24H
