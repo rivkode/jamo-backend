@@ -48,6 +48,24 @@ public class DiaryServiceConfig {
         return new TransactionTemplate(transactionManager);
     }
 
+    /**
+     * diarychat 롱폴(poll)의 DeferredResult 주기 체크용 스케줄러 — servlet thread 비점유 (daemon).
+     *
+     * <p>단일 인스턴스 in-memory — 다중 인스턴스 확장은 Redis pub/sub 또는 DB notify (후속, v2 §8-b).
+     * pool 4: idle 주기 체크는 가벼운 row 존재 조회뿐(새 메시지 없으면 UserSummary gRPC 미호출 —
+     * assembler 가 빈 목록 즉시 반환). gRPC(displayName 조립, deadline 5s)는 새 메시지가 도착한
+     * <b>종료 직전 체크</b>에서만 1회. 그 순간 thread 점유는 외부 지연에 노출되므로(code-reviewer H1) 동시
+     * 대량 롱폴 + identity 지연 시 pool 압박 가능 — 단일 인스턴스 수용, 확장 시 위 후속과 함께 해소.
+     */
+    @Bean(destroyMethod = "shutdown")
+    public java.util.concurrent.ScheduledExecutorService chatPollScheduler() {
+        return java.util.concurrent.Executors.newScheduledThreadPool(4, r -> {
+            Thread t = new Thread(r, "chat-poll");
+            t.setDaemon(true);
+            return t;
+        });
+    }
+
     // ============================================================
     // JWT verify Bean 그래프 (security-reviewer C1) — diary-service 가 access token 검증만.
     // identity-service IdentityServiceConfig 의 verify-only 슬림 버전.

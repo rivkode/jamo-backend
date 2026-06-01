@@ -21,6 +21,6 @@ public interface ChatParticipantRepository {
 
     long countByRoomId(RoomId roomId);
 
-    /** 멱등 leave — 없는 행 삭제도 안전 (no-op). */
-    void deleteByRoomIdAndUserId(RoomId roomId, UUID userId);
+    /** 멱등 leave — 없는 행 삭제도 안전 (no-op). 실제 삭제된 행 수 반환 (이벤트 append 조건 판단용). */
+    int deleteByRoomIdAndUserId(RoomId roomId, UUID userId);
 }

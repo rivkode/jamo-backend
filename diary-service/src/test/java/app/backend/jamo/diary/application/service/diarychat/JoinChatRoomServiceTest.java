@@ -4,6 +4,7 @@ import app.backend.jamo.diary.application.dto.diarychat.ChatRoomCommands.Join;
 import app.backend.jamo.diary.domain.model.diarychat.DiaryChatRoom;
 import app.backend.jamo.diary.domain.model.diarychat.RoomId;
 import app.backend.jamo.diary.domain.repository.ChatParticipantRepository;
+import app.backend.jamo.diary.domain.repository.ChatRoomEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -27,30 +28,34 @@ class JoinChatRoomServiceTest {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-06-01T10:00:00Z"), ZoneOffset.UTC);
 
     private ChatParticipantRepository participantRepository;
+    private ChatRoomEventRepository eventRepository;
     private ChatRoomAccessGuard accessGuard;
     private JoinChatRoomService service;
 
     @BeforeEach
     void setUp() {
         participantRepository = mock(ChatParticipantRepository.class);
+        eventRepository = mock(ChatRoomEventRepository.class);
         accessGuard = mock(ChatRoomAccessGuard.class);
-        service = new JoinChatRoomService(accessGuard, participantRepository, CLOCK);
+        service = new JoinChatRoomService(accessGuard, participantRepository, eventRepository, CLOCK);
         DiaryChatRoom room = DiaryChatRoom.reconstitute(ROOM, DIARY, HOST, true, CLOCK.instant(), null);
         when(accessGuard.loadAccessibleRoom(ROOM, USER)).thenReturn(room);
         when(participantRepository.countByRoomId(ROOM)).thenReturn(1L);
     }
 
     @Test
-    void first_join_registers_participant() {
+    void first_join_registers_participant_and_appends_event() {
         when(participantRepository.existsByRoomIdAndUserId(ROOM, USER)).thenReturn(false);
         service.join(new Join(ROOM, USER));
         verify(participantRepository).save(any());
+        verify(eventRepository).append(any());  // participant_joined 롱폴 이벤트
     }
 
     @Test
-    void repeat_join_is_noop_idempotent() {
+    void repeat_join_is_noop_idempotent_no_event() {
         when(participantRepository.existsByRoomIdAndUserId(ROOM, USER)).thenReturn(true);
         service.join(new Join(ROOM, USER));
         verify(participantRepository, never()).save(any());
+        verify(eventRepository, never()).append(any());
     }
 }
