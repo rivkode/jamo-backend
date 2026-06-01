@@ -1,5 +1,10 @@
 # Decision: diarychat 도메인 — 워크플로 / endpoint 모델 / STT·TTS / Saga / 응답 schema
 
+> ⚠️ **부분 SUPERSEDED (2026-06-01)** — 프론트가 실제 동작하는 `API_SPEC.md` 부록 E.2 가 본 문서의 핵심
+> 항목(§1 ID=UUID → int64, §7 leave DROP → 구현, §9 STT 서버측 → 클라, §10 AI 동기 → 롱폴)을 폐기한다.
+> 구현 기준은 [`diarychat-domain-policy-v2-apispec-e.md`](diarychat-domain-policy-v2-apispec-e.md) 를 따른다.
+> 본 문서는 history 보존용.
+
 - **상태**: Accepted
 - **결정일**: 2026-04-28
 - **결정자**: jonghun
